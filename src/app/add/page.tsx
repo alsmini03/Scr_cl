@@ -56,7 +56,7 @@ export default function AddBookPage() {
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
       <Header title="새 책 추가" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Main Action Section */}
         <section className="mb-10">
           <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
@@ -158,7 +158,7 @@ export default function AddBookPage() {
           </div>
         </section>
 
-        <div className="mt-10 mb-4">
+        <div className="mt-10">
           <button
             disabled={!extractedBook}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"

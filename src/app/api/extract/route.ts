@@ -35,52 +35,58 @@ export async function POST(req: NextRequest) {
     let coverImage = "";
     let category = "";
 
-    // 1. Try JSON-LD (robust for both mobile and desktop)
-    const jsonLdScript = $('script[type="application/ld+json"]').first();
-    if (jsonLdScript.length > 0) {
+    // 1. Try all JSON-LD blocks to find the Book/Product data
+    const jsonLdScripts = $('script[type="application/ld+json"]');
+    jsonLdScripts.each((_, script) => {
       try {
-        const jsonLd = JSON.parse(jsonLdScript.text().trim());
-        const bookData = Array.isArray(jsonLd) ? jsonLd[0] : jsonLd;
+        const jsonLd = JSON.parse($(script).text().trim());
+        const blocks = Array.isArray(jsonLd) ? jsonLd : [jsonLd];
 
-        title = bookData.name || "";
+        for (const block of blocks) {
+          const type = Array.isArray(block["@type"]) ? block["@type"] : [block["@type"]];
 
-        if (bookData.author) {
-          if (Array.isArray(bookData.author)) {
-            author = bookData.author.map((a: { name?: string }) => a.name).filter(Boolean).join(", ");
-          } else {
-            author = bookData.author.name || "";
+          if (type.includes("Book") || type.includes("Product")) {
+            if (!title) title = block.name || "";
+
+            if (!author && block.author) {
+              if (Array.isArray(block.author)) {
+                author = block.author.map((a: any) => a.name).filter(Boolean).join(", ");
+              } else {
+                author = block.author.name || "";
+              }
+            }
+
+            if (!publisher && block.publisher) {
+              publisher = block.publisher.name || "";
+            }
+
+            if (!publishDate) publishDate = block.datePublished || "";
+
+            if (price === 0 && block.offers) {
+              const offers = Array.isArray(block.offers) ? block.offers[0] : block.offers;
+              price = offers.price || 0;
+            }
+
+            if (!description) description = block.description || "";
+            if (!coverImage) coverImage = block.image || "";
+
+            if (!category && block.genre) {
+              category = Array.isArray(block.genre) ? block.genre.join(" / ") : block.genre;
+            }
           }
         }
-
-        if (bookData.publisher) {
-          publisher = bookData.publisher.name || "";
-        }
-
-        publishDate = bookData.datePublished || "";
-
-        if (bookData.offers) {
-          const offers = Array.isArray(bookData.offers) ? bookData.offers[0] : bookData.offers;
-          price = offers.price || 0;
-        }
-
-        description = bookData.description || "";
-        coverImage = bookData.image || "";
-
-        if (bookData.genre) {
-            category = Array.isArray(bookData.genre) ? bookData.genre.join(" / ") : bookData.genre;
-        }
       } catch (e) {
-        console.error("JSON-LD parse error:", e);
+        // Ignore parse errors for specific blocks
       }
-    }
+    });
 
-    // 2. CSS Selectors (Desktop) as fallbacks
-    if (!title) title = $("h2.gd_name").first().text().trim();
+    // 2. CSS Selectors Fallbacks
+    if (!title) title = $("h2.gd_name").first().text().trim() || $(".gd_name").first().text().trim();
     if (!author) author = $(".gd_auth").first().text().trim().replace(/\s+/g, " ");
     if (!publisher) publisher = $(".gd_pub a").first().text().trim() || $(".gd_pub").first().text().trim();
     if (!publishDate) publishDate = $(".gd_date").first().text().trim();
     if (price === 0) {
-      const priceStr = $(".yes_m").first().text().trim();
+      const priceStr = $(".yes_m").first().text().trim() || $(".yes_b").first().text().trim();
       price = priceStr ? parseInt(priceStr.replace(/[^0-9]/g, "")) : 0;
     }
     if (!description) description = $("#infoset_introduce .infoText_wrap").first().text().trim();
