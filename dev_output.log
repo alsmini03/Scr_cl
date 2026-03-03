@@ -14,9 +14,12 @@
 ✓ Compiled in 1210ms
  GET / 200 in 678ms (compile: 313ms, render: 365ms)
  GET /stats 200 in 2.4s (compile: 2.1s, render: 213ms)
-tory (os error 2)
+[?25h
+s error 2)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
 Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+[?25h

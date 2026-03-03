@@ -13,25 +13,13 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           href="/"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'home' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
+            activeTab === 'home' || activeTab === 'library' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
           )}
         >
           <div className="flex h-8 items-center justify-center">
-            <span className={cn("material-symbols-outlined", activeTab === 'home' && "fill-1")}>home</span>
+            <span className={cn("material-symbols-outlined", (activeTab === 'home' || activeTab === 'library') && "fill-1")}>auto_stories</span>
           </div>
-          <p className="text-xs font-bold leading-normal tracking-wide">홈</p>
-        </Link>
-        <Link
-          href="#"
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'library' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
-          )}
-        >
-          <div className="flex h-8 items-center justify-center">
-            <span className={cn("material-symbols-outlined", activeTab === 'library' && "fill-1")}>auto_stories</span>
-          </div>
-          <p className="text-xs font-medium leading-normal tracking-wide">서재</p>
+          <p className="text-xs font-bold leading-normal tracking-wide">서재</p>
         </Link>
         {/* Simplified for now as per design screens */}
         <Link
@@ -57,9 +45,9 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           )}
         >
           <div className="flex h-8 items-center justify-center">
-            <span className={cn("material-symbols-outlined", activeTab === 'stats' && "fill-1")}>bar_chart</span>
+            <span className={cn("material-symbols-outlined", activeTab === 'stats' && "fill-1")}>calendar_month</span>
           </div>
-          <p className="text-xs font-medium leading-normal tracking-wide">통계</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">캘린더</p>
         </Link>
         <Link
           href="#"

@@ -1,0 +1,14 @@
+
+> book-journal@0.1.0 dev
+> next dev -p 3008
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3008
+- Network:       http://192.168.0.2:3008
+
+✓ Starting...
+✓ Ready in 1121ms
+○ Compiling / ...
+ GET / 200 in 4.3s (compile: 3.9s, render: 364ms)
+ GET /stats 200 in 831ms (compile: 715ms, render: 115ms)
+[?25h
