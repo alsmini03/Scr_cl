@@ -35,17 +35,17 @@ export async function POST(req: NextRequest) {
     // Extract Author
     const author = $(".gd_auth").first().text().trim().replace(/\s+/g, " ");
 
-    // Extract Publisher and Date
-    const pubInfo = $(".gd_pub").first().text().trim();
-    const publisher = $(".gd_pub a").first().text().trim();
-    const parts = pubInfo.split("|").map(p => p.trim());
-    const publishDate = parts.length > 1 ? parts[parts.length - 1] : "";
+    // Extract Publisher
+    const publisher = $(".gd_pub a").first().text().trim() || $(".gd_pub").first().text().trim();
+
+    // Extract Publish Date
+    const publishDate = $(".gd_date").first().text().trim();
 
     // Extract Price
     const priceStr = $(".yes_m").first().text().trim();
     const price = priceStr ? parseInt(priceStr.replace(/[^0-9]/g, "")) : 0;
 
-    // Extract Description (improved)
+    // Extract Description
     let description = $("#infoset_introduce .infoText_wrap")
       .first()
       .text()
@@ -71,7 +71,23 @@ export async function POST(req: NextRequest) {
     }
 
     // Extract Category
-    const category = $(".gd_tag").first().text().trim() || "도서";
+    let category = "";
+    const categoryLinks = $("#infoset_goodsCate .yesAlertLi li a");
+    if (categoryLinks.length > 0) {
+        // Build category string from the first breadcrumb trail
+        const categories: string[] = [];
+        categoryLinks.each((_, el) => {
+            const text = $(el).text().trim();
+            if (text && text !== "국내도서" && text !== "외국도서") {
+                categories.push(text);
+            }
+        });
+        category = categories.join(" / ");
+    }
+
+    if (!category) {
+        category = $(".gd_tag").first().text().trim() || "도서";
+    }
 
     return NextResponse.json({
       title,
