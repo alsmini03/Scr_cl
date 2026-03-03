@@ -30,6 +30,7 @@ export const saveBook = (book: Omit<Book, 'id'>): Book => {
   const newBook: Book = {
     ...book,
     id: Math.random().toString(36).substr(2, 9),
+    createdAt: new Date().toISOString(),
   };
 
   const updatedBooks = [newBook, ...books];

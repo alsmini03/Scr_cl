@@ -11,6 +11,7 @@ export interface Book {
   progress?: number; // 0-100
   rating?: number; // 0-5
   notes?: string;
+  createdAt?: string; // ISO date string
 }
 
 export const MOCK_BOOKS: Book[] = [

@@ -50,7 +50,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'add' ? "font-bold pt-2" : "font-medium")}>추가</p>
         </Link>
         <Link
-          href="#"
+          href="/stats"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'stats' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
