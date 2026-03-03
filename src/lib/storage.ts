@@ -42,3 +42,9 @@ export const updateBook = (updatedBook: Book): void => {
   const updatedBooks = books.map(b => b.id === updatedBook.id ? updatedBook : b);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedBooks));
 };
+
+export const deleteBook = (id: string): void => {
+  const books = getBooks();
+  const updatedBooks = books.filter(b => b.id !== id);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedBooks));
+};

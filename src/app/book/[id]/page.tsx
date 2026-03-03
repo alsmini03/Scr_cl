@@ -6,7 +6,7 @@ import { Book } from '@/types/book';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
-import { getBookById, updateBook } from '@/lib/storage';
+import { getBookById, updateBook, deleteBook } from '@/lib/storage';
 
 export default function BookDetailPage() {
   const { id } = useParams();
@@ -44,8 +44,21 @@ export default function BookDetailPage() {
     router.push('/');
   };
 
+  const handleDelete = () => {
+    if (!book) return;
+
+    if (confirm('정말로 이 책을 삭제하시겠습니까?')) {
+      deleteBook(book.id);
+      alert('책이 삭제되었습니다.');
+      router.push('/');
+    }
+  };
+
   if (!book) {
-    return <div className="p-8">Book not found</div>;
+    return <div className="p-8 text-center mt-20">
+      <p className="text-slate-500 mb-4">도서를 찾을 수 없습니다.</p>
+      <button onClick={() => router.push('/')} className="text-primary font-bold">서재로 돌아가기</button>
+    </div>;
   }
 
   return (
@@ -54,8 +67,11 @@ export default function BookDetailPage() {
         title="독서 기록"
         showBack
         rightAction={
-          <button className="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-slate-900 dark:text-slate-100">
-            <span className="material-symbols-outlined">share</span>
+          <button
+            onClick={handleDelete}
+            className="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+          >
+            <span className="material-symbols-outlined">delete</span>
           </button>
         }
       />
