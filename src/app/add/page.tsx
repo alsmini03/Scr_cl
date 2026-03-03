@@ -12,29 +12,44 @@ interface ExtractedBook {
   price: string;
   category: string;
   description: string;
+  coverImage?: string;
 }
 
 export default function AddBookPage() {
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleExtract = () => {
+  const handleExtract = async () => {
     if (!url) return;
 
     setIsExtracting(true);
-    // Mocking Gemini extraction
-    setTimeout(() => {
-      setExtractedBook({
-        title: '위대한 개츠비',
-        author: 'F. Scott Fitzgerald',
-        publishDate: '1925년 4월 10일',
-        price: '15,000원',
-        category: '소설 / 고전',
-        description: '1920년대 미국을 배경으로 무너져가는 아메리칸 드림을 날카롭게 포착한 F. 스콧 피츠제럴드의 걸작입니다.'
+    setError(null);
+
+    try {
+      const response = await fetch('/api/extract', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to extract book info');
+      }
+
+      const data = await response.json();
+      setExtractedBook(data);
+    } catch (err: unknown) {
+      console.error('Extraction error:', err);
+      const message = err instanceof Error ? err.message : '정보를 가져오는 데 실패했습니다.';
+      setError(message);
+    } finally {
       setIsExtracting(false);
-    }, 1500);
+    }
   };
 
   return (
@@ -69,6 +84,7 @@ export default function AddBookPage() {
                   {!isExtracting && <span className="material-symbols-outlined text-sm">auto_awesome</span>}
                 </button>
               </div>
+              {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
             </div>
           </div>
         </section>
@@ -77,10 +93,17 @@ export default function AddBookPage() {
         <section className="border-t border-primary/10 pt-10">
           <div className={cn("mt-8 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
-              {/* Book Cover Placeholder */}
-              <div className="w-40 h-56 bg-slate-200 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700">
-                <span className="material-symbols-outlined text-slate-400 text-4xl mb-2">image</span>
-                <span className="text-[10px] text-slate-400 font-medium">표지 이미지</span>
+              {/* Book Cover Placeholder or Image */}
+              <div className="w-40 h-56 bg-slate-200 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 overflow-hidden">
+                {extractedBook?.coverImage ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-slate-400 text-4xl mb-2">image</span>
+                    <span className="text-[10px] text-slate-400 font-medium">표지 이미지</span>
+                  </>
+                )}
               </div>
 
               {/* Book Details */}
@@ -88,7 +111,7 @@ export default function AddBookPage() {
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">제목</label>
-                    <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-400">
+                    <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
                       {extractedBook?.title || "도서 제목이 여기에 표시됩니다"}
                     </div>
                   </div>
@@ -96,13 +119,13 @@ export default function AddBookPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">저자</label>
-                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-400">
+                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
                         {extractedBook?.author || "저자명"}
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">발행일자</label>
-                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-400">
+                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
                         {extractedBook?.publishDate || "2024년 01월 01일"}
                       </div>
                     </div>
@@ -111,13 +134,13 @@ export default function AddBookPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">가격</label>
-                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-400">
+                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
                         {extractedBook?.price || "00,000원"}
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
-                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-400">
+                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
                         {extractedBook?.category || "카테고리"}
                       </div>
                     </div>
@@ -125,7 +148,7 @@ export default function AddBookPage() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">설명</label>
-                    <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded p-3 text-sm text-slate-400 overflow-hidden">
+                    <div className="min-h-24 bg-slate-200 dark:bg-slate-800 rounded p-3 text-sm text-slate-800 dark:text-slate-200 overflow-hidden">
                       {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
                     </div>
                   </div>
