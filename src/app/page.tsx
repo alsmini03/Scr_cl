@@ -2,10 +2,23 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { MOCK_BOOKS } from '@/types/book';
+import { Book } from '@/types/book';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getBooks } from '@/lib/storage';
 
 export default function LibraryPage() {
+  const [books, setBooks] = useState<Book[]>([]);
+
+  useEffect(() => {
+    // Using a timeout or similar to move setState out of the synchronous render path
+    // if Next.js 16/React 19 linting is extremely strict about it.
+    const timer = setTimeout(() => {
+      setBooks(getBooks());
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen pb-24">
       <Header title="내 서재" transparent />
@@ -20,7 +33,7 @@ export default function LibraryPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          {MOCK_BOOKS.map((book) => (
+          {books.map((book) => (
             <Link key={book.id} href={`/book/${book.id}`} className="flex flex-col gap-2 group">
               <div
                 className="relative w-full aspect-[3/4] bg-center bg-no-repeat bg-cover rounded-xl shadow-sm border border-primary/5 transition-transform group-active:scale-95"
@@ -42,15 +55,15 @@ export default function LibraryPage() {
                     <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary"
-                        style={{ width: `${book.progress}%` }}
+                        style={{ width: `${book.progress || 0}%` }}
                       ></div>
                     </div>
-                    <span className="text-[10px] font-bold text-primary">{book.progress}%</span>
+                    <span className="text-[10px] font-bold text-primary">{book.progress || 0}%</span>
                   </div>
                 ) : (
                   <div className="flex items-center mt-1 text-primary">
                     <span className="material-symbols-outlined text-[10px] fill-1">star</span>
-                    <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1)}</span>
+                    <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
                   </div>
                 )}
               </div>

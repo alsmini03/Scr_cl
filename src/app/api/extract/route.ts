@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
             if (!author && block.author) {
               if (Array.isArray(block.author)) {
-                author = block.author.map((a: any) => a.name).filter(Boolean).join(", ");
+                author = block.author.map((a: { name?: string }) => a.name).filter(Boolean).join(", ");
               } else {
                 author = block.author.name || "";
               }
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
             }
           }
         }
-      } catch (e) {
+      } catch {
         // Ignore parse errors for specific blocks
       }
     });

@@ -2,17 +2,47 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { MOCK_BOOKS } from '@/types/book';
-import { useParams } from 'next/navigation';
+import { Book } from '@/types/book';
+import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { getBookById, updateBook } from '@/lib/storage';
 
 export default function BookDetailPage() {
   const { id } = useParams();
-  const book = MOCK_BOOKS.find((b) => b.id === id);
+  const router = useRouter();
+  const [book, setBook] = useState<Book | null>(null);
 
-  const [status, setStatus] = useState<'READING' | 'FINISHED'>(book?.readingStatus || 'READING');
-  const [rating, setRating] = useState(book?.rating || 0);
+  const [status, setStatus] = useState<'READING' | 'FINISHED'>('READING');
+  const [rating, setRating] = useState(0);
+  const notesRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const data = getBookById(id as string);
+      if (data) {
+        setBook(data);
+        setStatus(data.readingStatus);
+        setRating(data.rating || 0);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [id]);
+
+  const handleSave = () => {
+    if (!book) return;
+
+    const updatedBook: Book = {
+      ...book,
+      readingStatus: status,
+      rating: rating,
+      notes: notesRef.current?.value || '',
+    };
+
+    updateBook(updatedBook);
+    alert('기록이 저장되었습니다.');
+    router.push('/');
+  };
 
   if (!book) {
     return <div className="p-8">Book not found</div>;
@@ -118,6 +148,7 @@ export default function BookDetailPage() {
           <div className="space-y-3">
             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">독서 노트</label>
             <textarea
+              ref={notesRef}
               className="w-full h-48 p-4 rounded-xl border-2 border-primary/10 bg-white dark:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-slate-100 font-display text-lg placeholder:italic placeholder:text-slate-400 outline-none"
               placeholder="가장 좋아하는 문구, 테마 또는 생각들을 적어보세요..."
               defaultValue={book.notes}
@@ -126,7 +157,10 @@ export default function BookDetailPage() {
 
           {/* Action Button */}
           <div className="pt-4">
-            <button className="w-full py-4 bg-primary hover:opacity-90 transition-opacity text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+            <button
+              onClick={handleSave}
+              className="w-full py-4 bg-primary hover:opacity-90 transition-opacity text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+            >
               <span className="material-symbols-outlined">save</span> 기록 저장하기
             </button>
           </div>

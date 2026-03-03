@@ -4,6 +4,8 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { saveBook } from '@/lib/storage';
+import { useRouter } from 'next/navigation';
 
 interface ExtractedBook {
   title: string;
@@ -16,6 +18,7 @@ interface ExtractedBook {
 }
 
 export default function AddBookPage() {
+  const router = useRouter();
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
@@ -50,6 +53,25 @@ export default function AddBookPage() {
     } finally {
       setIsExtracting(false);
     }
+  };
+
+  const handleSave = () => {
+    if (!extractedBook) return;
+
+    saveBook({
+      title: extractedBook.title,
+      author: extractedBook.author,
+      coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
+      category: extractedBook.category,
+      publishDate: extractedBook.publishDate,
+      price: extractedBook.price,
+      description: extractedBook.description,
+      readingStatus: 'READING',
+      progress: 0,
+    });
+
+    alert('새 책이 서재에 추가되었습니다.');
+    router.push('/');
   };
 
   return (
@@ -160,6 +182,7 @@ export default function AddBookPage() {
 
         <div className="mt-10">
           <button
+            onClick={handleSave}
             disabled={!extractedBook}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
