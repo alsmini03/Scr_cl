@@ -65,9 +65,9 @@ export default function CalendarPage() {
 
       <main className="p-6">
         {viewMode === 'calendar' ? (
-          <section className="bg-white dark:bg-slate-900/50 rounded-3xl p-6 shadow-sm border border-primary/5">
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-primary/5">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">{year}년 {monthNames[month]}</h2>
+              <h2 className="text-xl font-bold text-slate-900">{year}년 {monthNames[month]}</h2>
               <div className="flex gap-2">
                 <button onClick={prevMonth} className="p-2 hover:bg-primary/10 rounded-full transition-colors">
                   <span className="material-symbols-outlined">chevron_left</span>
@@ -114,7 +114,7 @@ export default function CalendarPage() {
           </section>
         ) : (
           <section className="space-y-4">
-            <h3 className="text-xl font-bold px-1 text-slate-900 dark:text-slate-100">기록 리스트</h3>
+            <h3 className="text-xl font-bold px-1 text-slate-900">기록 리스트</h3>
             <div className="space-y-3">
               {books.length > 0 ? (
                 books.sort((a, b) => {
@@ -122,13 +122,13 @@ export default function CalendarPage() {
                   const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                   return dateB - dateA;
                 }).map(book => (
-                  <Link href={`/book/${book.id}`} key={book.id} className="flex gap-4 p-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-primary/5 active:scale-[0.98] transition-transform">
+                  <Link href={`/book/${book.id}`} key={book.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-primary/5 active:scale-[0.98] transition-transform">
                     <div
                       className="w-16 h-24 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 shadow-sm"
                       style={{ backgroundImage: `url("${book.coverImage}")` }}
                     />
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="font-bold truncate text-lg text-slate-900 dark:text-slate-100">{book.title}</p>
+                      <p className="font-bold truncate text-lg text-slate-900">{book.title}</p>
                       <p className="text-sm text-slate-500 truncate">{book.author}</p>
                       {book.createdAt && (
                         <p className="text-xs text-primary mt-2 font-semibold">
@@ -155,16 +155,16 @@ export default function CalendarPage() {
 
         {viewMode === 'calendar' && (
           <section className="mt-8 space-y-4">
-            <h3 className="text-lg font-bold px-1 text-slate-900 dark:text-slate-100">최근 추가된 도서</h3>
+            <h3 className="text-lg font-bold px-1 text-slate-900">최근 추가된 도서</h3>
             <div className="space-y-3">
               {books.slice(0, 5).map(book => (
-                <div key={book.id} className="flex gap-4 p-3 bg-white dark:bg-slate-900/50 rounded-2xl border border-primary/5">
+                <div key={book.id} className="flex gap-4 p-3 bg-white rounded-2xl border border-primary/5">
                   <div
                     className="w-12 h-16 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 shadow-sm"
                     style={{ backgroundImage: `url("${book.coverImage}")` }}
                   />
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="font-bold truncate text-sm text-slate-900 dark:text-slate-100">{book.title}</p>
+                    <p className="font-bold truncate text-sm text-slate-900">{book.title}</p>
                     <p className="text-xs text-slate-500 truncate">{book.author}</p>
                     {book.createdAt && (
                       <p className="text-[10px] text-primary mt-1 font-medium">

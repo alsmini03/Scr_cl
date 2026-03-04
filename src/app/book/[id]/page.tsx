@@ -69,7 +69,7 @@ export default function BookDetailPage() {
         rightAction={
           <button
             onClick={handleDelete}
-            className="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+            className="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-red-500 hover:bg-red-50"
           >
             <span className="material-symbols-outlined">delete</span>
           </button>
@@ -92,20 +92,20 @@ export default function BookDetailPage() {
                   {book.category}
                 </span>
               )}
-              <h1 className="text-slate-900 dark:text-slate-100 text-4xl font-bold leading-tight">
+              <h1 className="text-slate-900 text-4xl font-bold leading-tight">
                 {book.title}
               </h1>
               <p className="text-primary text-xl font-semibold">{book.author}</p>
               {book.publishDate && (
-                <p className="text-slate-500 dark:text-slate-400 text-sm italic">출판: {book.publishDate}</p>
+                <p className="text-slate-500 text-sm italic">출판: {book.publishDate}</p>
               )}
               {book.price && (
-                <p className="text-slate-500 dark:text-slate-400 text-sm">가격: {book.price}</p>
+                <p className="text-slate-500 text-sm">가격: {book.price}</p>
               )}
 
               <div className="mt-4">
-                <h3 className="font-bold text-lg mb-1 text-slate-900 dark:text-slate-100">책 소개</h3>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
+                <h3 className="font-bold text-lg mb-1 text-slate-900">책 소개</h3>
+                <p className="text-slate-700 leading-relaxed">
                   {book.description || "상세 정보가 없습니다."}
                 </p>
               </div>
@@ -114,17 +114,17 @@ export default function BookDetailPage() {
         </div>
 
         {/* User Recording Section */}
-        <section className="px-4 py-6 space-y-8 bg-white/50 dark:bg-primary/5 rounded-t-[2.5rem] mt-4 shadow-inner">
+        <section className="px-4 py-6 space-y-8 bg-white/50 rounded-t-[2.5rem] mt-4 shadow-inner">
           {/* Status & Rating */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">독서 상태</label>
-              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <label className="block text-sm font-bold text-slate-900 ml-1">독서 상태</label>
+              <div className="flex p-1 bg-slate-100 rounded-xl">
                 <button
                   onClick={() => setStatus('READING')}
                   className={cn(
                     "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all",
-                    status === 'READING' ? "bg-primary text-white shadow-sm" : "text-slate-500 dark:text-slate-400"
+                    status === 'READING' ? "bg-primary text-white shadow-sm" : "text-slate-500"
                   )}
                 >
                   읽는 중
@@ -133,7 +133,7 @@ export default function BookDetailPage() {
                   onClick={() => setStatus('FINISHED')}
                   className={cn(
                     "flex-1 py-2 px-4 rounded-lg text-sm font-bold transition-all",
-                    status === 'FINISHED' ? "bg-primary text-white shadow-sm" : "text-slate-500 dark:text-slate-400"
+                    status === 'FINISHED' ? "bg-primary text-white shadow-sm" : "text-slate-500"
                   )}
                 >
                   완독
@@ -142,14 +142,14 @@ export default function BookDetailPage() {
             </div>
 
             <div className="space-y-3 text-center md:text-left">
-              <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">내 평점</label>
+              <label className="block text-sm font-bold text-slate-900 ml-1">내 평점</label>
               <div className="flex justify-center md:justify-start gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button key={s} onClick={() => setRating(s)}>
                     <span
                       className={cn(
                         "material-symbols-outlined scale-125 transition-all",
-                        rating >= s ? "text-primary fill-1" : "text-slate-300 dark:text-slate-700"
+                        rating >= s ? "text-primary fill-1" : "text-slate-300"
                       )}
                     >
                       star
@@ -162,10 +162,10 @@ export default function BookDetailPage() {
 
           {/* Notes Section */}
           <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">독서 노트</label>
+            <label className="block text-sm font-bold text-slate-900 ml-1">독서 노트</label>
             <textarea
               ref={notesRef}
-              className="w-full h-48 p-4 rounded-xl border-2 border-primary/10 bg-white dark:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-slate-100 font-display text-lg placeholder:italic placeholder:text-slate-400 outline-none"
+              className="w-full h-48 p-4 rounded-xl border-2 border-primary/10 bg-white focus:border-primary focus:ring-0 text-slate-900 font-display text-lg placeholder:italic placeholder:text-slate-400 outline-none"
               placeholder="가장 좋아하는 문구, 테마 또는 생각들을 적어보세요..."
               defaultValue={book.notes}
             ></textarea>

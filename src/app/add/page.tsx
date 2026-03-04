@@ -81,20 +81,20 @@ export default function AddBookPage() {
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Main Action Section */}
         <section className="mb-10">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2 text-slate-900 dark:text-slate-100">URL로 가져오기</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-lg mb-6">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2 text-slate-900">URL로 가져오기</h2>
+          <p className="text-slate-600 text-lg mb-6">
             아래에 Yes24 도서 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 도서 정보를 확인하여 입력해 드립니다.
           </p>
 
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-900 dark:text-slate-100 ml-1">Yes24 상품 URL</label>
+              <label className="text-sm font-medium text-slate-900 ml-1">Yes24 상품 URL</label>
               <div className="relative group">
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 pr-32 transition-all outline-none"
+                  className="w-full rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 pr-32 transition-all outline-none"
                   placeholder="https://www.yes24.com/Product/Goods/..."
                 />
                 <button
@@ -116,7 +116,7 @@ export default function AddBookPage() {
           <div className={cn("mt-8 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
               {/* Book Cover Placeholder or Image */}
-              <div className="w-40 h-56 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 overflow-hidden">
+              <div className="w-40 h-56 bg-slate-100 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
                 {extractedBook?.coverImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
@@ -132,22 +132,22 @@ export default function AddBookPage() {
               <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">제목</label>
-                    <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
+                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
                       {extractedBook?.title || "도서 제목이 여기에 표시됩니다"}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">저자</label>
-                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자</label>
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
                         {extractedBook?.author || "저자명"}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">발행일자</label>
-                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">발행일자</label>
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
                         {extractedBook?.publishDate || "2024년 01월 01일"}
                       </div>
                     </div>
@@ -155,22 +155,22 @@ export default function AddBookPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">가격</label>
-                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">가격</label>
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
                         {extractedBook?.price || "00,000원"}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
-                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">도서 분류</label>
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
                         {extractedBook?.category || "카테고리"}
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">설명</label>
-                    <div className="min-h-24 bg-slate-50 dark:bg-slate-800 rounded p-3 text-sm text-slate-900 dark:text-slate-200 overflow-hidden border border-slate-100 dark:border-transparent">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
+                    <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100">
                       {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
                     </div>
                   </div>

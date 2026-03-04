@@ -3,17 +3,11 @@
 @theme {
   --color-primary: #1978e5;
   --color-background-light: #ffffff;
-  --color-background-dark: #111821;
 }
 
 :root {
   --background: var(--color-background-light);
   --foreground: #0f172a;
-}
-
-.dark {
-  --background: var(--color-background-dark);
-  --foreground: #f8fafc;
 }
 
 body {

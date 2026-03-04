@@ -7,13 +7,13 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-6 pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-white/95 backdrop-blur-md px-4 pb-6 pt-2">
       <div className="flex gap-2 max-w-lg mx-auto">
         <Link
           href="/"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'home' || activeTab === 'library' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
+            activeTab === 'home' || activeTab === 'library' ? "text-primary" : "text-slate-400 hover:text-primary"
           )}
         >
           <div className="flex h-8 items-center justify-center">
@@ -26,7 +26,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           href="/add"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'add' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
+            activeTab === 'add' ? "text-primary" : "text-slate-400 hover:text-primary"
           )}
         >
           <div className={cn(
@@ -41,7 +41,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           href="/stats"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'stats' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
+            activeTab === 'stats' ? "text-primary" : "text-slate-400 hover:text-primary"
           )}
         >
           <div className="flex h-8 items-center justify-center">
@@ -53,7 +53,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           href="#"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'profile' ? "text-primary" : "text-slate-400 dark:text-slate-500 hover:text-primary"
+            activeTab === 'profile' ? "text-primary" : "text-slate-400 hover:text-primary"
           )}
         >
           <div className="flex h-8 items-center justify-center">
