@@ -9,15 +9,14 @@ const pool = new Pool({
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PostgresAdapter(pool),
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,
-    session({ session, user }) {
+    session({ session, token }) {
       if (session.user) {
-        session.user.id = user.id;
-        // @ts-ignore
-        session.user.isApproved = user.is_approved;
+        session.user.id = token.id as string;
+        session.user.isApproved = token.isApproved as boolean;
       }
       return session;
     },
