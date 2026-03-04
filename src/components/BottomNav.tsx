@@ -49,7 +49,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <p className="text-xs font-medium leading-normal tracking-wide">캘린더</p>
         </Link>
         <Link
-          href="#"
+          href="/profile"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'profile' ? "text-primary" : "text-slate-400 hover:text-primary"

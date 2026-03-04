@@ -22,12 +22,32 @@ function mapRowToBook(row: any): Book {
   };
 }
 
+function safeRevalidate(path: string) {
+  try {
+    revalidatePath(path);
+  } catch (e) {
+    // revalidatePath might fail when called from a script outside Next.js request context
+    console.warn(`revalidatePath failed for ${path}: ${e}`);
+  }
+}
+
 export async function getBooks(): Promise<Book[]> {
   try {
-    const { rows } = await sql`SELECT * FROM books ORDER BY added_at DESC`;
+    // Only return books that are not deleted
+    const { rows } = await sql`SELECT * FROM books WHERE deleted_at IS NULL ORDER BY added_at DESC`;
     return rows.map(mapRowToBook);
   } catch (error) {
     console.error('Failed to fetch books:', error);
+    return [];
+  }
+}
+
+export async function getDeletedBooks(): Promise<Book[]> {
+  try {
+    const { rows } = await sql`SELECT * FROM books WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`;
+    return rows.map(mapRowToBook);
+  } catch (error) {
+    console.error('Failed to fetch deleted books:', error);
     return [];
   }
 }
@@ -61,7 +81,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<Book> {
       )
     `;
 
-    revalidatePath('/');
+    safeRevalidate('/');
     return { ...book, id, createdAt };
   } catch (error) {
     console.error('Failed to save book:', error);
@@ -86,20 +106,52 @@ export async function updateBook(book: Book): Promise<void> {
         notes = ${book.notes || null}
       WHERE id = ${book.id}
     `;
-    revalidatePath('/');
-    revalidatePath(`/book/${book.id}`);
+    safeRevalidate('/');
+    safeRevalidate(`/book/${book.id}`);
   } catch (error) {
     console.error(`Failed to update book with id ${book.id}:`, error);
     throw new Error('Failed to update book');
   }
 }
 
+/**
+ * Moves a book to the trash (soft delete)
+ */
 export async function deleteBook(id: string): Promise<void> {
+  const deletedAt = new Date().toISOString();
+  try {
+    await sql`UPDATE books SET deleted_at = ${deletedAt} WHERE id = ${id}`;
+    safeRevalidate('/');
+    safeRevalidate('/trash');
+  } catch (error) {
+    console.error(`Failed to move book to trash with id ${id}:`, error);
+    throw new Error('Failed to move book to trash');
+  }
+}
+
+/**
+ * Restores a book from the trash
+ */
+export async function restoreBook(id: string): Promise<void> {
+  try {
+    await sql`UPDATE books SET deleted_at = NULL WHERE id = ${id}`;
+    safeRevalidate('/');
+    safeRevalidate('/trash');
+  } catch (error) {
+    console.error(`Failed to restore book with id ${id}:`, error);
+    throw new Error('Failed to restore book');
+  }
+}
+
+/**
+ * Permanently deletes a book from the database
+ */
+export async function permanentlyDeleteBook(id: string): Promise<void> {
   try {
     await sql`DELETE FROM books WHERE id = ${id}`;
-    revalidatePath('/');
+    safeRevalidate('/trash');
   } catch (error) {
-    console.error(`Failed to delete book with id ${id}:`, error);
-    throw new Error('Failed to delete book');
+    console.error(`Failed to permanently delete book with id ${id}:`, error);
+    throw new Error('Failed to permanently delete book');
   }
 }
