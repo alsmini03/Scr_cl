@@ -34,3 +34,10 @@
  GET /api/auth/providers 200 in 25ms (compile: 7ms, proxy.ts: 10ms, render: 8ms)
  GET /api/auth/csrf 200 in 32ms (compile: 16ms, proxy.ts: 8ms, render: 8ms)
  POST /api/auth/signin/google? 200 in 170ms (compile: 11ms, proxy.ts: 13ms, render: 146ms)
+  Reload env: .env.local
+ GET /login 200 in 1558ms (compile: 557ms, render: 1001ms)
+ GET /api/auth/session 200 in 1013ms (compile: 769ms, proxy.ts: 188ms, render: 56ms)
+ GET /api/auth/session 200 in 35ms (compile: 13ms, proxy.ts: 14ms, render: 8ms)
+ GET /api/auth/providers 200 in 35ms (compile: 11ms, proxy.ts: 13ms, render: 11ms)
+ GET /api/auth/csrf 200 in 121ms (compile: 79ms, proxy.ts: 11ms, render: 32ms)
+ POST /api/auth/signin/google? 200 in 128ms (compile: 7ms, proxy.ts: 47ms, render: 74ms)
