@@ -3,6 +3,15 @@
 import { sql } from '@vercel/postgres';
 import { Book } from '@/types/book';
 import { revalidatePath } from 'next/cache';
+import { auth } from '@/auth';
+
+async function getUserId() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error('Unauthorized');
+  }
+  return session.user.id;
+}
 
 function mapRowToBook(row: any): Book {
   return {
@@ -26,15 +35,18 @@ function safeRevalidate(path: string) {
   try {
     revalidatePath(path);
   } catch (e) {
-    // revalidatePath might fail when called from a script outside Next.js request context
     console.warn(`revalidatePath failed for ${path}: ${e}`);
   }
 }
 
 export async function getBooks(): Promise<Book[]> {
   try {
-    // Only return books that are not deleted
-    const { rows } = await sql`SELECT * FROM books WHERE deleted_at IS NULL ORDER BY added_at DESC`;
+    const userId = await getUserId();
+    const { rows } = await sql`
+      SELECT * FROM books
+      WHERE deleted_at IS NULL AND user_id = ${userId}
+      ORDER BY added_at DESC
+    `;
     return rows.map(mapRowToBook);
   } catch (error) {
     console.error('Failed to fetch books:', error);
@@ -44,7 +56,12 @@ export async function getBooks(): Promise<Book[]> {
 
 export async function getDeletedBooks(): Promise<Book[]> {
   try {
-    const { rows } = await sql`SELECT * FROM books WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC`;
+    const userId = await getUserId();
+    const { rows } = await sql`
+      SELECT * FROM books
+      WHERE deleted_at IS NOT NULL AND user_id = ${userId}
+      ORDER BY deleted_at DESC
+    `;
     return rows.map(mapRowToBook);
   } catch (error) {
     console.error('Failed to fetch deleted books:', error);
@@ -54,7 +71,11 @@ export async function getDeletedBooks(): Promise<Book[]> {
 
 export async function getBookById(id: string): Promise<Book | undefined> {
   try {
-    const { rows } = await sql`SELECT * FROM books WHERE id = ${id}`;
+    const userId = await getUserId();
+    const { rows } = await sql`
+      SELECT * FROM books
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
     if (rows.length === 0) return undefined;
     return mapRowToBook(rows[0]);
   } catch (error) {
@@ -68,16 +89,17 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<Book> {
   const createdAt = new Date().toISOString();
 
   try {
+    const userId = await getUserId();
     await sql`
       INSERT INTO books (
         id, title, author, cover_image, description, published_date,
-        price, category, status, progress, rating, notes, added_at
+        price, category, status, progress, rating, notes, added_at, user_id
       ) VALUES (
         ${id}, ${book.title}, ${book.author}, ${book.coverImage},
         ${book.description || null}, ${book.publishDate || null},
         ${book.price || null}, ${book.category || null},
         ${book.readingStatus}, ${book.progress || 0},
-        ${book.rating || 0}, ${book.notes || null}, ${createdAt}
+        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${userId}
       )
     `;
 
@@ -91,6 +113,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<Book> {
 
 export async function updateBook(book: Book): Promise<void> {
   try {
+    const userId = await getUserId();
     await sql`
       UPDATE books SET
         title = ${book.title},
@@ -104,7 +127,7 @@ export async function updateBook(book: Book): Promise<void> {
         progress = ${book.progress || 0},
         rating = ${book.rating || 0},
         notes = ${book.notes || null}
-      WHERE id = ${book.id}
+      WHERE id = ${book.id} AND user_id = ${userId}
     `;
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
@@ -120,7 +143,11 @@ export async function updateBook(book: Book): Promise<void> {
 export async function deleteBook(id: string): Promise<void> {
   const deletedAt = new Date().toISOString();
   try {
-    await sql`UPDATE books SET deleted_at = ${deletedAt} WHERE id = ${id}`;
+    const userId = await getUserId();
+    await sql`
+      UPDATE books SET deleted_at = ${deletedAt}
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -134,7 +161,11 @@ export async function deleteBook(id: string): Promise<void> {
  */
 export async function restoreBook(id: string): Promise<void> {
   try {
-    await sql`UPDATE books SET deleted_at = NULL WHERE id = ${id}`;
+    const userId = await getUserId();
+    await sql`
+      UPDATE books SET deleted_at = NULL
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -148,7 +179,11 @@ export async function restoreBook(id: string): Promise<void> {
  */
 export async function permanentlyDeleteBook(id: string): Promise<void> {
   try {
-    await sql`DELETE FROM books WHERE id = ${id}`;
+    const userId = await getUserId();
+    await sql`
+      DELETE FROM books
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
     safeRevalidate('/trash');
   } catch (error) {
     console.error(`Failed to permanently delete book with id ${id}:`, error);
