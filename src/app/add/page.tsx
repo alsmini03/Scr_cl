@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { saveBook } from '@/lib/storage';
+import { saveBook } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 
 interface ExtractedBook {
@@ -21,6 +21,7 @@ export default function AddBookPage() {
   const router = useRouter();
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,27 +56,35 @@ export default function AddBookPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!extractedBook) return;
 
-    saveBook({
-      title: extractedBook.title,
-      author: extractedBook.author,
-      coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
-      category: extractedBook.category,
-      publishDate: extractedBook.publishDate,
-      price: extractedBook.price,
-      description: extractedBook.description,
-      readingStatus: 'READING',
-      progress: 0,
-    });
+    setIsSaving(true);
+    try {
+      await saveBook({
+        title: extractedBook.title,
+        author: extractedBook.author,
+        coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
+        category: extractedBook.category,
+        publishDate: extractedBook.publishDate,
+        price: extractedBook.price,
+        description: extractedBook.description,
+        readingStatus: 'READING',
+        progress: 0,
+      });
 
-    alert('새 책이 서재에 추가되었습니다.');
-    router.push('/');
+      alert('새 책이 서재에 추가되었습니다.');
+      router.push('/');
+    } catch (error) {
+      console.error('Failed to save book:', error);
+      alert('저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
-    <div className="font-display min-h-screen flex flex-col">
+    <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="새 책 추가" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
@@ -111,7 +120,7 @@ export default function AddBookPage() {
           <div className={cn("mt-8 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
               {/* Book Cover Placeholder or Image */}
-              <div className="w-40 h-56 bg-slate-100 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+              <div className="w-40 h-56 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
                 {extractedBook?.coverImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
@@ -128,7 +137,7 @@ export default function AddBookPage() {
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
-                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
+                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner">
                       {extractedBook?.title || "도서 제목이 여기에 표시됩니다"}
                     </div>
                   </div>
@@ -136,13 +145,13 @@ export default function AddBookPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자</label>
-                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner">
                         {extractedBook?.author || "저자명"}
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">발행일자</label>
-                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner">
                         {extractedBook?.publishDate || "2024년 01월 01일"}
                       </div>
                     </div>
@@ -151,13 +160,13 @@ export default function AddBookPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">가격</label>
-                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner">
                         {extractedBook?.price || "00,000원"}
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">도서 분류</label>
-                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100">
+                      <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner">
                         {extractedBook?.category || "카테고리"}
                       </div>
                     </div>
@@ -165,7 +174,7 @@ export default function AddBookPage() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
-                    <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100">
+                    <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
                       {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
                     </div>
                   </div>
@@ -178,11 +187,11 @@ export default function AddBookPage() {
         <div className="mt-10">
           <button
             onClick={handleSave}
-            disabled={!extractedBook}
+            disabled={!extractedBook || isSaving}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined">save</span>
-            내 서재에 저장하기
+            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
           </button>
         </div>
       </main>

@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { Book } from '@/types/book';
-import { getBooks } from '@/lib/storage';
+import { getBooks } from '@/lib/db';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -12,12 +12,20 @@ export default function CalendarPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setBooks(getBooks());
-    }, 0);
-    return () => clearTimeout(timer);
+    async function fetchBooks() {
+      try {
+        const data = await getBooks();
+        setBooks(data);
+      } catch (error) {
+        console.error('Failed to fetch books:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBooks();
   }, []);
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -48,7 +56,7 @@ export default function CalendarPage() {
   const monthNames = ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"];
 
   return (
-    <div className="font-display min-h-screen pb-24">
+    <div className="font-display min-h-screen pb-24 bg-white">
       <Header
         title="캘린더"
         rightAction={
@@ -64,8 +72,12 @@ export default function CalendarPage() {
       />
 
       <main className="p-6">
-        {viewMode === 'calendar' ? (
-          <section className="bg-white rounded-3xl p-6 shadow-sm border border-primary/5">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : viewMode === 'calendar' ? (
+          <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-slate-900">{year}년 {monthNames[month]}</h2>
               <div className="flex gap-2">
@@ -96,7 +108,7 @@ export default function CalendarPage() {
                     key={day}
                     className={cn(
                       "aspect-square flex flex-col items-center justify-center rounded-xl text-sm relative transition-colors",
-                      hasBooks ? "bg-primary text-white font-bold" : "hover:bg-primary/5"
+                      hasBooks ? "bg-primary text-white font-bold shadow-md shadow-primary/20" : "hover:bg-primary/5 text-slate-900"
                     )}
                   >
                     {day}
@@ -122,7 +134,7 @@ export default function CalendarPage() {
                   const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                   return dateB - dateA;
                 }).map(book => (
-                  <Link href={`/book/${book.id}`} key={book.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-primary/5 active:scale-[0.98] transition-transform">
+                  <Link href={`/book/${book.id}`} key={book.id} className="flex gap-4 p-4 bg-white rounded-2xl border border-slate-200 active:scale-[0.98] transition-transform shadow-sm">
                     <div
                       className="w-16 h-24 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 shadow-sm"
                       style={{ backgroundImage: `url("${book.coverImage}")` }}
@@ -153,27 +165,31 @@ export default function CalendarPage() {
           </section>
         )}
 
-        {viewMode === 'calendar' && (
+        {!loading && viewMode === 'calendar' && (
           <section className="mt-8 space-y-4">
             <h3 className="text-lg font-bold px-1 text-slate-900">최근 추가된 도서</h3>
             <div className="space-y-3">
-              {books.slice(0, 5).map(book => (
-                <div key={book.id} className="flex gap-4 p-3 bg-white rounded-2xl border border-primary/5">
-                  <div
-                    className="w-12 h-16 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 shadow-sm"
-                    style={{ backgroundImage: `url("${book.coverImage}")` }}
-                  />
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="font-bold truncate text-sm text-slate-900">{book.title}</p>
-                    <p className="text-xs text-slate-500 truncate">{book.author}</p>
-                    {book.createdAt && (
-                      <p className="text-[10px] text-primary mt-1 font-medium">
-                        {new Date(book.createdAt).toLocaleDateString('ko-KR')} 추가됨
-                      </p>
-                    )}
+              {books.length > 0 ? (
+                books.slice(0, 5).map(book => (
+                  <div key={book.id} className="flex gap-4 p-3 bg-white rounded-2xl border border-slate-200 shadow-sm">
+                    <div
+                      className="w-12 h-16 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 shadow-sm"
+                      style={{ backgroundImage: `url("${book.coverImage}")` }}
+                    />
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <p className="font-bold truncate text-sm text-slate-900">{book.title}</p>
+                      <p className="text-xs text-slate-500 truncate">{book.author}</p>
+                      {book.createdAt && (
+                        <p className="text-[10px] text-primary mt-1 font-medium">
+                          {new Date(book.createdAt).toLocaleDateString('ko-KR')} 추가됨
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              ) : (
+                <p className="text-sm text-slate-400 px-1">최근 추가된 도서가 없습니다.</p>
+              )}
             </div>
           </section>
         )}
