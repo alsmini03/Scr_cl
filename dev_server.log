@@ -28,3 +28,9 @@
  GET /api/auth/session 200 in 55ms (compile: 35ms, proxy.ts: 11ms, render: 9ms)
  GET /api/auth/session 200 in 27ms (compile: 7ms, proxy.ts: 7ms, render: 13ms)
 ✓ Compiled in 87ms
+ GET /login 200 in 1042ms (compile: 162ms, render: 879ms)
+ GET /api/auth/session 200 in 1338ms (compile: 979ms, proxy.ts: 286ms, render: 72ms)
+ GET /api/auth/session 200 in 314ms (compile: 141ms, proxy.ts: 75ms, render: 98ms)
+ GET /api/auth/providers 200 in 25ms (compile: 7ms, proxy.ts: 10ms, render: 8ms)
+ GET /api/auth/csrf 200 in 32ms (compile: 16ms, proxy.ts: 8ms, render: 8ms)
+ POST /api/auth/signin/google? 200 in 170ms (compile: 11ms, proxy.ts: 13ms, render: 146ms)
