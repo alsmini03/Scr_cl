@@ -75,7 +75,7 @@ export default function AddBookPage() {
   };
 
   return (
-    <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+    <div className="font-display min-h-screen flex flex-col">
       <Header title="새 책 추가" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">

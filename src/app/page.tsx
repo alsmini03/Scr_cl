@@ -20,7 +20,7 @@ export default function LibraryPage() {
   }, []);
 
   return (
-    <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen pb-24">
+    <div className="font-display min-h-screen pb-24">
       <Header title="내 서재" transparent />
 
       <main className="mt-6 px-4">
