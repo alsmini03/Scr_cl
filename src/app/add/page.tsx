@@ -88,7 +88,7 @@ export default function AddBookPage() {
 
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Yes24 상품 URL</label>
+              <label className="text-sm font-medium text-slate-900 dark:text-slate-100 ml-1">Yes24 상품 URL</label>
               <div className="relative group">
                 <input
                   type="text"
@@ -116,7 +116,7 @@ export default function AddBookPage() {
           <div className={cn("mt-8 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
               {/* Book Cover Placeholder or Image */}
-              <div className="w-40 h-56 bg-slate-200 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 overflow-hidden">
+              <div className="w-40 h-56 bg-slate-100 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 overflow-hidden">
                 {extractedBook?.coverImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
@@ -132,22 +132,22 @@ export default function AddBookPage() {
               <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">제목</label>
-                    <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">제목</label>
+                    <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
                       {extractedBook?.title || "도서 제목이 여기에 표시됩니다"}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">저자</label>
-                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">저자</label>
+                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
                         {extractedBook?.author || "저자명"}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">발행일자</label>
-                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">발행일자</label>
+                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
                         {extractedBook?.publishDate || "2024년 01월 01일"}
                       </div>
                     </div>
@@ -155,22 +155,22 @@ export default function AddBookPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">가격</label>
-                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">가격</label>
+                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
                         {extractedBook?.price || "00,000원"}
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
-                      <div className="min-h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-800 dark:text-slate-200">
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
+                      <div className="min-h-10 bg-slate-50 dark:bg-slate-800 rounded px-3 py-2 flex items-center text-sm text-slate-900 dark:text-slate-200 border border-slate-100 dark:border-transparent">
                         {extractedBook?.category || "카테고리"}
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">설명</label>
-                    <div className="min-h-24 bg-slate-200 dark:bg-slate-800 rounded p-3 text-sm text-slate-800 dark:text-slate-200 overflow-hidden">
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">설명</label>
+                    <div className="min-h-24 bg-slate-50 dark:bg-slate-800 rounded p-3 text-sm text-slate-900 dark:text-slate-200 overflow-hidden border border-slate-100 dark:border-transparent">
                       {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
                     </div>
                   </div>

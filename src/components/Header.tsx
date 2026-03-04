@@ -32,7 +32,7 @@ export default function Header({ title, showBack, rightAction, transparent }: He
         )}
       </div>
 
-      <h1 className="text-xl font-bold leading-tight tracking-tight flex-1 text-center truncate px-2">
+      <h1 className="text-xl font-bold leading-tight tracking-tight flex-1 text-center truncate px-2 text-slate-900 dark:text-slate-100">
         {title}
       </h1>
 

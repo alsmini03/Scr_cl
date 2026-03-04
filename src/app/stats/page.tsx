@@ -128,7 +128,7 @@ export default function CalendarPage() {
                       style={{ backgroundImage: `url("${book.coverImage}")` }}
                     />
                     <div className="flex-1 min-w-0 flex flex-col justify-center">
-                      <p className="font-bold truncate text-lg">{book.title}</p>
+                      <p className="font-bold truncate text-lg text-slate-900 dark:text-slate-100">{book.title}</p>
                       <p className="text-sm text-slate-500 truncate">{book.author}</p>
                       {book.createdAt && (
                         <p className="text-xs text-primary mt-2 font-semibold">
@@ -164,7 +164,7 @@ export default function CalendarPage() {
                     style={{ backgroundImage: `url("${book.coverImage}")` }}
                   />
                   <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    <p className="font-bold truncate text-sm">{book.title}</p>
+                    <p className="font-bold truncate text-sm text-slate-900 dark:text-slate-100">{book.title}</p>
                     <p className="text-xs text-slate-500 truncate">{book.author}</p>
                     {book.createdAt && (
                       <p className="text-[10px] text-primary mt-1 font-medium">

@@ -104,8 +104,8 @@ export default function BookDetailPage() {
               )}
 
               <div className="mt-4">
-                <h3 className="font-bold text-lg mb-1">책 소개</h3>
-                <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                <h3 className="font-bold text-lg mb-1 text-slate-900 dark:text-slate-100">책 소개</h3>
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">
                   {book.description || "상세 정보가 없습니다."}
                 </p>
               </div>
@@ -118,8 +118,8 @@ export default function BookDetailPage() {
           {/* Status & Rating */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-3">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">독서 상태</label>
-              <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
+              <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">독서 상태</label>
+              <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
                 <button
                   onClick={() => setStatus('READING')}
                   className={cn(
@@ -142,7 +142,7 @@ export default function BookDetailPage() {
             </div>
 
             <div className="space-y-3 text-center md:text-left">
-              <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">내 평점</label>
+              <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">내 평점</label>
               <div className="flex justify-center md:justify-start gap-1">
                 {[1, 2, 3, 4, 5].map((s) => (
                   <button key={s} onClick={() => setRating(s)}>
@@ -162,7 +162,7 @@ export default function BookDetailPage() {
 
           {/* Notes Section */}
           <div className="space-y-3">
-            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">독서 노트</label>
+            <label className="block text-sm font-bold text-slate-900 dark:text-slate-100 ml-1">독서 노트</label>
             <textarea
               ref={notesRef}
               className="w-full h-48 p-4 rounded-xl border-2 border-primary/10 bg-white dark:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-slate-100 font-display text-lg placeholder:italic placeholder:text-slate-400 outline-none"

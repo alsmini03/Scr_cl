@@ -47,7 +47,7 @@ export default function LibraryPage() {
               </div>
 
               <div className="mt-1">
-                <p className="text-sm font-bold truncate">{book.title}</p>
+                <p className="text-sm font-bold truncate text-slate-900 dark:text-slate-100">{book.title}</p>
                 <p className="text-xs text-slate-500 truncate">{book.author}</p>
 
                 {book.readingStatus === 'READING' ? (
