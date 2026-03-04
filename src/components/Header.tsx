@@ -15,7 +15,7 @@ export default function Header({ title, showBack, rightAction, transparent }: He
   return (
     <header className={cn(
       "sticky top-0 z-10 flex items-center p-4 justify-between border-b border-primary/10",
-      transparent ? "bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md" : "bg-background-light dark:bg-background-dark"
+      transparent ? "bg-white/80 dark:bg-background-dark/80 backdrop-blur-md" : "bg-white dark:bg-background-dark"
     )}>
       <div className="flex size-10 shrink-0 items-center justify-center">
         {showBack ? (

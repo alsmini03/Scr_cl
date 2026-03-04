@@ -7,7 +7,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-6 pt-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-white/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-6 pt-2">
       <div className="flex gap-2 max-w-lg mx-auto">
         <Link
           href="/"

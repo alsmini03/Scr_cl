@@ -25,7 +25,7 @@ export default function LibraryPage() {
 
       <main className="mt-6 px-4">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">내 도서</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">내 도서</h2>
           <div className="flex gap-2 text-primary">
             <span className="material-symbols-outlined">filter_list</span>
             <span className="material-symbols-outlined">grid_view</span>

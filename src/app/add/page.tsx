@@ -81,7 +81,7 @@ export default function AddBookPage() {
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Main Action Section */}
         <section className="mb-10">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2 text-slate-900 dark:text-slate-100">URL로 가져오기</h2>
           <p className="text-slate-600 dark:text-slate-400 text-lg mb-6">
             아래에 Yes24 도서 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 도서 정보를 확인하여 입력해 드립니다.
           </p>
