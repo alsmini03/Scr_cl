@@ -89,7 +89,7 @@ export default function AddBookPage() {
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Main Action Section */}
-        <section className="mb-10">
+        <section className="mb-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-900 ml-1">Yes24 상품 URL</label>
@@ -116,8 +116,8 @@ export default function AddBookPage() {
         </section>
 
         {/* Preview Placeholder / Loading State */}
-        <section className="border-t border-primary/10 pt-10">
-          <div className={cn("mt-8 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
+        <section className="border-t border-primary/10 pt-6">
+          <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
               {/* Book Cover Placeholder or Image */}
               <div className="w-40 h-56 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
