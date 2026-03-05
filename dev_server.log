@@ -41,3 +41,5 @@
  GET /api/auth/providers 200 in 35ms (compile: 11ms, proxy.ts: 13ms, render: 11ms)
  GET /api/auth/csrf 200 in 121ms (compile: 79ms, proxy.ts: 11ms, render: 32ms)
  POST /api/auth/signin/google? 200 in 128ms (compile: 7ms, proxy.ts: 47ms, render: 74ms)
+✓ Compiled in 685ms
+✓ Compiled in 468ms

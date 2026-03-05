@@ -10,6 +10,7 @@ const pool = new Pool({
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PostgresAdapter(pool),
   session: { strategy: "jwt" },
+  secret: process.env.AUTH_SECRET,
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,
