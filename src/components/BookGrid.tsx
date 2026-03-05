@@ -10,11 +10,11 @@ interface BookGridProps {
 }
 
 type ViewMode = 'grid' | 'list';
-type GridCols = 2 | 4 | 6;
+type GridCols = 3 | 5;
 
 export default function BookGrid({ books }: BookGridProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [gridCols, setGridCols] = useState<GridCols>(2);
+  const [gridCols, setGridCols] = useState<GridCols>(3);
 
   return (
     <div className="space-y-6">
@@ -46,7 +46,7 @@ export default function BookGrid({ books }: BookGridProps) {
           {/* Grid Column Selector (only visible in grid mode) */}
           {viewMode === 'grid' && (
             <div className="flex bg-slate-100 p-1 rounded-lg">
-              {[2, 4, 6].map((cols) => (
+              {[3, 5].map((cols) => (
                 <button
                   key={cols}
                   onClick={() => setGridCols(cols as GridCols)}
@@ -65,10 +65,8 @@ export default function BookGrid({ books }: BookGridProps) {
 
       {viewMode === 'grid' ? (
         <div className={cn(
-          "grid gap-4",
-          gridCols === 2 && "grid-cols-2",
-          gridCols === 4 && "grid-cols-4",
-          gridCols === 6 && "grid-cols-6"
+          "grid gap-x-3 gap-y-6",
+          gridCols === 3 ? "grid-cols-3" : "grid-cols-5"
         )}>
           {books.map((book) => (
             <Link key={book.id} href={`/book/${book.id}`} className="flex flex-col gap-2 group">
@@ -76,43 +74,42 @@ export default function BookGrid({ books }: BookGridProps) {
                 className="relative w-full aspect-[3/4] bg-center bg-no-repeat bg-cover rounded-xl shadow-sm border border-primary/5 transition-transform group-active:scale-95"
                 style={{ backgroundImage: `url("${book.coverImage}")` }}
               >
-                {book.readingStatus === 'FINISHED' && gridCols <= 4 && (
-                  <div className="absolute top-2 right-2 bg-green-500 text-white text-[8px] font-bold px-1 py-0.5 rounded shadow-sm">
+                {book.readingStatus === 'FINISHED' && (
+                  <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-[7px] font-bold px-1 py-0.5 rounded shadow-sm">
                     DONE
                   </div>
                 )}
               </div>
 
-              {gridCols <= 4 && (
-                <div className="mt-1">
-                  <p className={cn(
-                    "font-bold truncate text-slate-900",
-                    gridCols === 2 ? "text-sm" : "text-[10px]"
-                  )}>
-                    {book.title}
-                  </p>
-                  {gridCols === 2 && (
-                    <p className="text-xs text-slate-500 truncate">{book.author}</p>
-                  )}
-
-                  {book.readingStatus === 'READING' && book.progress !== undefined && book.progress > 0 && gridCols === 2 ? (
-                    <div className="flex items-center gap-1 mt-2">
-                      <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${book.progress}%` }}
-                        ></div>
+              <div className="mt-0.5 px-0.5">
+                <p className={cn(
+                  "font-bold truncate text-slate-900 leading-tight",
+                  gridCols === 3 ? "text-xs" : "text-[9px]"
+                )}>
+                  {book.title}
+                </p>
+                {gridCols === 3 && (
+                  <>
+                    <p className="text-[10px] text-slate-500 truncate mb-1">{book.author}</p>
+                    {book.readingStatus === 'READING' && book.progress !== undefined && book.progress > 0 ? (
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="flex-1 h-0.5 bg-primary/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{ width: `${book.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-[8px] font-bold text-primary">{book.progress}%</span>
                       </div>
-                      <span className="text-[10px] font-bold text-primary">{book.progress}%</span>
-                    </div>
-                  ) : book.readingStatus === 'FINISHED' && gridCols === 2 ? (
-                    <div className="flex items-center mt-1 text-primary">
-                      <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
+                    ) : book.readingStatus === 'FINISHED' ? (
+                      <div className="flex items-center mt-0.5 text-primary">
+                        <span className="material-symbols-outlined text-[8px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        <span className="text-[8px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
             </Link>
           ))}
         </div>
