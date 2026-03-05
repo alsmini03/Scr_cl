@@ -15,6 +15,18 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-white/95 backdrop-blur-md px-4 pb-6 pt-2">
       <div className="flex gap-2 max-w-lg mx-auto">
         <Link
+          href="/best"
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeTab === 'best' ? "text-primary" : "text-slate-400 hover:text-primary"
+          )}
+        >
+          <div className="flex h-8 items-center justify-center">
+            <span className="material-symbols-outlined" style={activeTab === 'best' ? { fontVariationSettings: "'FILL' 1" } : {}}>workspace_premium</span>
+          </div>
+          <p className="text-xs font-bold leading-normal tracking-wide">베스트</p>
+        </Link>
+        <Link
           href="/"
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
