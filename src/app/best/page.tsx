@@ -153,10 +153,10 @@ export default function BestPage() {
 
                 <div className="flex-1 min-w-0 z-10 pr-12">
                   <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{book.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{book.author} · {book.publisher}</p>
+                  <p className="text-sm text-slate-500 truncate">{book.author} · {book.publisher}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <p className="text-[10px] text-slate-400">{book.publishDate}</p>
-                    <p className="text-[10px] font-bold text-primary">{book.price}</p>
+                    <p className="text-xs text-slate-400">{book.publishDate}</p>
+                    <p className="text-xs font-bold text-primary">{book.price}</p>
                   </div>
                 </div>
 
