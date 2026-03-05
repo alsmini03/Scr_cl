@@ -123,18 +123,21 @@ export default function BookGrid({ books }: BookGridProps) {
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-900 truncate">{book.title}</p>
-                <p className="text-xs text-slate-500 truncate mb-2">{book.author}</p>
+                <p className="text-xs text-slate-500 truncate mb-1">{book.author}</p>
+                <p className="text-[10px] text-slate-400 truncate mb-2">{book.publishDate} · {book.price}</p>
 
                 {book.readingStatus === 'READING' ? (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${book.progress || 0}%` }}
-                      ></div>
+                  book.progress !== undefined && book.progress > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${book.progress}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-[10px] font-bold text-primary">{book.progress}%</span>
                     </div>
-                    <span className="text-[10px] font-bold text-primary">{book.progress || 0}%</span>
-                  </div>
+                  ) : null
                 ) : (
                   <div className="flex items-center gap-3">
                     <div className="flex items-center text-primary">
