@@ -7,7 +7,9 @@ export async function GET(req: NextRequest) {
 
   let targetUrl = 'https://m.yes24.com/home/best?dispNo=001&tab=1&pageNo=1&pageSize=100';
   if (category === 'economy') {
-    targetUrl = 'https://m.yes24.com/home/best?dispNo=001001025&tab=1&pageNo=1&Pagesize=50';
+    targetUrl = 'https://m.yes24.com/home/best?dispNo=001001025&tab=1&pageNo=1&pageSize=100';
+  } else if (category === 'essay') {
+    targetUrl = 'https://m.yes24.com/home/best?dispNo=001001047&tab=1&pageNo=1&pageSize=100';
   }
 
   try {

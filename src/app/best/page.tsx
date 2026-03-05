@@ -20,7 +20,7 @@ interface BestBook {
 
 export default function BestPage() {
   const { data: session } = useSession();
-  const [category, setCategory] = useState<'total' | 'economy'>('total');
+  const [category, setCategory] = useState<'total' | 'economy' | 'essay'>('total');
   const [books, setBooks] = useState<BestBook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
@@ -84,10 +84,10 @@ export default function BestPage() {
       <main className="mt-6 px-4">
         <div className="flex flex-col gap-6 mb-6">
           <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            Yes24 {category === 'total' ? '종합 베스트 100' : '경제 베스트 50'}
+            Yes24 {category === 'total' ? '종합' : category === 'economy' ? '경제' : '에세이'} 베스트 100
           </h2>
 
-          <div className="flex p-1 bg-slate-100 rounded-xl w-fit">
+          <div className="flex p-1 bg-slate-100 rounded-xl w-fit overflow-x-auto no-scrollbar">
             <button
               onClick={() => setCategory('total')}
               className={cn(
@@ -100,11 +100,20 @@ export default function BestPage() {
             <button
               onClick={() => setCategory('economy')}
               className={cn(
-                "px-6 py-2 rounded-lg text-sm font-bold transition-all",
+                "px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
                 category === 'economy' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
               경제
+            </button>
+            <button
+              onClick={() => setCategory('essay')}
+              className={cn(
+                "px-6 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
+                category === 'essay' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              에세이
             </button>
           </div>
         </div>
@@ -134,7 +143,7 @@ export default function BestPage() {
 
                 <div className="relative shrink-0 z-10">
                   <div
-                    className="w-16 h-22 bg-center bg-no-repeat bg-cover rounded-lg border border-slate-50"
+                    className="w-20 h-28 bg-center bg-no-repeat bg-cover rounded-lg border border-slate-50 shadow-sm"
                     style={{ backgroundImage: `url("${book.coverImage}")` }}
                   />
                   <div className="absolute -top-2 -left-2 size-6 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
