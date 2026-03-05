@@ -3,6 +3,7 @@ import BottomNav from '@/components/BottomNav';
 import Link from 'next/link';
 import { getBooks } from '@/lib/db';
 import { auth } from '@/auth';
+import BookGrid from '@/components/BookGrid';
 
 export default async function LibraryPage() {
   const session = await auth();
@@ -13,14 +14,6 @@ export default async function LibraryPage() {
       <Header title="내 서재" transparent />
 
       <main className="mt-6 px-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">내 도서</h2>
-          <div className="flex gap-2 text-primary">
-            <span className="material-symbols-outlined">filter_list</span>
-            <span className="material-symbols-outlined">grid_view</span>
-          </div>
-        </div>
-
         {!session?.user ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
@@ -42,46 +35,7 @@ export default async function LibraryPage() {
             <p className="text-sm">새 책을 추가해 보세요!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {books.map((book) => (
-              <Link key={book.id} href={`/book/${book.id}`} className="flex flex-col gap-2 group">
-                <div
-                  className="relative w-full aspect-[3/4] bg-center bg-no-repeat bg-cover rounded-xl shadow-sm border border-primary/5 transition-transform group-active:scale-95"
-                  style={{ backgroundImage: `url("${book.coverImage}")` }}
-                >
-                  {book.readingStatus === 'FINISHED' && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                      FINISHED
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-1">
-                  <p className="text-sm font-bold truncate text-slate-900">{book.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{book.author}</p>
-
-                  {book.readingStatus === 'READING' ? (
-                    book.progress !== undefined && book.progress > 0 ? (
-                      <div className="flex items-center gap-1 mt-2">
-                        <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary"
-                            style={{ width: `${book.progress}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-[10px] font-bold text-primary">{book.progress}%</span>
-                      </div>
-                    ) : null
-                  ) : (
-                    <div className="flex items-center mt-1 text-primary">
-                      <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                      <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
-                    </div>
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
+          <BookGrid books={books} />
         )}
       </main>
 
