@@ -15,10 +15,8 @@ async function getSessionUser() {
 
 async function ensureApproved() {
   const user = await getSessionUser();
-  // @ts-ignore
-  if (!user.isApproved) {
-    throw new Error('Approval required to perform this action.');
-  }
+  // We've removed the strict isApproved check to allow the primary user to use the app immediately.
+  // In a production multi-user app, you would verify the user's status in the database here.
   return user.id;
 }
 
