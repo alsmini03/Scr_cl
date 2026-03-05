@@ -39,7 +39,7 @@ export default function BestPage() {
       <Header title="베스트셀러" transparent />
 
       <main className="mt-6 px-4">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-6">Yes24 일별 베스트</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-6">Yes24 종합 베스트 100</h2>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">

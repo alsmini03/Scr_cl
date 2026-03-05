@@ -3,7 +3,7 @@ import * as cheerio from 'cheerio';
 
 export async function GET() {
   try {
-    const response = await fetch('https://m.yes24.com/home/best?dispNo=001&tab=4', {
+    const response = await fetch('https://m.yes24.com/home/best?dispNo=001&tab=1&pageNo=1&pageSize=100', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
       },
@@ -43,7 +43,7 @@ export async function GET() {
       });
     });
 
-    return NextResponse.json(books.slice(0, 20));
+    return NextResponse.json(books);
   } catch (error) {
     console.error('Best scraping error:', error);
     return NextResponse.json({ error: 'Failed to load best sellers' }, { status: 500 });
