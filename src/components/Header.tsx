@@ -15,7 +15,7 @@ export default function Header({ title, showBack, rightAction, transparent }: He
 
   return (
     <header className={cn(
-      "sticky top-0 z-10 flex items-center p-4 justify-between border-b border-primary/10",
+      "sticky top-0 z-40 flex items-center p-4 justify-between border-b border-primary/10",
       transparent ? "bg-white/80 backdrop-blur-md" : "bg-white"
     )}>
       <div className="flex size-10 shrink-0 items-center justify-center">
