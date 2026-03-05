@@ -17,21 +17,21 @@ export async function GET() {
     const $ = cheerio.load(html);
     const books: any[] = [];
 
-    // Yes24 Mobile Best List items are usually in .bestList or similar
-    // Based on common Yes24 mobile patterns:
-    $('li').each((i, el) => {
+    // Yes24 Mobile Best List items are in .itemUnit
+    $('.itemUnit').each((i, el) => {
       const $el = $(el);
 
-      const title = $el.find('.goods_name').text().trim();
+      // Extract title: remove the [도서] prefix if present
+      let title = $el.find('.info_name').text().trim();
+      title = title.replace('[도서]', '').trim();
       if (!title) return;
 
-      const coverImage = $el.find('.img_canvas img').attr('data-original') || $el.find('.img_canvas img').attr('src');
+      const coverImage = $el.find('img.lazy').attr('data-original') || $el.find('img').attr('src');
 
-      // Author and Publisher are often in .goods_pubGrp or .goods_auth
-      const author = $el.find('.goods_auth').text().trim();
-      const publisher = $el.find('.goods_pub').text().trim();
+      const author = $el.find('.info_auth .auth').text().trim();
+      const publisher = $el.find('.info_pub').text().trim();
 
-      const link = $el.find('a.lnk_goods').attr('href');
+      const link = $el.find('a.lnk_item').attr('href');
       const yes24Url = link ? `https://m.yes24.com${link}` : '';
 
       books.push({
