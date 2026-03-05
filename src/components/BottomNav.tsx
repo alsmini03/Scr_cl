@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 
 interface BottomNavProps {
-  activeTab: 'home' | 'library' | 'stats' | 'profile' | 'add';
+  activeTab: 'home' | 'library' | 'stats' | 'profile' | 'add' | 'best';
 }
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
