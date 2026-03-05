@@ -1,9 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get('category') || 'total';
+
+  let targetUrl = 'https://m.yes24.com/home/best?dispNo=001&tab=1&pageNo=1&pageSize=100';
+  if (category === 'economy') {
+    targetUrl = 'https://m.yes24.com/home/best?dispNo=001001025&tab=1&pageNo=1&Pagesize=50';
+  }
+
   try {
-    const response = await fetch('https://m.yes24.com/home/best?dispNo=001&tab=1&pageNo=1&pageSize=100', {
+    const response = await fetch(targetUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
       },

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { saveBook } from '@/lib/db';
 import { useSession } from 'next-auth/react';
+import { cn } from '@/lib/utils';
 
 interface BestBook {
   title: string;
@@ -19,26 +20,31 @@ interface BestBook {
 
 export default function BestPage() {
   const { data: session } = useSession();
+  const [category, setCategory] = useState<'total' | 'economy'>('total');
   const [books, setBooks] = useState<BestBook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
 
   useEffect(() => {
     async function fetchBest() {
+      setIsLoading(true);
       try {
-        const res = await fetch('/api/best');
+        const res = await fetch(`/api/best?category=${category}`);
         const data = await res.json();
         if (Array.isArray(data)) {
           setBooks(data);
+        } else {
+          setBooks([]);
         }
       } catch (err) {
         console.error(err);
+        setBooks([]);
       } finally {
         setIsLoading(false);
       }
     }
     fetchBest();
-  }, []);
+  }, [category]);
 
   const handleAddBook = async (e: React.MouseEvent, book: BestBook, idx: number) => {
     e.preventDefault();
@@ -76,7 +82,32 @@ export default function BestPage() {
       <Header title="베스트셀러" transparent />
 
       <main className="mt-6 px-4">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900 mb-6">Yes24 종합 베스트 100</h2>
+        <div className="flex flex-col gap-6 mb-6">
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            Yes24 {category === 'total' ? '종합 베스트 100' : '경제 베스트 50'}
+          </h2>
+
+          <div className="flex p-1 bg-slate-100 rounded-xl w-fit">
+            <button
+              onClick={() => setCategory('total')}
+              className={cn(
+                "px-6 py-2 rounded-lg text-sm font-bold transition-all",
+                category === 'total' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              종합
+            </button>
+            <button
+              onClick={() => setCategory('economy')}
+              className={cn(
+                "px-6 py-2 rounded-lg text-sm font-bold transition-all",
+                category === 'economy' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              경제
+            </button>
+          </div>
+        </div>
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
