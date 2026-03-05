@@ -30,6 +30,8 @@ export async function GET() {
 
       const author = $el.find('.info_auth .auth').text().trim();
       const publisher = $el.find('.info_pub').text().trim();
+      const publishDate = $el.find('.info_date').text().trim();
+      const price = $el.find('.info_price .txt_num').text().trim();
 
       const link = $el.find('a.lnk_item').attr('href');
       const yes24Url = link ? `https://m.yes24.com${link}` : '';
@@ -38,6 +40,8 @@ export async function GET() {
         title,
         author,
         publisher,
+        publishDate,
+        price,
         coverImage,
         yes24Url,
       });

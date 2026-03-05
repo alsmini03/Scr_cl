@@ -9,6 +9,8 @@ interface BestBook {
   title: string;
   author: string;
   publisher: string;
+  publishDate: string;
+  price: string;
   coverImage: string;
   yes24Url: string;
 }
@@ -71,8 +73,11 @@ export default function BestPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{book.title}</p>
-                  <p className="text-xs text-slate-500 truncate">{book.author}</p>
-                  <p className="text-[10px] text-slate-400 truncate">{book.publisher}</p>
+                  <p className="text-xs text-slate-500 truncate">{book.author} · {book.publisher}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-[10px] text-slate-400">{book.publishDate}</p>
+                    <p className="text-[10px] font-bold text-primary">{book.price}</p>
+                  </div>
                 </div>
                 <span className="material-symbols-outlined text-slate-300">open_in_new</span>
               </a>
