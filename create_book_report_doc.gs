@@ -49,7 +49,7 @@ function fetchAndCreateBookDoc() {
   itemBlocks.forEach((block, index) => {
     const rank = index + 1;
 
-    // 데이터 추출 (개선된 정규표현식)
+    // 데이터 추출
     const coverMatch = block.match(/data-original="([^"]+)"/);
     const coverUrl = coverMatch ? coverMatch[1] : "";
 
@@ -68,20 +68,32 @@ function fetchAndCreateBookDoc() {
     const priceMatch = block.match(/yes_m">([^<]+)<\/em>/);
     const price = priceMatch ? priceMatch[1].trim() + "원" : "";
 
-    // 문서에 삽입
+    // 문서에 삽입 (제목)
     const sectionTitle = body.appendParagraph(rank + '. ' + title);
-    sectionTitle.setHeading(DocumentApp.ParagraphHeading.HEADING1).setSpacingBefore(20);
+    sectionTitle.setHeading(DocumentApp.ParagraphHeading.HEADING1).setSpacingBefore(30);
 
-    // 표지 이미지 삽입
+    // 표지 이미지 삽입 (PositionedImage 사용)
     if (coverUrl) {
       try {
         const resp = UrlFetchApp.fetch(coverUrl);
-        const img = body.appendImage(resp.getBlob());
-        const width = 110;
+        const imgBlob = resp.getBlob();
+
+        // 문단에 PositionedImage 추가
+        const imgPara = body.appendParagraph("");
+        const img = imgPara.addPositionedImage(imgBlob);
+
+        // 이미지 크기 및 우측 레이아웃 조정
+        const width = 90;
         const height = (img.getHeight() / img.getWidth()) * width;
-        img.setWidth(width).setHeight(height);
+
+        img.setWidth(width)
+           .setHeight(height)
+           .setLayout(DocumentApp.PositionedLayout.WRAP_TEXT)
+           .setLeftOffset(360)
+           .setTopOffset(0);
+
       } catch (e) {
-        body.appendParagraph('[이미지를 불러올 수 없습니다]');
+        body.appendParagraph('[이미지 로드 실패]');
       }
     }
 
@@ -92,7 +104,9 @@ function fetchAndCreateBookDoc() {
       '판매가: ' + price
     ].join('\n');
 
-    body.appendParagraph(details).setSpacingAfter(10);
+    const detailPara = body.appendParagraph(details);
+    detailPara.setSpacingAfter(20);
+
     body.appendHorizontalRule();
   });
 
