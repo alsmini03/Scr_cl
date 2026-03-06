@@ -49,3 +49,6 @@
  GET /api/auth/session 200 in 889ms (compile: 752ms, proxy.ts: 117ms, render: 19ms)
  GET /api/auth/session 200 in 36ms (compile: 10ms, proxy.ts: 20ms, render: 6ms)
 ✓ Compiled in 408ms
+ GET / 200 in 3.6s (compile: 1521ms, render: 2.1s)
+ GET /api/auth/session 200 in 1095ms (compile: 1045ms, proxy.ts: 13ms, render: 37ms)
+ GET /api/auth/session 200 in 141ms (compile: 25ms, proxy.ts: 99ms, render: 18ms)
