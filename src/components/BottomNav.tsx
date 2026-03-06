@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useSession } from 'next-auth/react';
 
 interface BottomNavProps {
-  activeTab: 'home' | 'library' | 'stats' | 'profile' | 'add' | 'best';
+  activeTab: 'home' | 'library' | 'stats' | 'profile' | 'best';
 }
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
@@ -38,24 +38,6 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           </div>
           <p className="text-xs font-bold leading-normal tracking-wide">서재</p>
         </Link>
-
-        {session?.user && (
-          <Link
-            href="/add"
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-              activeTab === 'add' ? "text-primary" : "text-slate-400 hover:text-primary"
-            )}
-          >
-            <div className={cn(
-              "flex h-8 items-center justify-center",
-              activeTab === 'add' && "bg-primary/20 p-2 rounded-full mb-[-8px]"
-            )}>
-              <span className="material-symbols-outlined" style={activeTab === 'add' ? { fontVariationSettings: "'FILL' 1" } : {}}>add_circle</span>
-            </div>
-            <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'add' ? "font-bold pt-2" : "font-medium")}>추가</p>
-          </Link>
-        )}
 
         <Link
           href="/stats"
