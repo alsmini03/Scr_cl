@@ -34,10 +34,11 @@ function fetchYes24Best100() {
        .setFontWeight("bold")
        .setHorizontalAlignment("center");
 
-  // 3. 도서 항목별 데이터 추출 (정규표현식 파싱)
-  const itemBlocks = html.match(/<div class="itemUnit ">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g);
+  // 3. 도서 항목별 데이터 추출 (Robust split approach)
+  // Yes24 모바일은 각 도서가 class="itemUnit 으로 시작합니다.
+  const itemBlocks = html.split('class="itemUnit').slice(1);
 
-  if (!itemBlocks) {
+  if (itemBlocks.length === 0) {
     SpreadsheetApp.getUi().alert("데이터를 찾을 수 없습니다. 페이지 구조를 확인해 주세요.");
     return;
   }
@@ -56,7 +57,7 @@ function fetchYes24Best100() {
     let title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").replace("[도서]", "").trim() : "제목 정보 없음";
 
     // C. 저자
-    const authorMatch = block.match(/info_auth">[\s\S]*?class="auth">([^<]+)<\/span>/);
+    const authorMatch = block.match(/class="auth">([^<]+)<\/span>/);
     const author = authorMatch ? authorMatch[1].trim() : "저자 미상";
 
     // D. 출판사
@@ -96,7 +97,7 @@ function fetchYes24Best100() {
   sheet.getRange(2, 1, results.length, 1).setHorizontalAlignment("center");
   sheet.getRange(2, 4, results.length, 4).setHorizontalAlignment("center");
 
-  SpreadsheetApp.getUi().alert("성공적으로 100권의 정보를 가져왔습니다!");
+  SpreadsheetApp.getUi().alert("성공적으로 " + results.length + "권의 정보를 가져왔습니다!");
 }
 
 function onOpen() {

@@ -20,9 +20,11 @@ function fetchAndCreateBookDoc() {
   });
 
   const html = response.getContentText();
-  const itemBlocks = html.match(/<div class="itemUnit ">[\s\S]*?<\/div>\s*<\/div>\s*<\/div>/g);
 
-  if (!itemBlocks) {
+  // 개선된 블록 추출 방식: itemUnit 클래스를 기준으로 나눕니다.
+  const itemBlocks = html.split('class="itemUnit').slice(1);
+
+  if (itemBlocks.length === 0) {
     Logger.log("데이터를 찾을 수 없습니다.");
     return;
   }
@@ -47,14 +49,14 @@ function fetchAndCreateBookDoc() {
   itemBlocks.forEach((block, index) => {
     const rank = index + 1;
 
-    // 데이터 추출
+    // 데이터 추출 (개선된 정규표현식)
     const coverMatch = block.match(/data-original="([^"]+)"/);
     const coverUrl = coverMatch ? coverMatch[1] : "";
 
     let titleMatch = block.match(/info_name">([\s\S]*?)<\/div>/);
     let title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").replace("[도서]", "").trim() : "제목 정보 없음";
 
-    const authorMatch = block.match(/info_auth">[\s\S]*?class="auth">([^<]+)<\/span>/);
+    const authorMatch = block.match(/class="auth">([^<]+)<\/span>/);
     const author = authorMatch ? authorMatch[1].trim() : "저자 미상";
 
     const pubMatch = block.match(/info_pub">([^<]+)<\/span>/);
@@ -70,13 +72,12 @@ function fetchAndCreateBookDoc() {
     const sectionTitle = body.appendParagraph(rank + '. ' + title);
     sectionTitle.setHeading(DocumentApp.ParagraphHeading.HEADING1).setSpacingBefore(20);
 
-    // 표지 이미지 삽입 (에러 방지를 위해 try-catch 사용)
+    // 표지 이미지 삽입
     if (coverUrl) {
       try {
         const resp = UrlFetchApp.fetch(coverUrl);
         const img = body.appendImage(resp.getBlob());
-        // 이미지 크기 조정 (너비 120px 기준 비율 유지)
-        const width = 120;
+        const width = 110;
         const height = (img.getHeight() / img.getWidth()) * width;
         img.setWidth(width).setHeight(height);
       } catch (e) {
@@ -95,7 +96,7 @@ function fetchAndCreateBookDoc() {
     body.appendHorizontalRule();
   });
 
-  // 5. 완료 알림 및 문서 URL 로그
+  // 5. 완료 알림
   const url_doc = doc.getUrl();
   Logger.log('문서 생성이 완료되었습니다: ' + url_doc);
 
