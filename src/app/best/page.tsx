@@ -57,18 +57,29 @@ export default function BestPage() {
 
     setAddingId(idx);
     try {
+      // Fetch full details including description and category using existing extract API
+      const response = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: book.yes24Url }),
+      });
+
+      if (!response.ok) throw new Error('Failed to extract details');
+      const fullDetail = await response.json();
+
       await saveBook({
-        title: book.title,
-        author: book.author,
-        coverImage: book.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
-        category: book.publisher,
-        publishDate: book.publishDate,
-        price: book.price,
-        description: `${book.publisher} 출판 / 베스트셀러 순위권 도서`,
+        title: fullDetail.title || book.title,
+        author: fullDetail.author || book.author,
+        coverImage: fullDetail.coverImage || book.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
+        category: fullDetail.category || book.publisher,
+        publishDate: fullDetail.publishDate || book.publishDate,
+        price: fullDetail.price || book.price,
+        description: fullDetail.description,
         readingStatus: 'READING',
         progress: 0,
       });
-      alert(`'${book.title}'이(가) 내 서재에 추가되었습니다.`);
+
+      alert(`'${book.title}'이(가) 상세 정보와 함께 서재에 추가되었습니다.`);
     } catch (error) {
       console.error(error);
       alert('서재 추가에 실패했습니다.');
