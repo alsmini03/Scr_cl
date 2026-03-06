@@ -132,39 +132,39 @@ export default function BestPage() {
             {books.map((book, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-4 p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-primary/20 transition-colors relative"
+                className="group relative bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
               >
                 <a
                   href={book.yes24Url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="absolute inset-0 z-0 rounded-2xl"
-                />
-
-                <div className="relative shrink-0 z-10">
-                  <div
-                    className="w-20 h-28 bg-center bg-no-repeat bg-cover rounded-lg border border-slate-50 shadow-sm"
-                    style={{ backgroundImage: `url("${book.coverImage}")` }}
-                  />
-                  <div className="absolute -top-2 -left-2 size-6 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
-                    {idx + 1}
+                  className="flex items-center gap-4 p-3 pr-12 rounded-2xl"
+                >
+                  <div className="relative shrink-0">
+                    <div
+                      className="w-20 h-28 bg-center bg-no-repeat bg-cover rounded-lg border border-slate-50 shadow-sm"
+                      style={{ backgroundImage: `url("${book.coverImage}")` }}
+                    />
+                    <div className="absolute -top-2 -left-2 size-6 bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-md">
+                      {idx + 1}
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex-1 min-w-0 z-10 pr-12">
-                  <p className="text-base font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{book.title}</p>
-                  <p className="text-sm text-slate-500 truncate">{book.author} · {book.publisher}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-slate-400">{book.publishDate}</p>
-                    <p className="text-xs font-bold text-primary">{book.price}</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-base font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{book.title}</p>
+                    <p className="text-sm text-slate-500 truncate">{book.author} · {book.publisher}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <p className="text-xs text-slate-400">{book.publishDate}</p>
+                      <p className="text-xs font-bold text-primary">{book.price}</p>
+                    </div>
                   </div>
-                </div>
+                </a>
 
                 {session && (
                   <button
                     onClick={(e) => handleAddBook(e, book, idx)}
                     disabled={addingId === idx}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50"
                     title="내 서재에 추가"
                   >
                     {addingId === idx ? (
