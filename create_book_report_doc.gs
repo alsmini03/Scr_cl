@@ -45,21 +45,16 @@ function fetchAndCreateBookDoc() {
     const coverMatch = block.match(/data-original="([^"]+)"/);
     const coverUrl = coverMatch ? coverMatch[1] : "";
 
-    // 제목 정제 로직 강화
+    // 제목 정제 로직 (대괄호 내용 삭제 포함)
     let titleMatch = block.match(/info_name">([\s\S]*?)<\/div>/);
     let title = "제목 정보 없음";
     if (titleMatch) {
       title = titleMatch[1]
-        .replace(/<[^>]+>/g, "")    // 태그 제거
-        .replace("[도서]", "")       // 머리말 제거
-        .replace(/[\n\r\t]/g, " ")  // 줄바꿈 제거
-        .replace(/\s+/g, " ")       // 중복 공백 제거
+        .replace(/<[^>]+>/g, "")      // HTML 태그 제거
+        .replace(/\[.*?\]/g, "")      // [] 로 둘러싼 내용 삭제 (머리말 및 부가설명 포함)
+        .replace(/[\n\r\t]/g, " ")    // 줄바꿈 제거
+        .replace(/\s+/g, " ")         // 중복 공백 제거
         .trim();
-
-      // 제목 내에 불필요하게 긴 설명(괴테 사례 등)이 대괄호로 묶여 있는 경우 처리
-      if (title.includes("]")) {
-        title = title.split("]")[0].trim();
-      }
     }
 
     const authorMatch = block.match(/class="auth">([^<]+)<\/span>/);

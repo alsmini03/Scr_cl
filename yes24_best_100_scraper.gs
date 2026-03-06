@@ -24,15 +24,14 @@ function fetchYes24Best100() {
     const rank = index + 1;
     const coverUrl = (block.match(/data-original="([^"]+)"/) || ["", ""])[1];
 
-    // 제목 정제
+    // 제목 정제 (대괄호 내용 삭제 포함)
     let titleRaw = (block.match(/info_name">([\s\S]*?)<\/div>/) || ["", "제목 정보 없음"])[1];
     let title = titleRaw
-      .replace(/<[^>]+>/g, "")
-      .replace("[도서]", "")
-      .replace(/[\n\r\t]/g, " ")
+      .replace(/<[^>]+>/g, "")      // HTML 태그 제거
+      .replace(/\[.*?\]/g, "")      // [] 로 둘러싼 내용 삭제
+      .replace(/[\n\r\t]/g, " ")    // 공백 문자 정규화
       .replace(/\s+/g, " ")
       .trim();
-    if (title.includes("]")) title = title.split("]")[0].trim();
 
     const author = (block.match(/class="auth">([^<]+)<\/span>/) || ["", "저자 미상"])[1].trim();
     const publisher = (block.match(/info_pub">([^<]+)<\/span>/) || ["", "출판사 미상"])[1].trim();
