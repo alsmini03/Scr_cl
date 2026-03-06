@@ -1,11 +1,5 @@
 /**
  * Yes24 종합 베스트 100 정보를 바탕으로 구글 문서(Google Docs) 리포트를 생성합니다.
- *
- * 사용 방법:
- * 1. 구글 스프레드시트 또는 독립형 Apps Script 프로젝트 생성
- * 2. 이 코드 전체를 붙여넣고 저장
- * 3. fetchAndCreateBookDoc() 함수 실행
- * 4. 내 구글 드라이브에 'Yes24 베스트셀러 리포트 (날짜)' 파일이 생성됩니다.
  */
 
 function fetchAndCreateBookDoc() {
@@ -20,8 +14,6 @@ function fetchAndCreateBookDoc() {
   });
 
   const html = response.getContentText();
-
-  // 개선된 블록 추출 방식: itemUnit 클래스를 기준으로 나눕니다.
   const itemBlocks = html.split('class="itemUnit').slice(1);
 
   if (itemBlocks.length === 0) {
@@ -53,8 +45,22 @@ function fetchAndCreateBookDoc() {
     const coverMatch = block.match(/data-original="([^"]+)"/);
     const coverUrl = coverMatch ? coverMatch[1] : "";
 
+    // 제목 정제 로직 강화
     let titleMatch = block.match(/info_name">([\s\S]*?)<\/div>/);
-    let title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, "").replace("[도서]", "").trim() : "제목 정보 없음";
+    let title = "제목 정보 없음";
+    if (titleMatch) {
+      title = titleMatch[1]
+        .replace(/<[^>]+>/g, "")    // 태그 제거
+        .replace("[도서]", "")       // 머리말 제거
+        .replace(/[\n\r\t]/g, " ")  // 줄바꿈 제거
+        .replace(/\s+/g, " ")       // 중복 공백 제거
+        .trim();
+
+      // 제목 내에 불필요하게 긴 설명(괴테 사례 등)이 대괄호로 묶여 있는 경우 처리
+      if (title.includes("]")) {
+        title = title.split("]")[0].trim();
+      }
+    }
 
     const authorMatch = block.match(/class="auth">([^<]+)<\/span>/);
     const author = authorMatch ? authorMatch[1].trim() : "저자 미상";
@@ -68,21 +74,18 @@ function fetchAndCreateBookDoc() {
     const priceMatch = block.match(/yes_m">([^<]+)<\/em>/);
     const price = priceMatch ? priceMatch[1].trim() + "원" : "";
 
-    // 문서에 삽입 (제목)
+    // 문서에 삽입
     const sectionTitle = body.appendParagraph(rank + '. ' + title);
     sectionTitle.setHeading(DocumentApp.ParagraphHeading.HEADING1).setSpacingBefore(30);
 
-    // 표지 이미지 삽입 (PositionedImage 사용)
+    // 표지 이미지 삽입 (PositionedImage)
     if (coverUrl) {
       try {
         const resp = UrlFetchApp.fetch(coverUrl);
         const imgBlob = resp.getBlob();
-
-        // 문단에 PositionedImage 추가
         const imgPara = body.appendParagraph("");
         const img = imgPara.addPositionedImage(imgBlob);
 
-        // 이미지 크기 및 우측 레이아웃 조정
         const width = 90;
         const height = (img.getHeight() / img.getWidth()) * width;
 
@@ -104,32 +107,9 @@ function fetchAndCreateBookDoc() {
       '판매가: ' + price
     ].join('\n');
 
-    const detailPara = body.appendParagraph(details);
-    detailPara.setSpacingAfter(20);
-
+    body.appendParagraph(details).setSpacingAfter(20);
     body.appendHorizontalRule();
   });
 
-  // 5. 완료 알림
-  const url_doc = doc.getUrl();
-  Logger.log('문서 생성이 완료되었습니다: ' + url_doc);
-
-  if (typeof SpreadsheetApp !== 'undefined' && SpreadsheetApp.getUi()) {
-    const htmlOutput = HtmlService.createHtmlOutput(
-      '<p>구글 문서 리포트 생성이 완료되었습니다!</p><a href="' + url_doc + '" target="_blank">문서 열기</a>'
-    ).setWidth(300).setHeight(100);
-    SpreadsheetApp.getUi().showModalDialog(htmlOutput, '완료');
-  }
-}
-
-/**
- * 메뉴 생성 (스프레드시트에서 사용 시)
- */
-function onOpen() {
-  if (typeof SpreadsheetApp !== 'undefined') {
-    SpreadsheetApp.getUi().createMenu('📊 도서 도구')
-        .addItem('Yes24 베스트 100 가져오기 (시트)', 'fetchYes24Best100')
-        .addItem('구글 문서 리포트 생성 (Docs)', 'fetchAndCreateBookDoc')
-        .addToUi();
-  }
+  Logger.log('문서 생성 완료: ' + doc.getUrl());
 }
