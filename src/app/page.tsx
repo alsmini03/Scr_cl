@@ -39,6 +39,15 @@ export default async function LibraryPage() {
         )}
       </main>
 
+      {session?.user && (
+        <Link
+          href="/add"
+          className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"
+        >
+          <span className="material-symbols-outlined text-3xl">add</span>
+        </Link>
+      )}
+
       <BottomNav activeTab="home" />
     </div>
   );
