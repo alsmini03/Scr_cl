@@ -6,8 +6,10 @@ import { auth } from '@/auth';
 import BookGrid from '@/components/BookGrid';
 
 export default async function LibraryPage() {
-  const session = await auth();
-  const books = session?.user ? await getBooks() : [];
+  const sessionPromise = auth();
+  const booksPromise = getBooks();
+
+  const [session, books] = await Promise.all([sessionPromise, booksPromise]);
 
   return (
     <div className="font-display min-h-screen pb-24 bg-white">

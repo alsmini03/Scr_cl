@@ -119,8 +119,10 @@ export default function AddBookPage() {
         <section className="border-t border-primary/10 pt-6">
           <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col md:flex-row gap-8">
+              {/* Book Cover Placeholder or Image */}
               <div className="w-40 h-56 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
                 {extractedBook?.coverImage ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
                 ) : (
                   <>
@@ -130,6 +132,7 @@ export default function AddBookPage() {
                 )}
               </div>
 
+              {/* Book Details */}
               <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 gap-4">
                   <div>
@@ -178,7 +181,7 @@ export default function AddBookPage() {
         </div>
       </main>
 
-      <BottomNav activeTab="add" />
+      <BottomNav activeTab="home" />
     </div>
   );
 }
