@@ -192,11 +192,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Use transcript/summary as description if found, otherwise use OG description
-    const finalSummary = summary || ogDescription;
+    const finalSummary = summary || transcript || "";
+    const finalDescription = playerResponse?.videoDetails?.shortDescription || ogDescription || "";
 
     return NextResponse.json({
       title,
       summary: finalSummary,
+      description: finalDescription,
       thumbnail,
       duration,
       publishDate,

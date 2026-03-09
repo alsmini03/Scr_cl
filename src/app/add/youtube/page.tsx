@@ -52,9 +52,11 @@ export default function AddYouTubePage() {
       const data = await response.json();
       setMetadata({ ...data, url });
       setTitle(data.title || '');
-      setSummary(data.summary || '');
+      // 설명 field gets the actual YouTube description (fetched via URL)
+      setSummary(data.description || '');
+      // 요약 field gets the AI generated summary
+      setTranscript(data.summary || '');
       setDuration(data.duration || '00:00');
-      setTranscript(data.transcript || '');
 
       // Use extracted date if available, otherwise fallback to today
       setPublishedAt(data.publishDate || new Date().toISOString().split('T')[0]);
@@ -77,8 +79,8 @@ export default function AddYouTubePage() {
         thumbnail: metadata?.thumbnail,
         duration,
         published_at: publishedAt,
-        summary,
-        description: transcript,
+        summary: transcript, // UI "요약" is transcript state
+        description: summary, // UI "설명" is summary state
       });
 
       alert('유튜브 영상 정보가 저장되었습니다.');
