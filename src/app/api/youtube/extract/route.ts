@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
 
     const response = await fetch(url, {
       headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
       },
     });
 
@@ -26,16 +26,31 @@ export async function POST(req: NextRequest) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    const title = $('meta[property="og:title"]').attr("content") || "";
-    const description = $('meta[property="og:description"]').attr("content") || "";
-    const thumbnail = $('meta[property="og:image"]').attr("content") || "";
+    let title = $('meta[property="og:title"]').attr("content") ||
+                $('meta[name="twitter:title"]').attr("content") ||
+                $("title").text() || "";
+
+    let description = $('meta[property="og:description"]').attr("content") ||
+                      $('meta[name="twitter:description"]').attr("content") || "";
+
+    let thumbnail = $('meta[property="og:image"]').attr("content") ||
+                    $('meta[name="twitter:image"]').attr("content") || "";
+
+    // Cleanup title (remove " - YouTube")
+    title = title.replace(" - YouTube", "").trim();
+
+    // Fallback for thumbnail if ID is available
+    if (!thumbnail) {
+      const videoId = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/)?.[1];
+      if (videoId) {
+        thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+      }
+    }
 
     return NextResponse.json({
       title,
       description,
       thumbnail,
-      // Duration and specific publish date are harder to get from OG tags alone
-      // without using YouTube Data API, but we'll return what we have.
     });
   } catch (error) {
     console.error("YouTube Extraction error:", error);
