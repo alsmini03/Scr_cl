@@ -106,21 +106,21 @@ export default function AddBookPage() {
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-900 ml-1">Yes24 상품 URL</label>
-              <div className="relative group">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 pr-32 transition-all outline-none"
+                  className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
                   placeholder="https://www.yes24.com/Product/Goods/..."
                 />
                 <button
                   onClick={handleExtract}
                   disabled={isExtracting}
-                  className="absolute right-2 top-2 bottom-2 bg-primary hover:bg-primary/90 text-white font-bold px-4 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
+                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
                 >
-                  <span>{isExtracting ? '가져오는 중...' : '가져오기'}</span>
-                  {!isExtracting && <span className="material-symbols-outlined text-sm">auto_awesome</span>}
+                  <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                  <span className="text-[12px] leading-tight">{isExtracting ? '가져오는 중' : '가져오기'}</span>
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}

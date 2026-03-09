@@ -119,6 +119,18 @@ export async function POST(req: NextRequest) {
       console.warn("Transcript extraction failed:", e);
     }
 
+    // Extract duration from playerResponse or HTML if available
+    let duration = "";
+    const lengthSeconds = playerResponse?.videoDetails?.lengthSeconds ||
+                          html.match(/"lengthSeconds":"(\d+)"/)?.[1];
+
+    if (lengthSeconds) {
+        const seconds = parseInt(lengthSeconds);
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        duration = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
     // Use transcript as description if found, otherwise use OG description
     const description = transcript || ogDescription;
 
@@ -126,6 +138,7 @@ export async function POST(req: NextRequest) {
       title,
       description,
       thumbnail,
+      duration,
     });
   } catch (error) {
     console.error("YouTube Extraction error:", error);

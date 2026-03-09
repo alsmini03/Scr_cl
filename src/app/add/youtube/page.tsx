@@ -50,6 +50,7 @@ export default function AddYouTubePage() {
       setMetadata({ ...data, url });
       setTitle(data.title || '');
       setDescription(data.description || '');
+      setDuration(data.duration || '00:00');
 
       // Auto-set today's date if not extracted
       setPublishedAt(new Date().toISOString().split('T')[0]);
