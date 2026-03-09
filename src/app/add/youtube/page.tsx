@@ -25,7 +25,7 @@ export default function AddYouTubePage() {
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState('00:00');
   const [publishedAt, setPublishedAt] = useState('');
-  const [description, setDescription] = useState('');
+  const [summary, setSummary] = useState('');
   const [transcript, setTranscript] = useState('');
 
   const handleExtract = async () => {
@@ -50,7 +50,7 @@ export default function AddYouTubePage() {
       const data = await response.json();
       setMetadata({ ...data, url });
       setTitle(data.title || '');
-      setDescription(data.description || '');
+      setSummary(data.summary || '');
       setDuration(data.duration || '00:00');
       setTranscript(data.transcript || '');
 
@@ -75,7 +75,8 @@ export default function AddYouTubePage() {
         thumbnail: metadata?.thumbnail,
         duration,
         published_at: publishedAt,
-        description: `${description}\n\n[스크립트]\n${transcript}`,
+        summary,
+        description: transcript,
       });
 
       alert('유튜브 영상 정보가 저장되었습니다.');
@@ -185,12 +186,12 @@ export default function AddYouTubePage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">내용</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={summary}
+              onChange={(e) => setSummary(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-32 p-4 transition-all outline-none"
-              placeholder="동영상에 대한 상세 내용을 입력하세요"
+              placeholder="동영상에 대한 요약 내용이 여기에 표시됩니다."
             ></textarea>
           </div>
 

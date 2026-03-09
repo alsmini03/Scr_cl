@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   thumbnail TEXT,
   duration TEXT,
   published_at TEXT,
+  summary TEXT,
   description TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL

@@ -196,15 +196,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Use transcript/summary as description if found, otherwise use OG description
-    const description = summary || transcript || ogDescription;
+    const finalSummary = summary || ogDescription;
 
     return NextResponse.json({
       title,
-      description,
+      summary: finalSummary,
       thumbnail,
       duration,
       publishDate,
-      transcript: transcript, // Explicitly send transcript as well
+      transcript: transcript,
     });
   } catch (error) {
     console.error("YouTube Extraction error:", error);

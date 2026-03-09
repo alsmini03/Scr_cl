@@ -205,6 +205,7 @@ export async function saveYoutubeVideo(video: {
   thumbnail?: string;
   duration?: string;
   published_at?: string;
+  summary?: string;
   description?: string;
 }): Promise<void> {
   const userId = await ensureApproved();
@@ -214,11 +215,11 @@ export async function saveYoutubeVideo(video: {
   try {
     await sql`
       INSERT INTO youtube_videos (
-        id, title, url, thumbnail, duration, published_at, description, user_id, added_at
+        id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at
       ) VALUES (
         ${id}, ${video.title}, ${video.url}, ${video.thumbnail || null},
         ${video.duration || null}, ${video.published_at || null},
-        ${video.description || null}, ${userId}, ${addedAt}
+        ${video.summary || null}, ${video.description || null}, ${userId}, ${addedAt}
       )
     `;
 
