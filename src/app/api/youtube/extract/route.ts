@@ -131,6 +131,17 @@ export async function POST(req: NextRequest) {
         duration = `${mins}:${secs.toString().padStart(2, '0')}`;
     }
 
+    // Extract publish date
+    let publishDate = playerResponse?.microformat?.playerMicroformatRenderer?.publishDate ||
+                      playerResponse?.microformat?.playerMicroformatRenderer?.uploadDate ||
+                      html.match(/itemprop="datePublished" content="(.*?)"/)?.[1] ||
+                      html.match(/itemprop="uploadDate" content="(.*?)"/)?.[1] || "";
+
+    if (publishDate) {
+        // Extract YYYY-MM-DD from ISO string
+        publishDate = publishDate.split('T')[0];
+    }
+
     // Use transcript as description if found, otherwise use OG description
     const description = transcript || ogDescription;
 
@@ -139,6 +150,8 @@ export async function POST(req: NextRequest) {
       description,
       thumbnail,
       duration,
+      publishDate,
+      transcript: transcript, // Explicitly send transcript as well
     });
   } catch (error) {
     console.error("YouTube Extraction error:", error);

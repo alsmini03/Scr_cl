@@ -26,6 +26,7 @@ export default function AddYouTubePage() {
   const [duration, setDuration] = useState('00:00');
   const [publishedAt, setPublishedAt] = useState('');
   const [description, setDescription] = useState('');
+  const [transcript, setTranscript] = useState('');
 
   const handleExtract = async () => {
     if (!url) return;
@@ -51,9 +52,10 @@ export default function AddYouTubePage() {
       setTitle(data.title || '');
       setDescription(data.description || '');
       setDuration(data.duration || '00:00');
+      setTranscript(data.transcript || '');
 
-      // Auto-set today's date if not extracted
-      setPublishedAt(new Date().toISOString().split('T')[0]);
+      // Use extracted date if available, otherwise fallback to today
+      setPublishedAt(data.publishDate || new Date().toISOString().split('T')[0]);
     } catch (err: unknown) {
       console.error('YouTube Extraction error:', err);
       setError('정보를 가져오는 데 실패했습니다.');
@@ -73,7 +75,7 @@ export default function AddYouTubePage() {
         thumbnail: metadata?.thumbnail,
         duration,
         published_at: publishedAt,
-        description,
+        description: `${description}\n\n[스크립트]\n${transcript}`,
       });
 
       alert('유튜브 영상 정보가 저장되었습니다.');
@@ -189,6 +191,16 @@ export default function AddYouTubePage() {
               onChange={(e) => setDescription(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-32 p-4 transition-all outline-none"
               placeholder="동영상에 대한 상세 내용을 입력하세요"
+            ></textarea>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700 ml-1">스크립트</label>
+            <textarea
+              value={transcript}
+              onChange={(e) => setTranscript(e.target.value)}
+              className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-64 p-4 transition-all outline-none"
+              placeholder="자막(스크립트) 정보가 여기에 표시됩니다."
             ></textarea>
           </div>
         </section>
