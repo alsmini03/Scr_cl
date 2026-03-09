@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
           apiKey: process.env.GEMINI_API_KEY,
         });
         const result = await ai.models.generateContent({
-          model: "gemini-2.0-flash", // Use a standard flash model for speed
+          model: "gemini-2.5-flash-lite",
           contents: [
             {
               fileData: {
