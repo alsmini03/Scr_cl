@@ -16,3 +16,5 @@
  GET /add/youtube 200 in 618ms (compile: 450ms, render: 168ms)
  GET /api/auth/session 200 in 53ms (compile: 38ms, proxy.ts: 8ms, render: 8ms)
  GET /api/auth/session 200 in 21ms (compile: 6ms, proxy.ts: 7ms, render: 8ms)
+✓ Compiled in 1399ms
+✓ Compiled in 1950ms

@@ -85,7 +85,8 @@ export default function AddYouTubePage() {
       router.push('/');
     } catch (error) {
       console.error('Failed to save youtube video:', error);
-      alert('저장에 실패했습니다.');
+      const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+      alert(`저장에 실패했습니다: ${message}`);
     } finally {
       setIsSaving(false);
     }

@@ -213,6 +213,16 @@ export async function saveYoutubeVideo(video: {
   const addedAt = new Date().toISOString();
 
   try {
+    // Self-healing migration check for the summary column
+    await sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='youtube_videos' AND column_name='summary') THEN
+          ALTER TABLE youtube_videos ADD COLUMN summary TEXT;
+        END IF;
+      END $$;
+    `;
+
     await sql`
       INSERT INTO youtube_videos (
         id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at
