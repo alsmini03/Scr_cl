@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/pg-adapter": "^1.11.1",
+    "@google/genai": "^1.44.0",
     "@types/pg": "^8.18.0",
     "@vercel/postgres": "^0.10.0",
     "cheerio": "^1.2.0",
