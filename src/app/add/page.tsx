@@ -102,10 +102,13 @@ export default function AddBookPage() {
         </div>
 
         {/* Main Action Section */}
-        <section className="mb-6">
+        <section className="mb-10">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
+          <p className="text-slate-600 text-lg mb-6">아래에 Yes24 도서 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 도서 정보를 확인하여 입력해 드립니다.</p>
+
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-900 ml-1">Yes24 상품 URL</label>
+              <label className="text-sm font-medium text-slate-700 ml-1">Yes24 상품 URL</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -150,22 +153,31 @@ export default function AddBookPage() {
                 <div className="flex-1 space-y-3 min-w-0">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
-                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner break-words">
-                      {extractedBook?.title || "도서 제목"}
+                    <div className={cn(
+                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner break-words",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "가져오는 중..." : (extractedBook?.title || "도서 제목")}
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자</label>
-                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate">
-                      {extractedBook?.author || "저자명"}
+                    <div className={cn(
+                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "가져오는 중..." : (extractedBook?.author || "저자명")}
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">발행일자</label>
-                    <div className="min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate">
-                      {extractedBook?.publishDate || "2024년 01월 01일"}
+                    <div className={cn(
+                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "가져오는 중..." : (extractedBook?.publishDate || "2024년 01월 01일")}
                     </div>
                   </div>
                 </div>
@@ -174,8 +186,11 @@ export default function AddBookPage() {
               {/* Description - Bottom Full Width */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
-                <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                  {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
+                <div className={cn(
+                  "min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap",
+                  isExtracting && "animate-pulse"
+                )}>
+                  {isExtracting ? "제미나이가 정보를 분석 중입니다..." : (extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다.")}
                 </div>
               </div>
             </div>

@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
 -- https://authjs.dev/reference/adapter/pg
 
 CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
+  id VARCHAR(255) PRIMARY KEY, -- Use email as ID as requested
   name VARCHAR(255),
   email VARCHAR(255) UNIQUE,
   "emailVerified" TIMESTAMPTZ,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS accounts (
   id SERIAL PRIMARY KEY,
-  "userId" INTEGER NOT NULL,
+  "userId" VARCHAR(255) NOT NULL,
   type VARCHAR(255) NOT NULL,
   provider VARCHAR(255) NOT NULL,
   "providerAccountId" VARCHAR(255) NOT NULL,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 CREATE TABLE IF NOT EXISTS sessions (
   id SERIAL PRIMARY KEY,
-  "userId" INTEGER NOT NULL,
+  "userId" VARCHAR(255) NOT NULL,
   expires TIMESTAMPTZ NOT NULL,
   "sessionToken" VARCHAR(255) NOT NULL UNIQUE,
   CONSTRAINT fk_user_session FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE

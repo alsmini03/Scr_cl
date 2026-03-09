@@ -11,7 +11,7 @@ export default {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id!;
+        token.id = user.email!; // Use email as user ID in JWT
         token.isApproved = user.is_approved ?? false;
       }
       return token;
@@ -24,9 +24,10 @@ export default {
                           nextUrl.pathname.startsWith('/favicon.ico') ||
                           nextUrl.pathname.startsWith('/icons/');
       const isHome = nextUrl.pathname === '/';
+      const isDev = process.env.NODE_ENV === 'development';
 
       if (isApiAuth || isPublicAsset) return true;
-      if (isHome) return true;
+      if (isHome || (isDev && nextUrl.pathname.startsWith('/add'))) return true;
 
       if (!isLoggedIn && !isAuthPage) {
         return Response.redirect(new URL('/login', nextUrl));

@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { saveYoutubeVideo } from '@/lib/db';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface YouTubeMetadata {
   title: string;
@@ -35,6 +36,8 @@ export default function AddYouTubePage() {
 
     setIsExtracting(true);
     setError(null);
+    setSummary('');
+    setTranscript('');
 
     try {
       const response = await fetch('/api/youtube/extract', {
@@ -45,11 +48,12 @@ export default function AddYouTubePage() {
         body: JSON.stringify({ url }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to extract video info');
+        throw new Error(data.error || 'Failed to extract video info');
       }
 
-      const data = await response.json();
       setMetadata({ ...data, url });
       setTitle(data.title || '');
       // 설명 field gets the actual YouTube description (fetched via URL)
@@ -62,7 +66,12 @@ export default function AddYouTubePage() {
       setPublishedAt(data.publishDate || new Date().toISOString().split('T')[0]);
     } catch (err: unknown) {
       console.error('YouTube Extraction error:', err);
-      setError('정보를 가져오는 데 실패했습니다.');
+      const msg = err instanceof Error ? err.message : '정보를 가져오는 데 실패했습니다.';
+      setError(msg);
+      // Display Gemini error in the Summary field if applicable
+      if (msg.includes('Gemini') || msg.includes('token')) {
+          setTranscript(`### 오류 발생\n\n${msg}`);
+      }
     } finally {
       setIsExtracting(false);
     }
@@ -79,8 +88,8 @@ export default function AddYouTubePage() {
         thumbnail: metadata?.thumbnail,
         duration,
         published_at: publishedAt,
-        summary: transcript, // UI "요약" is transcript state
-        description: summary, // UI "설명" is summary state
+        summary: transcript, // UI "요약" renders transcript state (AI Summary)
+        description: summary, // UI "설명" renders summary state (Actual YT Desc)
       });
 
       alert('유튜브 영상 정보가 저장되었습니다.');
@@ -112,7 +121,10 @@ export default function AddYouTubePage() {
           </button>
         </div>
 
-        <section className="mb-6">
+        <section className="mb-10">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
+          <p className="text-slate-600 text-lg mb-6">아래에 유튜브 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 영상 정보를 요약하여 입력해 드립니다.</p>
+
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
@@ -127,10 +139,12 @@ export default function AddYouTubePage() {
                 <button
                   onClick={handleExtract}
                   disabled={isExtracting}
-                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[100px]"
                 >
                   <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                  <span className="text-[12px] leading-tight">가져오기</span>
+                  <span className="text-[12px] leading-tight">
+                    {isExtracting ? '가져오는 중' : '가져오기'}
+                  </span>
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
@@ -138,81 +152,93 @@ export default function AddYouTubePage() {
           </div>
         </section>
 
-        {/* Preview State */}
-        <section className="border border-dashed border-primary/20 rounded-2xl p-6 mb-8 flex flex-col items-center justify-center text-center bg-primary/5 min-h-48 relative overflow-hidden">
-          {metadata?.thumbnail ? (
-            <div className="absolute inset-0 z-0">
-               {/* eslint-disable-next-line @next/next/no-img-element */}
-               <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover opacity-30" />
-            </div>
-          ) : null}
+        {/* Preview State - Horizontal Layout matching Add Book screen */}
+        <section className="border-t border-primary/10 pt-6">
+          <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
+            <div className="flex flex-col gap-6">
+              <div className="flex gap-4 items-start">
+                {/* Video Thumbnail */}
+                <div className="w-28 h-40 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative">
+                  {metadata?.thumbnail ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-slate-400 text-3xl mb-1">play_circle</span>
+                      <span className="text-[8px] text-slate-400 font-medium">미리보기</span>
+                    </>
+                  )}
+                  {isExtracting && <div className="absolute inset-0 bg-white/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary">sync</span></div>}
+                </div>
 
-          <div className="relative z-10">
-            <div className="size-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 mx-auto text-primary">
-              <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>play_circle</span>
+                {/* Metadata - Right Column */}
+                <div className="flex-1 space-y-3 min-w-0">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
+                    <div className={cn(
+                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner break-words",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "가져오는 중..." : (title || "영상 제목")}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">재생 시간</label>
+                      <div className={cn(
+                        "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                        isExtracting && "animate-pulse"
+                      )}>
+                        {isExtracting ? "--:--" : (duration || "00:00")}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">등록일자</label>
+                      <div className={cn(
+                        "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                        isExtracting && "animate-pulse"
+                      )}>
+                        {isExtracting ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description - Bottom Full Width */}
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
+                <div className={cn(
+                  "min-h-32 bg-slate-50 rounded p-4 text-sm text-slate-900 border border-slate-100 shadow-inner whitespace-pre-wrap overflow-hidden",
+                  isExtracting && "animate-pulse"
+                )}>
+                  {isExtracting ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
+                </div>
+              </div>
             </div>
-            <h3 className="font-bold text-lg mb-1">동영상 미리보기</h3>
-            <p className="text-slate-500 text-sm">URL을 입력하면 썸네일이 여기에 표시됩니다.</p>
           </div>
         </section>
 
-        <section className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">제목</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
-              placeholder="영상 제목을 입력하세요"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">재생 시간</label>
-              <input
-                type="text"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
-                placeholder="00:00"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">등록일자</label>
-              <input
-                type="date"
-                value={publishedAt}
-                onChange={(e) => setPublishedAt(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">설명</label>
-            <textarea
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-32 p-4 transition-all outline-none"
-              placeholder="동영상에 대한 설명이 여기에 표시됩니다."
-            ></textarea>
-          </div>
+        <section className={cn("mt-6 space-y-6 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
-            {transcript ? (
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 prose prose-sm max-w-none">
+            {isExtracting ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 min-h-64 shadow-inner animate-pulse flex flex-col gap-2">
+                 <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+                 <div className="h-4 bg-slate-200 rounded w-full"></div>
+                 <div className="h-4 bg-slate-200 rounded w-5/6"></div>
+                 <div className="mt-4 text-slate-400 text-sm italic">AI가 영상을 분석하여 요약 중입니다. 잠시만 기다려 주세요...</div>
+              </div>
+            ) : transcript ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 prose prose-sm max-w-none shadow-inner">
                 <ReactMarkdown>{transcript}</ReactMarkdown>
               </div>
             ) : (
-              <textarea
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-64 p-4 transition-all outline-none"
-                placeholder="요약 내용이 여기에 마크다운으로 표시됩니다."
-              ></textarea>
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-500 min-h-64 p-4 shadow-inner">
+                요약 내용이 여기에 마크다운으로 표시됩니다.
+              </div>
             )}
           </div>
         </section>

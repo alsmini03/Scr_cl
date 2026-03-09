@@ -143,29 +143,27 @@ export async function POST(req: NextRequest) {
           // If we have transcript, summarize the TEXT (much fewer tokens)
           console.log("Summarizing scraped transcript with Gemini...");
           const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash-lite",
-            contents: [{ text: `아래 유튜브 영상 스크립트를 상세하게 요약해 주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }],
+            model: "gemini-2.0-flash-exp",
+            contents: [{ role: 'user', parts: [{ text: `유튜브 영상의 스크립트를 바탕으로 핵심 내용을 상세하게 요약해 주세요. 불필요한 서론 없이 바로 요약 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
           // If no transcript, analyze the video URL (fallback, might hit token limit)
           console.log("No transcript found, analyzing video URL with Gemini...");
           const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash-lite",
+            model: "gemini-2.0-flash-exp",
             contents: [
-              { fileData: { fileUri: url, mimeType: "video/mp4" } },
-              { text: "이 유튜브 영상의 내용을 상세하게 요약해 주세요. 마크다운 형식을 사용하여 가능하다면 전체 자막(스크립트)도 포함해 주세요. 한국어로 답변해 주세요." }
+              { role: 'user', parts: [{ text: `다음 유튜브 영상의 내용을 상세하게 요약해 주세요. 불필요한 서론(예: '이 영상은 ~에 대한 것입니다') 없이 바로 핵심 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요. URL: ${url}` }] }
             ],
           });
-          const geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (geminiText) {
-            transcript = geminiText;
-            summary = geminiText.split('\n\n')[0];
-          }
+          summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         }
-      } catch (geminiError) {
+      } catch (geminiError: any) {
         console.error("Gemini processing failed:", geminiError);
+        summary = `### 제미나이 요약 오류\n\n영상 분석 중 오류가 발생했습니다: ${geminiError.message || '알 수 없는 오류'}\n\n스크립트를 가져오지 못했거나 영상이 너무 깁니다.`;
       }
+    } else {
+      summary = "### 설정 오류\n\nGEMINI_API_KEY가 설정되지 않았습니다. AI 요약을 사용하려면 API 키를 등록해 주세요.";
     }
 
     // Extract duration from playerResponse or HTML if available

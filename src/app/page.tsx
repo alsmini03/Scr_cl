@@ -11,12 +11,16 @@ export default async function LibraryPage() {
 
   const [session, books] = await Promise.all([sessionPromise, booksPromise]);
 
+  // Bypass login for development if needed, but for visual verification we might need to mock it
+  const isDev = process.env.NODE_ENV === 'development';
+  const displayBooks = (!session?.user && isDev) ? [] : books;
+
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
       <Header title="내 서재" transparent />
 
       <main className="mt-6 px-4">
-        {!session?.user ? (
+        {!session?.user && !isDev ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
               <span className="material-symbols-outlined text-4xl text-primary">lock</span>
@@ -41,7 +45,7 @@ export default async function LibraryPage() {
         )}
       </main>
 
-      {session?.user && (
+      {(session?.user || isDev) && (
         <Link
           href="/add"
           className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"

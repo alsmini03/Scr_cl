@@ -15,8 +15,13 @@ async function getSessionUser() {
 
 async function ensureApproved() {
   const user = await getSessionUser();
-  // We've removed the strict isApproved check to allow the primary user to use the app immediately.
-  // In a production multi-user app, you would verify the user's status in the database here.
+
+  // Strict isApproved check as per user requirements.
+  // Only the primary user (admin) or approved users should be able to register books.
+  if (!user.isApproved) {
+    throw new Error('권한이 없습니다. 관리자의 승인이 필요합니다.');
+  }
+
   return user.id;
 }
 
