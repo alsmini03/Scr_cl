@@ -68,13 +68,13 @@ export async function POST(req: NextRequest) {
 
     // Attempt to fetch transcript
     let transcript = "";
+    let playerResponse = null;
     try {
       // YouTube embeds the player response in the HTML
       // Sometimes it's window['ytInitialPlayerResponse'] or var ytInitialPlayerResponse
       const playerResponseRegex = /ytInitialPlayerResponse\s*=\s*({.+?});/s;
       const playerMatch = html.match(playerResponseRegex);
 
-      let playerResponse = null;
       if (playerMatch) {
         playerResponse = JSON.parse(playerMatch[1]);
       } else {
