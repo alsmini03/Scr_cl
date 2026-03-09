@@ -12,9 +12,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Use a standard browser user agent to get full player response (for captions)
-    // while still being able to see OG tags.
-    const response = await fetch(url, {
+    // First attempt with a browser user agent
+    let response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
@@ -22,16 +21,33 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    let html = await response.text();
+    let $ = cheerio.load(html);
+
+    let title = $('meta[property="og:title"]').attr("content") ||
+                $('meta[name="twitter:title"]').attr("content") ||
+                $("title").text();
+
+    // If browser UA failed to get basic meta tags, try with a social crawler UA
+    // Note: YouTube often returns " - YouTube" or "YouTube" in title when it detects a bot
+    if (!title || title.trim() === "YouTube" || title.trim() === "- YouTube") {
+      response = await fetch(url, {
+        headers: {
+          "User-Agent": "facebookexternalhit/1.1",
+          "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        },
+      });
+      html = await response.text();
+      $ = cheerio.load(html);
+    }
+
     if (!response.ok) {
       throw new Error("Failed to fetch page");
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
-    let title = $('meta[property="og:title"]').attr("content") ||
-                $('meta[name="twitter:title"]').attr("content") ||
-                $("title").text() || "";
+    title = $('meta[property="og:title"]').attr("content") ||
+            $('meta[name="twitter:title"]').attr("content") ||
+            $("title").text() || "";
 
     let ogDescription = $('meta[property="og:description"]').attr("content") ||
                       $('meta[name="twitter:description"]').attr("content") || "";
