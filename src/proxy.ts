@@ -11,6 +11,6 @@ export default auth;
 
 export const config = {
   matcher: [
-    "/((?!api/extract|api/youtube/extract|login|add/youtube|_next/static|_next/image|favicon.ico|$).*)",
+    "/((?!api/extract|api/youtube/extract|login|add|add/youtube|_next/static|_next/image|favicon.ico|$).*)",
   ],
 };

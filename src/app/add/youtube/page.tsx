@@ -90,6 +90,19 @@ export default function AddYouTubePage() {
       <Header title="유튜브 정보 가져오기" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
+        {/* Switch Mode Tab */}
+        <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
+          <button
+            onClick={() => router.push('/add')}
+            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            도서 검색
+          </button>
+          <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
+            유튜브 정보 가져오기
+          </button>
+        </div>
+
         <h2 className="text-3xl font-bold leading-tight tracking-tight mb-6">URL로 가져오기</h2>
 
         <section className="mb-6">

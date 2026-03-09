@@ -20,21 +20,7 @@ async function ensureApproved() {
   return user.id;
 }
 
-function mapRowToBook(row: {
-  id: string;
-  title: string;
-  author?: string;
-  cover_image?: string;
-  category?: string;
-  published_date?: string;
-  price?: string;
-  description?: string;
-  status: string;
-  progress?: number;
-  rating?: number;
-  notes?: string;
-  added_at?: string;
-}): Book {
+function mapRowToBook(row: any): Book {
   return {
     id: row.id,
     title: row.title,
@@ -244,17 +230,7 @@ export async function saveYoutubeVideo(video: {
   }
 }
 
-export async function getYoutubeVideos(): Promise<{
-  id: string;
-  title: string;
-  url: string;
-  thumbnail?: string;
-  duration?: string;
-  published_at?: string;
-  description?: string;
-  user_id: string;
-  added_at: string;
-}[]> {
+export async function getYoutubeVideos(): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const { rows } = await sql`
