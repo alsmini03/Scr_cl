@@ -12,10 +12,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Use a standard browser user agent to get full player response (for captions)
+    // while still being able to see OG tags.
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Cache-Control": "no-cache",
       },
     });
 
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
                 $('meta[name="twitter:title"]').attr("content") ||
                 $("title").text() || "";
 
-    let description = $('meta[property="og:description"]').attr("content") ||
+    let ogDescription = $('meta[property="og:description"]').attr("content") ||
                       $('meta[name="twitter:description"]').attr("content") || "";
 
     let thumbnail = $('meta[property="og:image"]').attr("content") ||
@@ -40,12 +43,68 @@ export async function POST(req: NextRequest) {
     title = title.replace(" - YouTube", "").trim();
 
     // Fallback for thumbnail if ID is available
-    if (!thumbnail) {
-      const videoId = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/)?.[1];
-      if (videoId) {
-        thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
-      }
+    const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/);
+    const videoId = videoIdMatch ? videoIdMatch[1] : null;
+
+    if (!thumbnail && videoId) {
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
     }
+
+    // Attempt to fetch transcript
+    let transcript = "";
+    try {
+      // YouTube embeds the player response in the HTML
+      // Sometimes it's window['ytInitialPlayerResponse'] or var ytInitialPlayerResponse
+      const playerResponseRegex = /ytInitialPlayerResponse\s*=\s*({.+?});/s;
+      const playerMatch = html.match(playerResponseRegex);
+
+      let playerResponse = null;
+      if (playerMatch) {
+        playerResponse = JSON.parse(playerMatch[1]);
+      } else {
+          // Try another pattern
+          const altRegex = /"playerResponse":\s*({.+?})\s*,\s*"playbackTracking"/s;
+          const altMatch = html.match(altRegex);
+          if (altMatch) {
+              playerResponse = JSON.parse(altMatch[1]);
+          }
+      }
+
+      if (playerResponse) {
+        const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+
+        if (captionTracks && captionTracks.length > 0) {
+          // Prefer Korean (ko), then English (en), then any
+          const track = captionTracks.find((t: any) => t.languageCode === 'ko') ||
+                        captionTracks.find((t: any) => t.languageCode?.startsWith('ko')) ||
+                        captionTracks.find((t: any) => t.languageCode === 'en') ||
+                        captionTracks[0];
+
+          if (track?.baseUrl) {
+            const capRes = await fetch(track.baseUrl + "&fmt=json3", {
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://www.youtube.com/",
+              }
+            });
+            const capData = await capRes.json();
+            if (capData.events) {
+                transcript = capData.events
+                    .filter((ev: any) => ev.segs)
+                    .map((ev: any) => ev.segs.map((s: any) => s.utf8).join(''))
+                    .join(' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Transcript extraction failed:", e);
+    }
+
+    // Use transcript as description if found, otherwise use OG description
+    const description = transcript || ogDescription;
 
     return NextResponse.json({
       title,
