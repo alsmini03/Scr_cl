@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
           console.log("Summarizing scraped transcript with Gemini...");
           const result = await ai.models.generateContent({
             model: "gemini-2.5-flash-lite",
-            contents: [{ text: `아래 유튜브 영상 스크립트를 상세하게 요약해 주세요. 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }],
+            contents: [{ text: `아래 유튜브 영상 스크립트를 상세하게 요약해 주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
             model: "gemini-2.5-flash-lite",
             contents: [
               { fileData: { fileUri: url, mimeType: "video/mp4" } },
-              { text: "이 유튜브 영상의 내용을 상세하게 요약해 주세요. 가능하다면 전체 자막(스크립트)도 포함해 주세요. 한국어로 답변해 주세요." }
+              { text: "이 유튜브 영상의 내용을 상세하게 요약해 주세요. 마크다운 형식을 사용하여 가능하다면 전체 자막(스크립트)도 포함해 주세요. 한국어로 답변해 주세요." }
             ],
           });
           const geminiText = result.candidates?.[0]?.content?.parts?.[0]?.text;

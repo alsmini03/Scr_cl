@@ -13,6 +13,8 @@ interface YouTubeMetadata {
   url: string;
 }
 
+import ReactMarkdown from 'react-markdown';
+
 export default function AddYouTubePage() {
   const router = useRouter();
   const [url, setUrl] = useState('');
@@ -91,7 +93,7 @@ export default function AddYouTubePage() {
 
   return (
     <div className="font-display min-h-screen flex flex-col bg-white">
-      <Header title="유튜브 정보 가져오기" showBack />
+      <Header title="유튜브" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Switch Mode Tab */}
@@ -186,23 +188,29 @@ export default function AddYouTubePage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
+            <label className="text-sm font-bold text-slate-700 ml-1">설명</label>
             <textarea
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-32 p-4 transition-all outline-none"
-              placeholder="동영상에 대한 요약 내용이 여기에 표시됩니다."
+              placeholder="동영상에 대한 설명이 여기에 표시됩니다."
             ></textarea>
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">스크립트</label>
-            <textarea
-              value={transcript}
-              onChange={(e) => setTranscript(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-64 p-4 transition-all outline-none"
-              placeholder="자막(스크립트) 정보가 여기에 표시됩니다."
-            ></textarea>
+            <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
+            {transcript ? (
+              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 prose prose-sm max-w-none">
+                <ReactMarkdown>{transcript}</ReactMarkdown>
+              </div>
+            ) : (
+              <textarea
+                value={transcript}
+                onChange={(e) => setTranscript(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary min-h-64 p-4 transition-all outline-none"
+                placeholder="요약 내용이 여기에 마크다운으로 표시됩니다."
+              ></textarea>
+            )}
           </div>
         </section>
 

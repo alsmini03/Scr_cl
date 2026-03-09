@@ -1,17 +1,24 @@
 @import "tailwindcss";
 
+@plugin "@tailwindcss/typography";
+
 @theme {
   --color-primary: #1978e5;
-  --color-background-light: #ffffff;
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #111821;
+  --font-display: "Inter", sans-serif;
 }
 
-:root {
-  --background: var(--color-background-light);
-  --foreground: #0f172a;
+@layer base {
+  body {
+    @apply bg-white text-slate-900;
+  }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: "Inter", sans-serif;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
