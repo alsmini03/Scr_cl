@@ -20,7 +20,21 @@ async function ensureApproved() {
   return user.id;
 }
 
-function mapRowToBook(row: any): Book {
+function mapRowToBook(row: {
+  id: string;
+  title: string;
+  author?: string;
+  cover_image?: string;
+  category?: string;
+  published_date?: string;
+  price?: string;
+  description?: string;
+  status: string;
+  progress?: number;
+  rating?: number;
+  notes?: string;
+  added_at?: string;
+}): Book {
   return {
     id: row.id,
     title: row.title,
@@ -193,5 +207,63 @@ export async function permanentlyDeleteBook(id: string): Promise<void> {
   } catch (error) {
     console.error(`Failed to permanently delete book with id ${id}:`, error);
     throw new Error('Failed to permanently delete book');
+  }
+}
+
+/**
+ * YouTube Video Database Operations
+ */
+export async function saveYoutubeVideo(video: {
+  title: string;
+  url: string;
+  thumbnail?: string;
+  duration?: string;
+  published_at?: string;
+  description?: string;
+}): Promise<void> {
+  const userId = await ensureApproved();
+  const id = Math.random().toString(36).substring(2, 11);
+  const addedAt = new Date().toISOString();
+
+  try {
+    await sql`
+      INSERT INTO youtube_videos (
+        id, title, url, thumbnail, duration, published_at, description, user_id, added_at
+      ) VALUES (
+        ${id}, ${video.title}, ${video.url}, ${video.thumbnail || null},
+        ${video.duration || null}, ${video.published_at || null},
+        ${video.description || null}, ${userId}, ${addedAt}
+      )
+    `;
+
+    // We can revalidate the library or a hypothetical youtube videos list page
+    safeRevalidate('/');
+  } catch (error) {
+    console.error('Failed to save youtube video:', error);
+    throw new Error('Failed to save youtube video');
+  }
+}
+
+export async function getYoutubeVideos(): Promise<{
+  id: string;
+  title: string;
+  url: string;
+  thumbnail?: string;
+  duration?: string;
+  published_at?: string;
+  description?: string;
+  user_id: string;
+  added_at: string;
+}[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM youtube_videos
+      WHERE user_id = ${user.id}
+      ORDER BY added_at DESC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
   }
 }

@@ -88,6 +88,19 @@ export default function AddBookPage() {
       <Header title="새 책 추가" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
+        {/* Switch Mode Tab */}
+        <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
+          <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
+            도서 검색
+          </button>
+          <button
+            onClick={() => router.push('/add/youtube')}
+            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            유튜브 정보 가져오기
+          </button>
+        </div>
+
         {/* Main Action Section */}
         <section className="mb-6">
           <div className="space-y-4">

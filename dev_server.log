@@ -54,3 +54,9 @@
  GET /api/auth/session 200 in 141ms (compile: 25ms, proxy.ts: 99ms, render: 18ms)
 ✓ Compiled in 387ms
 ✓ Compiled in 472ms
+✓ Compiled in 1159ms
+Persisting failed: Unable to open static sorted file referenced from 00000463.meta
+
+Caused by:
+    0: Unable to open static sorted file 00000462.sst
+    1: No such file or directory (os error 2)

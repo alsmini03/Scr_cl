@@ -18,6 +18,19 @@ CREATE TABLE IF NOT EXISTS books (
   user_id TEXT
 );
 
+-- YouTube Videos Table
+CREATE TABLE IF NOT EXISTS youtube_videos (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  thumbnail TEXT,
+  duration TEXT,
+  published_at TEXT,
+  description TEXT,
+  user_id TEXT NOT NULL,
+  added_at TEXT NOT NULL
+);
+
 -- Auth.js Tables (PostgreSQL Adapter)
 -- https://authjs.dev/reference/adapter/pg
 
