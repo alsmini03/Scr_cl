@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
           // If we have transcript, summarize the TEXT (much fewer tokens)
           console.log("Summarizing scraped transcript with Gemini...");
           const result = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.5-flash-lite",
             contents: [{ role: 'user', parts: [{ text: `유튜브 영상의 스크립트를 바탕으로 핵심 내용을 상세하게 요약해 주세요. 불필요한 서론 없이 바로 요약 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
           // If no transcript, analyze the video URL (fallback, might hit token limit)
           console.log("No transcript found, analyzing video URL with Gemini...");
           const result = await ai.models.generateContent({
-            model: "gemini-2.0-flash-exp",
+            model: "gemini-2.5-flash-lite",
             contents: [
               { role: 'user', parts: [{ text: `다음 유튜브 영상의 내용을 상세하게 요약해 주세요. 불필요한 서론(예: '이 영상은 ~에 대한 것입니다') 없이 바로 핵심 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요. URL: ${url}` }] }
             ],
