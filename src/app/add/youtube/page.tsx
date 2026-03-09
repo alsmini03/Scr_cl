@@ -103,8 +103,6 @@ export default function AddYouTubePage() {
           </button>
         </div>
 
-        <h2 className="text-3xl font-bold leading-tight tracking-tight mb-6">URL로 가져오기</h2>
-
         <section className="mb-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
