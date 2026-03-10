@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { saveYoutubeVideo } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,51 @@ export default function AddYouTubePage() {
   const [summary, setSummary] = useState('');
   const [transcript, setTranscript] = useState('');
 
+  // Gemini Models
+  const [models, setModels] = useState<string[]>(['gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [newModelName, setNewModelName] = useState('');
+  const [showModelManager, setShowModelManager] = useState(false);
+
+  // Load models from localStorage
+  useEffect(() => {
+    const savedModels = localStorage.getItem('gemini-models');
+    if (savedModels) {
+      try {
+        const parsed = JSON.parse(savedModels);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setModels(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved models', e);
+      }
+    }
+  }, []);
+
+  // Save models to localStorage
+  useEffect(() => {
+    localStorage.setItem('gemini-models', JSON.stringify(models));
+  }, [models]);
+
+  const addModel = () => {
+    if (newModelName && !models.includes(newModelName)) {
+      setModels([...models, newModelName]);
+      setNewModelName('');
+    }
+  };
+
+  const deleteModel = (modelToDelete: string) => {
+    if (models.length > 1) {
+      const updatedModels = models.filter(m => m !== modelToDelete);
+      setModels(updatedModels);
+      if (selectedModel === modelToDelete) {
+        setSelectedModel(updatedModels[0]);
+      }
+    } else {
+      alert('최소 하나의 모델은 리스트에 있어야 합니다.');
+    }
+  };
+
   const handleExtract = async () => {
     if (!url) return;
 
@@ -45,7 +90,7 @@ export default function AddYouTubePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, model: selectedModel }),
       });
 
       const data = await response.json();
@@ -110,7 +155,7 @@ export default function AddYouTubePage() {
     <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="유튜브" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
           <button
@@ -124,8 +169,67 @@ export default function AddYouTubePage() {
           </button>
         </div>
 
-        <section className="mb-10">
+        <section className="mb-10 space-y-6">
           <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-slate-700 ml-1">제미나이 모델 선택</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none appearance-none"
+                >
+                  {models.map(model => (
+                    <option key={model} value={model}>{model}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowModelManager(!showModelManager)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 rounded-xl transition-colors flex items-center justify-center"
+                  title="모델 관리"
+                >
+                  <span className="material-symbols-outlined">{showModelManager ? 'close' : 'settings'}</span>
+                </button>
+              </div>
+            </div>
+
+            {showModelManager && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-slate-500 ml-1 uppercase">모델 추가</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newModelName}
+                      onChange={(e) => setNewModelName(e.target.value)}
+                      placeholder="모델명 입력 (예: gemini-pro)"
+                      className="flex-1 rounded-lg border border-slate-200 bg-white text-sm h-10 px-3 outline-none focus:border-primary"
+                    />
+                    <button
+                      onClick={addModel}
+                      className="bg-primary text-white text-xs font-bold px-4 rounded-lg"
+                    >
+                      추가
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500 ml-1 uppercase">모델 리스트</label>
+                  <div className="flex flex-wrap gap-2">
+                    {models.map(model => (
+                      <div key={model} className="flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-medium text-slate-600">
+                        <span>{model}</span>
+                        <button onClick={() => deleteModel(model)} className="text-slate-300 hover:text-red-500 transition-colors">
+                          <span className="material-symbols-outlined text-sm leading-none">cancel</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
               <div className="flex gap-2">
@@ -241,7 +345,11 @@ export default function AddYouTubePage() {
           </div>
         </section>
 
-        <div className="mt-10">
+      </main>
+
+      {/* Fixed Bottom Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-50">
+        <div className="max-w-2xl mx-auto">
           <button
             onClick={handleSave}
             disabled={!title || isSaving}
@@ -251,9 +359,7 @@ export default function AddYouTubePage() {
             {isSaving ? '저장 중...' : '저장하기'}
           </button>
         </div>
-      </main>
-
-      <BottomNav activeTab="home" />
+      </div>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 
 export async function POST(req: NextRequest) {
   try {
-    const { url } = await req.json();
+    const { url, model: requestedModel } = await req.json();
 
     if (!url || !url.includes("youtube.com") && !url.includes("youtu.be")) {
       return NextResponse.json(
@@ -222,19 +222,21 @@ URL: ${url}
 ${transcript ? `스크립트 내용: \n${transcript}` : ''}
 `;
 
+        const geminiModel = requestedModel || "gemini-2.5-flash-lite";
+
         if (transcript) {
           // If we have transcript, summarize the TEXT (much fewer tokens)
-          console.log("Summarizing scraped transcript with Gemini using detailed prompt...");
+          console.log(`Summarizing scraped transcript with Gemini using detailed prompt [Model: ${geminiModel}]...`);
           const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash-lite",
+            model: geminiModel,
             contents: [{ role: 'user', parts: [{ text: detailedPrompt }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
           // If no transcript, analyze the video URL (fallback, might hit token limit)
-          console.log("No transcript found, analyzing video URL with Gemini using detailed prompt...");
+          console.log(`No transcript found, analyzing video URL with Gemini using detailed prompt [Model: ${geminiModel}]...`);
           const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash-lite",
+            model: geminiModel,
             contents: [{ role: 'user', parts: [{ text: detailedPrompt }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
