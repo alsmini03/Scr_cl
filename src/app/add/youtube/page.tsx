@@ -574,14 +574,14 @@ export default function AddYouTubePage() {
 
       {/* Fixed Bottom Action Bar - above BottomNav */}
       <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-2xl mx-auto flex justify-center">
           <button
             onClick={() => handleSave()}
             disabled={!title || isSaving}
-            className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="px-12 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-xl">save</span>
-            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
+            {isSaving ? '저장 중...' : '저장하기'}
           </button>
         </div>
       </div>
