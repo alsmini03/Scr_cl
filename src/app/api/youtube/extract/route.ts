@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
             $('meta[name="twitter:title"]').attr("content") ||
             $("title").text() || "";
 
-    let ogDescription = $('meta[property="og:description"]').attr("content") ||
+    const ogDescription = $('meta[property="og:description"]').attr("content") ||
                       $('meta[name="twitter:description"]').attr("content") || "";
 
     let thumbnail = $('meta[property="og:image"]').attr("content") ||

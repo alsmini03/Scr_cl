@@ -32,6 +32,25 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   added_at TEXT NOT NULL
 );
 
+-- Gemini Models Table
+CREATE TABLE IF NOT EXISTS gemini_models (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Gemini Prompts Table
+CREATE TABLE IF NOT EXISTS gemini_prompts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Auth.js Tables (PostgreSQL Adapter)
 -- https://authjs.dev/reference/adapter/pg
 

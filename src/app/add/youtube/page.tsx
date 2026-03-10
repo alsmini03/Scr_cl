@@ -3,7 +3,17 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState, useEffect } from 'react';
-import { saveYoutubeVideo } from '@/lib/db';
+import {
+  saveYoutubeVideo,
+  getGeminiModels,
+  addGeminiModel,
+  deleteGeminiModel,
+  setDefaultGeminiModel,
+  getGeminiPrompts,
+  addGeminiPrompt,
+  deleteGeminiPrompt,
+  setDefaultGeminiPrompt
+} from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -31,103 +41,85 @@ export default function AddYouTubePage() {
   const [transcript, setTranscript] = useState('');
 
   // Gemini Models
-  const [models, setModels] = useState<string[]>(['gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3-flash-preview']);
-  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
+  const [models, setModels] = useState<any[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
   const [newModelName, setNewModelName] = useState('');
   const [showModelManager, setShowModelManager] = useState(false);
 
   // Prompts
-  const defaultPrompt = `📊 영상 종합 분석 리포트
-
-📌 제목: [영상 제목]
-출처: [URL]
-⏱️ 영상 길이: [00:00]
-🗓️ 업로드 날짜: [YYYY.MM.DD]
-
-🎯 핵심 요약
-[영상의 핵심 메시지와 주요 가치를 3-5줄로 응축하여 인용구 형태로 제시]
-
-🔑 주요 인사이트
-[첫 번째 인사이트] [00:00]
-세부 설명과 의미
-실용적 적용점
-
-📚 세부 내용 분석
-🔖 [섹션 1 제목] [00:00]
-[하위 주제 1]: 핵심 정보
-💡 인사이트: [관련 인사이트 강조]
-
-📈 데이터 및 통계
-[주요 수치 정보를 표 형태로 제시]
-
-🚀 실천 액션 플랜
-즉시 실행: [구체적 행동 제안]`;
-
-  const [prompts, setPrompts] = useState<{name: string, text: string}[]>([
-    { name: '종합 분석 리포트', text: defaultPrompt },
-    { name: '3줄 요약', text: '영상의 내용을 3줄로 요약해 주세요.' }
-  ]);
-  const [selectedPromptIndex, setSelectedPromptIndex] = useState(0);
+  const [prompts, setPrompts] = useState<any[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState('');
   const [newPromptName, setNewPromptName] = useState('');
   const [newPromptText, setNewPromptText] = useState('');
   const [showPromptManager, setShowPromptManager] = useState(false);
 
-  // Load from localStorage
-  useEffect(() => {
-    const savedModels = localStorage.getItem('gemini-models');
-    if (savedModels) {
-      try {
-        const parsed = JSON.parse(savedModels);
-        if (Array.isArray(parsed) && parsed.length > 0) setModels(parsed);
-      } catch (e) {}
-    }
+  const loadSettings = async () => {
+    const dbModels = await getGeminiModels();
+    const dbPrompts = await getGeminiPrompts();
 
-    const savedPrompts = localStorage.getItem('gemini-prompts');
-    if (savedPrompts) {
-      try {
-        const parsed = JSON.parse(savedPrompts);
-        if (Array.isArray(parsed) && parsed.length > 0) setPrompts(parsed);
-      } catch (e) {}
-    }
+    setModels(dbModels);
+    const defaultModel = dbModels.find(m => m.is_default) || dbModels[0];
+    if (defaultModel) setSelectedModel(defaultModel.name);
+
+    setPrompts(dbPrompts);
+    const defaultPrompt = dbPrompts.find(p => p.is_default) || dbPrompts[0];
+    if (defaultPrompt) setSelectedPromptId(defaultPrompt.id);
+  };
+
+  useEffect(() => {
+    loadSettings();
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    localStorage.setItem('gemini-models', JSON.stringify(models));
-  }, [models]);
-
-  useEffect(() => {
-    localStorage.setItem('gemini-prompts', JSON.stringify(prompts));
-  }, [prompts]);
-
-  const addModel = () => {
-    if (newModelName && !models.includes(newModelName)) {
-      setModels([...models, newModelName]);
-      setNewModelName('');
+  const handleAddModel = async () => {
+    if (newModelName) {
+      const res = await addGeminiModel(newModelName);
+      if (res.success) {
+        setNewModelName('');
+        await loadSettings();
+      } else {
+        alert(res.error);
+      }
     }
   };
 
-  const deleteModel = (modelToDelete: string) => {
-    if (models.length > 1) {
-      const updatedModels = models.filter(m => m !== modelToDelete);
-      setModels(updatedModels);
-      if (selectedModel === modelToDelete) setSelectedModel(updatedModels[0]);
+  const handleDeleteModel = async (id: string) => {
+    const res = await deleteGeminiModel(id);
+    if (res.success) {
+      await loadSettings();
     }
   };
 
-  const addPrompt = () => {
+  const handleSetDefaultModel = async (id: string) => {
+    const res = await setDefaultGeminiModel(id);
+    if (res.success) {
+      await loadSettings();
+    }
+  };
+
+  const handleAddPrompt = async () => {
     if (newPromptName && newPromptText) {
-      setPrompts([...prompts, { name: newPromptName, text: newPromptText }]);
-      setNewPromptName('');
-      setNewPromptText('');
+      const res = await addGeminiPrompt(newPromptName, newPromptText);
+      if (res.success) {
+        setNewPromptName('');
+        setNewPromptText('');
+        await loadSettings();
+      } else {
+        alert(res.error);
+      }
     }
   };
 
-  const deletePrompt = (index: number) => {
-    if (prompts.length > 1) {
-      const updated = prompts.filter((_, i) => i !== index);
-      setPrompts(updated);
-      if (selectedPromptIndex >= updated.length) setSelectedPromptIndex(0);
+  const handleDeletePrompt = async (id: string) => {
+    const res = await deleteGeminiPrompt(id);
+    if (res.success) {
+      await loadSettings();
+    }
+  };
+
+  const handleSetDefaultPrompt = async (id: string) => {
+    const res = await setDefaultGeminiPrompt(id);
+    if (res.success) {
+      await loadSettings();
     }
   };
 
@@ -140,6 +132,7 @@ export default function AddYouTubePage() {
     setTranscript('');
 
     try {
+      const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
       const response = await fetch('/api/youtube/extract', {
         method: 'POST',
         headers: {
@@ -148,7 +141,7 @@ export default function AddYouTubePage() {
         body: JSON.stringify({
           url,
           model: selectedModel,
-          prompt: prompts[selectedPromptIndex].text
+          prompt: selectedPrompt?.content
         }),
       });
 
@@ -214,7 +207,7 @@ export default function AddYouTubePage() {
     <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="유튜브" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-80">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
           <button
@@ -240,7 +233,7 @@ export default function AddYouTubePage() {
                     className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
                   >
                     {models.map(model => (
-                      <option key={model} value={model}>{model}</option>
+                      <option key={model.id} value={model.name}>{model.name}</option>
                     ))}
                   </select>
                   <button
@@ -256,12 +249,12 @@ export default function AddYouTubePage() {
                 <label className="text-sm font-medium text-slate-700 ml-1">분석 프롬프트</label>
                 <div className="flex gap-2">
                   <select
-                    value={selectedPromptIndex}
-                    onChange={(e) => setSelectedPromptIndex(parseInt(e.target.value))}
+                    value={selectedPromptId}
+                    onChange={(e) => setSelectedPromptId(e.target.value)}
                     className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
                   >
-                    {prompts.map((p, i) => (
-                      <option key={i} value={i}>{p.name}</option>
+                    {prompts.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                   <button
@@ -280,14 +273,22 @@ export default function AddYouTubePage() {
                   <label className="text-xs font-bold text-slate-500 uppercase">모델 추가</label>
                   <div className="flex gap-2">
                     <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
-                    <button onClick={addModel} className="bg-primary text-white px-4 rounded-lg text-sm">추가</button>
+                    <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">추가</button>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {models.map(m => (
-                    <div key={m} className="flex items-center gap-1 bg-white border px-2 py-1 rounded-full text-xs">
-                      <span>{m}</span>
-                      <button onClick={() => deleteModel(m)} className="text-red-400"><span className="material-symbols-outlined text-xs">cancel</span></button>
+                    <div key={m.id} className={cn(
+                      "flex items-center gap-2 border px-3 py-1.5 rounded-full text-xs transition-colors",
+                      m.is_default ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200"
+                    )}>
+                      <button onClick={() => handleSetDefaultModel(m.id)} className="font-medium hover:underline">{m.name}</button>
+                      <button onClick={() => handleDeleteModel(m.id)} className={cn(
+                        "hover:text-red-500 flex items-center",
+                        m.is_default ? "text-white/70" : "text-slate-400"
+                      )}>
+                        <span className="material-symbols-outlined text-[14px]">close</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -300,18 +301,28 @@ export default function AddYouTubePage() {
                   <label className="text-xs font-bold text-slate-500 uppercase">프롬프트 추가</label>
                   <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
                   <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
-                  <button onClick={addPrompt} className="bg-primary text-white py-2 rounded-lg text-sm font-bold">프롬프트 저장</button>
+                  <button onClick={handleAddPrompt} className="bg-primary text-white py-2 rounded-lg text-sm font-bold">프롬프트 저장</button>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase">저장된 프롬프트</label>
                   <div className="space-y-2">
-                    {prompts.map((p, i) => (
-                      <div key={i} className="flex items-center justify-between bg-white border p-3 rounded-xl">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold">{p.name}</span>
-                          <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.text}</span>
-                        </div>
-                        <button onClick={() => deletePrompt(i)} className="text-red-400"><span className="material-symbols-outlined">delete</span></button>
+                    {prompts.map((p) => (
+                      <div key={p.id} className={cn(
+                        "flex items-center justify-between p-3 rounded-xl border transition-colors",
+                        p.is_default ? "bg-primary/5 border-primary/20" : "bg-white border-slate-200"
+                      )}>
+                        <button
+                          onClick={() => handleSetDefaultPrompt(p.id)}
+                          className="flex flex-col flex-1 text-left"
+                        >
+                          <span className={cn("text-sm font-bold", p.is_default ? "text-primary" : "text-slate-900")}>
+                            {p.name} {p.is_default && " (기본값)"}
+                          </span>
+                          <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.content}</span>
+                        </button>
+                        <button onClick={() => handleDeletePrompt(p.id)} className="text-slate-400 hover:text-red-500 ml-2">
+                          <span className="material-symbols-outlined">delete</span>
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -436,8 +447,8 @@ export default function AddYouTubePage() {
 
       </main>
 
-      {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-50">
+      {/* Fixed Bottom Action Bar - above BottomNav */}
+      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={handleSave}
@@ -449,6 +460,8 @@ export default function AddYouTubePage() {
           </button>
         </div>
       </div>
+
+      <BottomNav activeTab="home" />
     </div>
   );
 }

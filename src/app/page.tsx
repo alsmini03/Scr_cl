@@ -10,12 +10,12 @@ import { getYoutubeVideos } from '@/lib/db';
 export default async function LibraryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string }>;
+  searchParams: Promise<{ mode?: string; view?: string }>;
 }) {
   const sessionPromise = auth();
   const booksPromise = getBooks();
   const youtubePromise = getYoutubeVideos();
-  const { mode: modeParam } = await searchParams;
+  const { mode: modeParam, view: viewParam } = await searchParams;
 
   const [session, books, youtubeVideos] = await Promise.all([
     sessionPromise,
@@ -24,13 +24,27 @@ export default async function LibraryPage({
   ]);
 
   const mode = modeParam || 'books';
+  const youtubeView = viewParam || '1';
 
   // Bypass login for development if needed, but for visual verification we might need to mock it
   const isDev = process.env.NODE_ENV === 'development';
 
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
-      <Header title="내 서재" transparent />
+      <Header
+        title="내 서재"
+        transparent
+        rightAction={mode === 'youtube' ? (
+          <Link
+            href={`/?mode=youtube&view=${youtubeView === '1' ? '2' : '1'}`}
+            className="flex items-center justify-center text-primary"
+          >
+            <span className="material-symbols-outlined text-2xl">
+              {youtubeView === '1' ? 'grid_view' : 'view_stream'}
+            </span>
+          </Link>
+        ) : undefined}
+      />
 
       <main className="mt-6 px-4">
         {/* Toggle Mode */}
@@ -87,7 +101,10 @@ export default async function LibraryPage({
               <Link href="/add/youtube" className="text-primary text-sm font-bold mt-2">유튜브 정보 가져오기</Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6">
+            <div className={cn(
+              "grid gap-6",
+              youtubeView === '2' ? "grid-cols-2" : "grid-cols-1"
+            )}>
               {youtubeVideos.map((video) => (
                 <Link
                   key={video.id}
@@ -101,8 +118,13 @@ export default async function LibraryPage({
                        {video.duration}
                      </div>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-slate-900 line-clamp-2 mb-1">{video.title}</h3>
+                  <div className="p-4 flex flex-col justify-between flex-1">
+                    <h3 className={cn(
+                      "font-bold text-slate-900 line-clamp-2 mb-1",
+                      youtubeView === '2' ? "text-sm" : "text-base"
+                    )}>
+                      {video.title}
+                    </h3>
                     <p className="text-xs text-slate-500 font-medium">{video.published_at}</p>
                   </div>
                 </Link>

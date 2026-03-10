@@ -66,6 +66,113 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+/**
+ * Gemini Settings Database Operations
+ */
+export async function getGeminiModels(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM gemini_models
+      WHERE user_id = ${user.id}
+      ORDER BY created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = Math.random().toString(36).substring(2, 11);
+    await sql`
+      INSERT INTO gemini_models (id, user_id, name)
+      VALUES (${id}, ${userId}, ${name})
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM gemini_models
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`UPDATE gemini_models SET is_default = FALSE WHERE user_id = ${userId}`;
+    await sql`UPDATE gemini_models SET is_default = TRUE WHERE id = ${id} AND user_id = ${userId}`;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getGeminiPrompts(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM gemini_prompts
+      WHERE user_id = ${user.id}
+      ORDER BY created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = Math.random().toString(36).substring(2, 11);
+    await sql`
+      INSERT INTO gemini_prompts (id, user_id, name, content)
+      VALUES (${id}, ${userId}, ${name}, ${content})
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM gemini_prompts
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`UPDATE gemini_prompts SET is_default = FALSE WHERE user_id = ${userId}`;
+    await sql`UPDATE gemini_prompts SET is_default = TRUE WHERE id = ${id} AND user_id = ${userId}`;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();

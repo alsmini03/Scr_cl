@@ -91,7 +91,7 @@ export default function AddBookPage() {
     <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="새 책 추가" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-64">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
           <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
@@ -200,8 +200,8 @@ export default function AddBookPage() {
 
       </main>
 
-      {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-50">
+      {/* Fixed Bottom Action Bar - above BottomNav */}
+      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
         <div className="max-w-2xl mx-auto">
           <button
             onClick={handleSave}
@@ -209,10 +209,12 @@ export default function AddBookPage() {
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined">save</span>
-            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
+            {isSaving ? '저장 중...' : '저장하기'}
           </button>
         </div>
       </div>
+
+      <BottomNav activeTab="home" />
     </div>
   );
 }
