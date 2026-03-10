@@ -206,10 +206,10 @@ export default function AddBookPage() {
           <button
             onClick={handleSave}
             disabled={!extractedBook || isSaving}
-            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined">save</span>
-            {isSaving ? '저장 중...' : '저장하기'}
+            <span className="material-symbols-outlined text-xl">save</span>
+            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
           </button>
         </div>
       </div>

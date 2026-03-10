@@ -261,6 +261,7 @@ export default function AddYouTubePage() {
       if (!response.ok) throw new Error(data.error || 'Failed to extract video info');
 
       // Update state locally for UI feedback (optional but helpful)
+      setMetadata({ ...data, url });
       setTitle(data.title || '');
       setSummary(data.description || '');
       setTranscript(data.summary || '');
@@ -444,32 +445,32 @@ export default function AddYouTubePage() {
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-3">
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
+                  className="w-full rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
                   placeholder="https://www.youtube.com/.."
                 />
                 <div className="flex gap-2">
                   <button
                     onClick={handleExtract}
                     disabled={isExtracting || isAutoAdding}
-                    className="bg-primary/10 text-primary hover:bg-primary/20 font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                    className="flex-1 bg-primary/10 text-primary hover:bg-primary/20 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-lg">description</span>
-                    <span className="text-[10px] leading-tight">
+                    <span className="text-sm font-bold">
                       {isExtracting ? '분석 중' : '가져오기'}
                     </span>
                   </button>
                   <button
                     onClick={handleAutoAdd}
                     disabled={isExtracting || isAutoAdding}
-                    className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                    <span className="text-[10px] leading-tight">
+                    <span className="text-sm font-bold">
                       {isAutoAdding ? '추가 중' : '자동 추가'}
                     </span>
                   </button>
@@ -482,7 +483,7 @@ export default function AddYouTubePage() {
 
         {/* Preview State - Vertical Layout for YouTube */}
         <section className="border-t border-primary/10 pt-6">
-          <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
+          <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               {/* Video Thumbnail - Full Width 16:9 */}
               <div className="w-full aspect-video bg-slate-100 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative group">
@@ -495,7 +496,7 @@ export default function AddYouTubePage() {
                     <span className="text-xs text-slate-400 font-medium">미리보기</span>
                   </>
                 )}
-                {isExtracting && <div className="absolute inset-0 bg-white/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary text-4xl">sync</span></div>}
+                {(isExtracting || isAutoAdding) && <div className="absolute inset-0 bg-white/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary text-4xl">sync</span></div>}
               </div>
 
               {/* Metadata - Below Thumbnail */}
@@ -504,9 +505,9 @@ export default function AddYouTubePage() {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
                   <div className={cn(
                     "min-h-12 bg-slate-50 rounded-xl px-4 py-3 flex items-center text-sm font-medium text-slate-900 border border-slate-100 shadow-inner break-words",
-                    isExtracting && "animate-pulse"
+                    (isExtracting || isAutoAdding) && "animate-pulse"
                   )}>
-                    {isExtracting ? "가져오는 중..." : (title || "영상 제목")}
+                    {(isExtracting || isAutoAdding) ? "가져오는 중..." : (title || "영상 제목")}
                   </div>
                 </div>
 
@@ -515,18 +516,18 @@ export default function AddYouTubePage() {
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">재생 시간</label>
                     <div className={cn(
                       "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
-                      isExtracting && "animate-pulse"
+                      (isExtracting || isAutoAdding) && "animate-pulse"
                     )}>
-                      {isExtracting ? "--:--" : (duration || "00:00")}
+                      {(isExtracting || isAutoAdding) ? "--:--" : (duration || "00:00")}
                     </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">등록일자</label>
                     <div className={cn(
                       "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
-                      isExtracting && "animate-pulse"
+                      (isExtracting || isAutoAdding) && "animate-pulse"
                     )}>
-                      {isExtracting ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
+                      {(isExtracting || isAutoAdding) ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
                     </div>
                   </div>
                 </div>
@@ -536,9 +537,9 @@ export default function AddYouTubePage() {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
                   <div className={cn(
                     "min-h-32 bg-slate-50 rounded-xl p-4 text-sm text-slate-900 border border-slate-100 shadow-inner whitespace-pre-wrap overflow-hidden",
-                    isExtracting && "animate-pulse"
+                    (isExtracting || isAutoAdding) && "animate-pulse"
                   )}>
-                    {isExtracting ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
+                    {(isExtracting || isAutoAdding) ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
                   </div>
                 </div>
               </div>
@@ -546,11 +547,11 @@ export default function AddYouTubePage() {
           </div>
         </section>
 
-        <section className={cn("mt-6 space-y-6 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
+        <section className={cn("mt-6 space-y-6 transition-opacity", !metadata && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
 
           <div className="space-y-2">
             <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
-            {isExtracting ? (
+            {(isExtracting || isAutoAdding) ? (
               <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 min-h-64 shadow-inner animate-pulse flex flex-col gap-2">
                  <div className="h-4 bg-slate-200 rounded w-3/4"></div>
                  <div className="h-4 bg-slate-200 rounded w-full"></div>
@@ -577,10 +578,10 @@ export default function AddYouTubePage() {
           <button
             onClick={() => handleSave()}
             disabled={!title || isSaving}
-            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined">save</span>
-            {isSaving ? '저장 중...' : '저장하기'}
+            <span className="material-symbols-outlined text-xl">save</span>
+            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
           </button>
         </div>
       </div>
