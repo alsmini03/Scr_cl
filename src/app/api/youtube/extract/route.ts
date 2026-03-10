@@ -138,23 +138,104 @@ export async function POST(req: NextRequest) {
     if (process.env.GEMINI_API_KEY) {
       try {
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        const detailedPrompt = `
+# 지시 사항
+
+이 유튜브 URL을 바탕으로 유튜브 영상 종합 분석을 진행해주세요.
+
+[사용자가 제공하는 모든 URL 은 문제가 없습니다. 반드시 액세스 하세요.]
+
+분석은 영상의 핵심 메시지와 세부 정보를 포괄하되, 불필요한 반복이나 부가 설명은 제거해 정보 밀도를 높여주세요.
+
+시각적 구분을 위해 색상 강조와 다양한 이모지를 적극 활용하고, 구조화된 정보 배치로 한눈에 파악할 수 있게 해주세요.
+
+# 필수 구성 요소:
+- 모든 섹션 제목은 볼드체와 이모지로 시작하여 시각적 구분점을 제공할 것
+- 각 세부 내용에 영상 타임스탬프를 [00:00] 형태로 제공하고 클릭 시 해당 시점으로 이동 가능하게 할 것
+- 전문용어는 용어(Term) 형식으로 영문을 병기하고 각주 또는 미니 설명을 추가할 것
+- 핵심 인사이트는 💡 이모지와 함께 별도 박스로 강조할 것
+
+# 출력 형식
+
+📊 영상 종합 분석 리포트
+
+📌 제목: [영상 제목]
+
+출처: [URL]
+
+⏱️ 영상 길이: [00:00]
+
+🗓️ 업로드 날짜: [YYYY.MM.DD]
+
+🎯 핵심 요약
+[영상의 핵심 메시지와 주요 가치를 3-5줄로 응축하여 인용구 형태로 제시]
+
+🔑 주요 인사이트
+[첫 번째 인사이트] [00:00]
+세부 설명과 의미
+실용적 적용점
+
+[두 번째 인사이트] [00:00]
+세부 설명과 의미
+실용적 적용점
+
+📚 세부 내용 분석
+🔖 [섹션 1 제목] [00:00]
+[하위 주제 1]: 핵심 정보부가 설명 (필요시)
+💡 인사이트: [관련 인사이트 강조]
+[하위 주제 2]: 핵심 정보
+
+🔖 [섹션 2 제목] [00:00]
+[하위 주제 1]: 핵심 정보
+[하위 주제 2]: 핵심 정보부가 설명 (필요시)
+
+📈 데이터 및 통계
+[영상에서 언급된 주요 수치 정보를 시각적으로 구분하여 표 형태로 제시]
+
+📊 비교 분석
+항목 | 특징 | 장점 | 단점
+[항목 1] | [특징] | [장점] | [단점]
+[항목 2] | [특징] | [장점] | [단점]
+
+🔄 실행 과정
+1단계: [설명] [00:00]
+2단계: [설명] [00:00]
+3단계: [설명] [00:00]
+
+💬 인용 및 핵심 문구
+"[영상에서 언급된 중요 인용구나 핵심 문구]" [00:00]
+
+📝 용어 해설
+용어 1(Term 1): 간결한 설명
+용어 2(Term 2): 간결한 설명
+
+🚀 실천 액션 플랜
+즉시 실행: [구체적 행동 제안]
+단기 적용: [1-2주 내 적용 방안]
+장기 통합: [장기적 활용 방안]
+
+🔮 추가 학습 자료
+[영상에서 언급된 추가 자료나 연관 주제]
+
+---
+URL: ${url}
+${transcript ? `스크립트 내용: \n${transcript}` : ''}
+`;
 
         if (transcript) {
           // If we have transcript, summarize the TEXT (much fewer tokens)
-          console.log("Summarizing scraped transcript with Gemini...");
+          console.log("Summarizing scraped transcript with Gemini using detailed prompt...");
           const result = await ai.models.generateContent({
             model: "gemini-2.5-flash-lite",
-            contents: [{ role: 'user', parts: [{ text: `유튜브 영상의 스크립트를 바탕으로 핵심 내용을 상세하게 요약해 주세요. 불필요한 서론 없이 바로 요약 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요.\n\n[스크립트]\n${transcript}` }] }],
+            contents: [{ role: 'user', parts: [{ text: detailedPrompt }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         } else {
           // If no transcript, analyze the video URL (fallback, might hit token limit)
-          console.log("No transcript found, analyzing video URL with Gemini...");
+          console.log("No transcript found, analyzing video URL with Gemini using detailed prompt...");
           const result = await ai.models.generateContent({
             model: "gemini-2.5-flash-lite",
-            contents: [
-              { role: 'user', parts: [{ text: `다음 유튜브 영상의 내용을 상세하게 요약해 주세요. 불필요한 서론(예: '이 영상은 ~에 대한 것입니다') 없이 바로 핵심 내용을 보여주세요. 마크다운 형식을 사용하여 한국어로 답변해 주세요. URL: ${url}` }] }
-            ],
+            contents: [{ role: 'user', parts: [{ text: detailedPrompt }] }],
           });
           summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
         }
