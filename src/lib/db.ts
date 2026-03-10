@@ -66,6 +66,20 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM youtube_videos
+      WHERE id = ${id} AND user_id = ${user.id}
+    `;
+    if (rows.length === 0) return undefined;
+    return rows[0];
+  } catch (error) {
+    return undefined;
+  }
+}
+
 export async function getDeletedBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();

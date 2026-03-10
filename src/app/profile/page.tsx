@@ -35,13 +35,28 @@ export default function ProfilePage() {
                 <span className="material-symbols-outlined text-5xl text-primary">person</span>
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 size-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center">
-              <span className="material-symbols-outlined text-white text-xs">verified</span>
-            </div>
+            {session?.user?.isApproved ? (
+              <div className="absolute -bottom-1 -right-1 size-8 bg-green-500 rounded-full border-4 border-white flex items-center justify-center" title="승인된 사용자">
+                <span className="material-symbols-outlined text-white text-xs">verified</span>
+              </div>
+            ) : (
+              <div className="absolute -bottom-1 -right-1 size-8 bg-amber-500 rounded-full border-4 border-white flex items-center justify-center" title="승인 대기 중">
+                <span className="material-symbols-outlined text-white text-xs">hourglass_empty</span>
+              </div>
+            )}
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-slate-900">{session?.user?.name || "사용자님"}</h2>
-            <p className="text-slate-500">{session?.user?.email || "email@example.com"}</p>
+            <p className="text-slate-500 mb-1">{session?.user?.email || "email@example.com"}</p>
+            {session?.user?.isApproved ? (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                정식 승인됨
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                승인 대기 중
+              </span>
+            )}
           </div>
         </section>
 

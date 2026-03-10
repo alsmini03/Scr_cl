@@ -137,8 +137,8 @@ export default function AddBookPage() {
           <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               <div className="flex gap-4 items-start">
-                {/* Book Cover Placeholder or Image - Increased size by 20% from design reference (w-40 h-56 -> w-48 h-64) */}
-                <div className="w-48 h-64 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
+                {/* Book Cover Placeholder or Image - Adjusted size (w-44 h-58) */}
+                <div className="w-44 h-58 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
                   {extractedBook?.coverImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
