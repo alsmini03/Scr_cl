@@ -82,7 +82,7 @@ export default function AddYouTubePage() {
 
     setIsSaving(true);
     try {
-      await saveYoutubeVideo({
+      const result = await saveYoutubeVideo({
         title,
         url,
         thumbnail: metadata?.thumbnail,
@@ -92,12 +92,15 @@ export default function AddYouTubePage() {
         description: summary, // UI "설명" renders summary state (Actual YT Desc)
       });
 
-      alert('유튜브 영상 정보가 저장되었습니다.');
-      router.push('/');
+      if (result.success) {
+        alert('유튜브 영상 정보가 저장되었습니다.');
+        router.push('/');
+      } else {
+        alert(`저장에 실패했습니다: ${result.error}`);
+      }
     } catch (error) {
-      console.error('Failed to save youtube video:', error);
-      const message = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
-      alert(`저장에 실패했습니다: ${message}`);
+      console.error('Unexpected error during save:', error);
+      alert('저장 중 알 수 없는 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }

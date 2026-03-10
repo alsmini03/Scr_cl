@@ -61,7 +61,7 @@ export default function AddBookPage() {
 
     setIsSaving(true);
     try {
-      await saveBook({
+      const result = await saveBook({
         title: extractedBook.title,
         author: extractedBook.author,
         coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
@@ -73,11 +73,15 @@ export default function AddBookPage() {
         progress: 0,
       });
 
-      alert('새 책이 서재에 추가되었습니다.');
-      router.push('/');
+      if (result.success) {
+        alert('새 책이 서재에 추가되었습니다.');
+        router.push('/');
+      } else {
+        alert(`저장에 실패했습니다: ${result.error}`);
+      }
     } catch (error) {
-      console.error('Failed to save book:', error);
-      alert('저장에 실패했습니다.');
+      console.error('Unexpected error during save:', error);
+      alert('저장 중 알 수 없는 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -133,8 +137,8 @@ export default function AddBookPage() {
           <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               <div className="flex gap-4 items-start">
-                {/* Book Cover Placeholder or Image */}
-                <div className="w-28 h-40 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
+                {/* Book Cover Placeholder or Image - Increased size by 20% from design reference (w-40 h-56 -> w-48 h-64) */}
+                <div className="w-48 h-64 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
                   {extractedBook?.coverImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />

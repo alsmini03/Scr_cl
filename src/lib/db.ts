@@ -94,12 +94,12 @@ export async function getBookById(id: string): Promise<Book | undefined> {
   }
 }
 
-export async function saveBook(book: Omit<Book, 'id'>): Promise<Book> {
-  const userId = await ensureApproved();
-  const id = Math.random().toString(36).substring(2, 11);
-  const createdAt = new Date().toISOString();
-
+export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boolean; data?: Book; error?: string }> {
   try {
+    const userId = await ensureApproved();
+    const id = Math.random().toString(36).substring(2, 11);
+    const createdAt = new Date().toISOString();
+
     await sql`
       INSERT INTO books (
         id, title, author, cover_image, description, published_date,
@@ -114,10 +114,13 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<Book> {
     `;
 
     safeRevalidate('/');
-    return { ...book, id, createdAt };
-  } catch (error) {
+    return { success: true, data: { ...book, id, createdAt } };
+  } catch (error: any) {
     console.error('Failed to save book:', error);
-    throw new Error('Failed to save book');
+    return {
+      success: false,
+      error: error.message || '도서를 저장하는 중 오류가 발생했습니다.'
+    };
   }
 }
 
@@ -212,12 +215,12 @@ export async function saveYoutubeVideo(video: {
   published_at?: string;
   summary?: string;
   description?: string;
-}): Promise<void> {
-  const userId = await ensureApproved();
-  const id = Math.random().toString(36).substring(2, 11);
-  const addedAt = new Date().toISOString();
-
+}): Promise<{ success: boolean; error?: string }> {
   try {
+    const userId = await ensureApproved();
+    const id = Math.random().toString(36).substring(2, 11);
+    const addedAt = new Date().toISOString();
+
     await sql`
       INSERT INTO youtube_videos (
         id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at
@@ -228,11 +231,14 @@ export async function saveYoutubeVideo(video: {
       )
     `;
 
-    // We can revalidate the library or a hypothetical youtube videos list page
     safeRevalidate('/');
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error('Failed to save youtube video:', error);
-    throw new Error('Failed to save youtube video');
+    return {
+      success: false,
+      error: error.message || '유튜브 정보를 저장하는 중 오류가 발생했습니다.'
+    };
   }
 }
 
