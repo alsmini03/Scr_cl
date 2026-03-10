@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { saveYoutubeVideo } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 
 interface YouTubeMetadata {
   title: string;
@@ -13,8 +14,6 @@ interface YouTubeMetadata {
   thumbnail: string;
   url: string;
 }
-
-import ReactMarkdown from 'react-markdown';
 
 export default function AddYouTubePage() {
   const router = useRouter();
@@ -32,30 +31,74 @@ export default function AddYouTubePage() {
   const [transcript, setTranscript] = useState('');
 
   // Gemini Models
-  const [models, setModels] = useState<string[]>(['gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+  const [models, setModels] = useState<string[]>(['gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-3-flash-preview']);
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite');
   const [newModelName, setNewModelName] = useState('');
   const [showModelManager, setShowModelManager] = useState(false);
 
-  // Load models from localStorage
+  // Prompts
+  const defaultPrompt = `📊 영상 종합 분석 리포트
+
+📌 제목: [영상 제목]
+출처: [URL]
+⏱️ 영상 길이: [00:00]
+🗓️ 업로드 날짜: [YYYY.MM.DD]
+
+🎯 핵심 요약
+[영상의 핵심 메시지와 주요 가치를 3-5줄로 응축하여 인용구 형태로 제시]
+
+🔑 주요 인사이트
+[첫 번째 인사이트] [00:00]
+세부 설명과 의미
+실용적 적용점
+
+📚 세부 내용 분석
+🔖 [섹션 1 제목] [00:00]
+[하위 주제 1]: 핵심 정보
+💡 인사이트: [관련 인사이트 강조]
+
+📈 데이터 및 통계
+[주요 수치 정보를 표 형태로 제시]
+
+🚀 실천 액션 플랜
+즉시 실행: [구체적 행동 제안]`;
+
+  const [prompts, setPrompts] = useState<{name: string, text: string}[]>([
+    { name: '종합 분석 리포트', text: defaultPrompt },
+    { name: '3줄 요약', text: '영상의 내용을 3줄로 요약해 주세요.' }
+  ]);
+  const [selectedPromptIndex, setSelectedPromptIndex] = useState(0);
+  const [newPromptName, setNewPromptName] = useState('');
+  const [newPromptText, setNewPromptText] = useState('');
+  const [showPromptManager, setShowPromptManager] = useState(false);
+
+  // Load from localStorage
   useEffect(() => {
     const savedModels = localStorage.getItem('gemini-models');
     if (savedModels) {
       try {
         const parsed = JSON.parse(savedModels);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setModels(parsed);
-        }
-      } catch (e) {
-        console.error('Failed to parse saved models', e);
-      }
+        if (Array.isArray(parsed) && parsed.length > 0) setModels(parsed);
+      } catch (e) {}
+    }
+
+    const savedPrompts = localStorage.getItem('gemini-prompts');
+    if (savedPrompts) {
+      try {
+        const parsed = JSON.parse(savedPrompts);
+        if (Array.isArray(parsed) && parsed.length > 0) setPrompts(parsed);
+      } catch (e) {}
     }
   }, []);
 
-  // Save models to localStorage
+  // Save to localStorage
   useEffect(() => {
     localStorage.setItem('gemini-models', JSON.stringify(models));
   }, [models]);
+
+  useEffect(() => {
+    localStorage.setItem('gemini-prompts', JSON.stringify(prompts));
+  }, [prompts]);
 
   const addModel = () => {
     if (newModelName && !models.includes(newModelName)) {
@@ -68,11 +111,23 @@ export default function AddYouTubePage() {
     if (models.length > 1) {
       const updatedModels = models.filter(m => m !== modelToDelete);
       setModels(updatedModels);
-      if (selectedModel === modelToDelete) {
-        setSelectedModel(updatedModels[0]);
-      }
-    } else {
-      alert('최소 하나의 모델은 리스트에 있어야 합니다.');
+      if (selectedModel === modelToDelete) setSelectedModel(updatedModels[0]);
+    }
+  };
+
+  const addPrompt = () => {
+    if (newPromptName && newPromptText) {
+      setPrompts([...prompts, { name: newPromptName, text: newPromptText }]);
+      setNewPromptName('');
+      setNewPromptText('');
+    }
+  };
+
+  const deletePrompt = (index: number) => {
+    if (prompts.length > 1) {
+      const updated = prompts.filter((_, i) => i !== index);
+      setPrompts(updated);
+      if (selectedPromptIndex >= updated.length) setSelectedPromptIndex(0);
     }
   };
 
@@ -90,7 +145,11 @@ export default function AddYouTubePage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url, model: selectedModel }),
+        body: JSON.stringify({
+          url,
+          model: selectedModel,
+          prompt: prompts[selectedPromptIndex].text
+        }),
       });
 
       const data = await response.json();
@@ -155,7 +214,7 @@ export default function AddYouTubePage() {
     <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="유튜브" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-80">
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
           <button
@@ -171,58 +230,88 @@ export default function AddYouTubePage() {
 
         <section className="mb-10 space-y-6">
           <div className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 ml-1">제미나이 모델 선택</label>
-              <div className="flex gap-2">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none appearance-none"
-                >
-                  {models.map(model => (
-                    <option key={model} value={model}>{model}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => setShowModelManager(!showModelManager)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 rounded-xl transition-colors flex items-center justify-center"
-                  title="모델 관리"
-                >
-                  <span className="material-symbols-outlined">{showModelManager ? 'close' : 'settings'}</span>
-                </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-700 ml-1">제미나이 모델</label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                  >
+                    {models.map(model => (
+                      <option key={model} value={model}>{model}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => setShowModelManager(!showModelManager)}
+                    className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                  >
+                    <span className="material-symbols-outlined text-sm">{showModelManager ? 'close' : 'settings'}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-slate-700 ml-1">분석 프롬프트</label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedPromptIndex}
+                    onChange={(e) => setSelectedPromptIndex(parseInt(e.target.value))}
+                    className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                  >
+                    {prompts.map((p, i) => (
+                      <option key={i} value={i}>{p.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => setShowPromptManager(!showPromptManager)}
+                    className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                  >
+                    <span className="material-symbols-outlined text-sm">{showPromptManager ? 'close' : 'terminal'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {showModelManager && (
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-500 ml-1 uppercase">모델 추가</label>
+                  <label className="text-xs font-bold text-slate-500 uppercase">모델 추가</label>
                   <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newModelName}
-                      onChange={(e) => setNewModelName(e.target.value)}
-                      placeholder="모델명 입력 (예: gemini-pro)"
-                      className="flex-1 rounded-lg border border-slate-200 bg-white text-sm h-10 px-3 outline-none focus:border-primary"
-                    />
-                    <button
-                      onClick={addModel}
-                      className="bg-primary text-white text-xs font-bold px-4 rounded-lg"
-                    >
-                      추가
-                    </button>
+                    <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
+                    <button onClick={addModel} className="bg-primary text-white px-4 rounded-lg text-sm">추가</button>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {models.map(m => (
+                    <div key={m} className="flex items-center gap-1 bg-white border px-2 py-1 rounded-full text-xs">
+                      <span>{m}</span>
+                      <button onClick={() => deleteModel(m)} className="text-red-400"><span className="material-symbols-outlined text-xs">cancel</span></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
+            {showPromptManager && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase">프롬프트 추가</label>
+                  <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
+                  <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
+                  <button onClick={addPrompt} className="bg-primary text-white py-2 rounded-lg text-sm font-bold">프롬프트 저장</button>
+                </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-500 ml-1 uppercase">모델 리스트</label>
-                  <div className="flex flex-wrap gap-2">
-                    {models.map(model => (
-                      <div key={model} className="flex items-center gap-1 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs font-medium text-slate-600">
-                        <span>{model}</span>
-                        <button onClick={() => deleteModel(model)} className="text-slate-300 hover:text-red-500 transition-colors">
-                          <span className="material-symbols-outlined text-sm leading-none">cancel</span>
-                        </button>
+                  <label className="text-xs font-bold text-slate-500 uppercase">저장된 프롬프트</label>
+                  <div className="space-y-2">
+                    {prompts.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between bg-white border p-3 rounded-xl">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold">{p.name}</span>
+                          <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.text}</span>
+                        </div>
+                        <button onClick={() => deletePrompt(i)} className="text-red-400"><span className="material-symbols-outlined">delete</span></button>
                       </div>
                     ))}
                   </div>
@@ -261,7 +350,7 @@ export default function AddYouTubePage() {
           <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               {/* Video Thumbnail - Full Width 16:9 */}
-              <div className="w-full aspect-video bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative">
+              <div className="w-full aspect-video bg-slate-100 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative group">
                 {metadata?.thumbnail ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />

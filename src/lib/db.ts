@@ -66,6 +66,21 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM youtube_videos
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/');
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to delete youtube video with id ${id}:`, error);
+    return { success: false, error: error.message || '삭제 중 오류가 발생했습니다.' };
+  }
+}
+
 export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();

@@ -1,0 +1,28 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by an unknown process, using available port 3002 instead.
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3002
+- Network:       http://192.168.0.2:3002
+- Environments: .env.local
+
+✓ Starting...
+⚠ Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack. Builds or page loads may be slower as a result.
+✓ Ready in 2.7s
+○ Compiling / ...
+ GET / 200 in 5.3s (compile: 4.8s, render: 485ms)
+ GET / 200 in 228ms (compile: 16ms, render: 211ms)
+ GET /api/auth/session 200 in 2.4s (compile: 2.2s, proxy.ts: 153ms, render: 40ms)
+ GET /api/auth/session 200 in 70ms (compile: 41ms, proxy.ts: 11ms, render: 18ms)
+ GET /add 200 in 1450ms (compile: 1290ms, proxy.ts: 10ms, render: 150ms)
+ GET /api/auth/session 200 in 74ms (compile: 48ms, proxy.ts: 14ms, render: 12ms)
+ GET /api/auth/session 200 in 27ms (compile: 8ms, proxy.ts: 9ms, render: 9ms)
+○ Compiling /add/youtube ...
+ GET /add/youtube 200 in 4.4s (compile: 4.0s, proxy.ts: 8ms, render: 375ms)
+ GET /api/auth/session 200 in 100ms (compile: 70ms, proxy.ts: 20ms, render: 9ms)
+ GET /api/auth/session 200 in 29ms (compile: 8ms, proxy.ts: 14ms, render: 7ms)
+ GET /login 200 in 1475ms (compile: 1288ms, render: 187ms)
+ GET /api/auth/session 200 in 100ms (compile: 73ms, proxy.ts: 11ms, render: 16ms)
+ GET /api/auth/session 200 in 33ms (compile: 15ms, proxy.ts: 10ms, render: 8ms)

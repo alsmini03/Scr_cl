@@ -1,21 +1,81 @@
+'use client';
+
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getYoutubeVideoById } from '@/lib/db';
-import { notFound } from 'next/navigation';
+import { getYoutubeVideoById, deleteYoutubeVideo } from '@/lib/db';
+import { notFound, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
 
-export default async function YoutubeDetailPage({ params }: { params: { id: string } }) {
-  const { id } = await params;
-  const video = await getYoutubeVideoById(id);
+export default function YoutubeDetailPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  const [video, setVideo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    async function loadVideo() {
+      const { id } = await params;
+      const data = await getYoutubeVideoById(id);
+      if (data) {
+        setVideo(data);
+      }
+      setLoading(false);
+    }
+    loadVideo();
+  }, [params]);
+
+  if (loading) {
+    return (
+      <div className="font-display min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin text-primary">
+          <span className="material-symbols-outlined text-4xl">sync</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!video) {
     notFound();
   }
 
+  const handleDelete = async () => {
+    if (!confirm('정말로 이 기록을 삭제하시겠습니까?')) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await deleteYoutubeVideo(video.id);
+      if (result.success) {
+        alert('삭제되었습니다.');
+        router.push('/?mode=youtube');
+      } else {
+        alert(`삭제 실패: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
-      <Header title="유튜브 기록" showBack />
+      <Header
+        title="유튜브 기록"
+        showBack
+        rightAction={
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors disabled:opacity-50"
+            title="기록 삭제"
+          >
+            <span className="material-symbols-outlined">delete</span>
+          </button>
+        }
+      />
 
       <main className="p-4 space-y-6">
         <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-100">

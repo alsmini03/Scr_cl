@@ -91,7 +91,7 @@ export default function AddBookPage() {
     <div className="font-display min-h-screen flex flex-col bg-white">
       <Header title="새 책 추가" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-64">
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
           <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
@@ -137,8 +137,8 @@ export default function AddBookPage() {
           <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               <div className="flex gap-4 items-start">
-                {/* Book Cover Placeholder or Image - Adjusted size (w-44 h-58) */}
-                <div className="w-44 h-58 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
+                {/* Book Cover Placeholder or Image - Adjusted size (w-40 h-52) */}
+                <div className="w-40 h-52 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
                   {extractedBook?.coverImage ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
