@@ -103,8 +103,6 @@ export default function AddBookPage() {
 
         {/* Main Action Section */}
         <section className="mb-10">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-6">URL로 가져오기</h2>
-
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">Yes24 상품 URL</label>

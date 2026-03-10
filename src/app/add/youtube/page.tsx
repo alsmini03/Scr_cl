@@ -122,8 +122,6 @@ export default function AddYouTubePage() {
         </div>
 
         <section className="mb-10">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-6">URL로 가져오기</h2>
-
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
@@ -138,7 +136,7 @@ export default function AddYouTubePage() {
                 <button
                   onClick={handleExtract}
                   disabled={isExtracting}
-                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[100px]"
+                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
                 >
                   <span className="material-symbols-outlined text-lg">auto_awesome</span>
                   <span className="text-[12px] leading-tight">
