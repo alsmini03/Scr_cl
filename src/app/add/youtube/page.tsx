@@ -114,16 +114,15 @@ export default function AddYouTubePage() {
             onClick={() => router.push('/add')}
             className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
           >
-            도서 검색
+            Yes24
           </button>
           <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
-            유튜브 정보 가져오기
+            Youtube
           </button>
         </div>
 
         <section className="mb-10">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
-          <p className="text-slate-600 text-lg mb-6">아래에 유튜브 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 영상 정보를 요약하여 입력해 드립니다.</p>
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-6">URL로 가져오기</h2>
 
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
@@ -152,68 +151,66 @@ export default function AddYouTubePage() {
           </div>
         </section>
 
-        {/* Preview State - Horizontal Layout matching Add Book screen */}
+        {/* Preview State - Vertical Layout for YouTube */}
         <section className="border-t border-primary/10 pt-6">
           <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
-              <div className="flex gap-4 items-start">
-                {/* Video Thumbnail */}
-                <div className="w-28 h-40 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative">
-                  {metadata?.thumbnail ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-slate-400 text-3xl mb-1">play_circle</span>
-                      <span className="text-[8px] text-slate-400 font-medium">미리보기</span>
-                    </>
-                  )}
-                  {isExtracting && <div className="absolute inset-0 bg-white/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary">sync</span></div>}
-                </div>
-
-                {/* Metadata - Right Column */}
-                <div className="flex-1 space-y-3 min-w-0">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
-                    <div className={cn(
-                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner break-words",
-                      isExtracting && "animate-pulse"
-                    )}>
-                      {isExtracting ? "가져오는 중..." : (title || "영상 제목")}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">재생 시간</label>
-                      <div className={cn(
-                        "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
-                        isExtracting && "animate-pulse"
-                      )}>
-                        {isExtracting ? "--:--" : (duration || "00:00")}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">등록일자</label>
-                      <div className={cn(
-                        "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
-                        isExtracting && "animate-pulse"
-                      )}>
-                        {isExtracting ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Video Thumbnail - Full Width 16:9 */}
+              <div className="w-full aspect-video bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative">
+                {metadata?.thumbnail ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-slate-400 text-5xl mb-2">play_circle</span>
+                    <span className="text-xs text-slate-400 font-medium">미리보기</span>
+                  </>
+                )}
+                {isExtracting && <div className="absolute inset-0 bg-white/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary text-4xl">sync</span></div>}
               </div>
 
-              {/* Description - Bottom Full Width */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
-                <div className={cn(
-                  "min-h-32 bg-slate-50 rounded p-4 text-sm text-slate-900 border border-slate-100 shadow-inner whitespace-pre-wrap overflow-hidden",
-                  isExtracting && "animate-pulse"
-                )}>
-                  {isExtracting ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
+              {/* Metadata - Below Thumbnail */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
+                  <div className={cn(
+                    "min-h-12 bg-slate-50 rounded-xl px-4 py-3 flex items-center text-sm font-medium text-slate-900 border border-slate-100 shadow-inner break-words",
+                    isExtracting && "animate-pulse"
+                  )}>
+                    {isExtracting ? "가져오는 중..." : (title || "영상 제목")}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">재생 시간</label>
+                    <div className={cn(
+                      "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "--:--" : (duration || "00:00")}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">등록일자</label>
+                    <div className={cn(
+                      "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                      isExtracting && "animate-pulse"
+                    )}>
+                      {isExtracting ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
+                  <div className={cn(
+                    "min-h-32 bg-slate-50 rounded-xl p-4 text-sm text-slate-900 border border-slate-100 shadow-inner whitespace-pre-wrap overflow-hidden",
+                    isExtracting && "animate-pulse"
+                  )}>
+                    {isExtracting ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
+                  </div>
                 </div>
               </div>
             </div>
