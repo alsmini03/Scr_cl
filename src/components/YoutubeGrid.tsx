@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useRef } from 'react';
 
 interface YoutubeVideo {
   id: string;
@@ -18,15 +19,32 @@ interface YoutubeGridProps {
   isSelectionMode?: boolean;
   selectedIds?: string[];
   onToggleSelection?: (id: string) => void;
+  onLongPress?: (id: string) => void;
 }
 
 export default function YoutubeGrid({
   videos,
-  viewMode,
+  viewMode = '1',
   isSelectionMode = false,
   selectedIds = [],
-  onToggleSelection
+  onToggleSelection,
+  onLongPress
 }: YoutubeGridProps) {
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startPress = (id: string) => {
+    timerRef.current = setTimeout(() => {
+      onLongPress?.(id);
+    }, 500);
+  };
+
+  const endPress = () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   return (
     <div className={cn(
       "grid gap-6",
@@ -53,6 +71,11 @@ export default function YoutubeGrid({
 
             <Link
               href={isSelectionMode ? '#' : `/youtube/${video.id}`}
+              onMouseDown={() => startPress(video.id)}
+              onMouseUp={endPress}
+              onMouseLeave={endPress}
+              onTouchStart={() => startPress(video.id)}
+              onTouchEnd={endPress}
               onClick={(e) => {
                 if (isSelectionMode) {
                   e.preventDefault();

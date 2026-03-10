@@ -23,7 +23,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <div className="flex h-8 items-center justify-center">
             <span className="material-symbols-outlined" style={activeTab === 'best' ? { fontVariationSettings: "'FILL' 1" } : {}}>workspace_premium</span>
           </div>
-          <p className="text-[10px] uppercase tracking-wider">베스트</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">베스트</p>
         </Link>
 
         {/* 2. Library */}
@@ -37,7 +37,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <div className="flex h-8 items-center justify-center">
             <span className="material-symbols-outlined" style={(activeTab === 'home' || activeTab === 'library') ? { fontVariationSettings: "'FILL' 1" } : {}}>auto_stories</span>
           </div>
-          <p className="text-[10px] uppercase tracking-wider">서재</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">서재</p>
         </Link>
 
         {/* 3. Calendar */}
@@ -51,7 +51,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <div className="flex h-8 items-center justify-center">
             <span className="material-symbols-outlined" style={activeTab === 'stats' ? { fontVariationSettings: "'FILL' 1" } : {}}>calendar_month</span>
           </div>
-          <p className="text-[10px] uppercase tracking-wider">캘린더</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">캘린더</p>
         </Link>
         <Link
           href="/profile"

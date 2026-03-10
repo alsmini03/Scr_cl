@@ -94,10 +94,6 @@ export default function BestPage() {
 
       <main className="mt-6 px-4">
         <div className="flex flex-col gap-6 mb-6">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-            Yes24 {category === 'total' ? '종합' : category === 'economy' ? '경제' : '에세이'} 베스트 100
-          </h2>
-
           <div className="flex p-1 bg-slate-100 rounded-xl w-full">
             <button
               onClick={() => setCategory('total')}

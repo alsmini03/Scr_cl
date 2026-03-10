@@ -97,11 +97,37 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
   }
 }
 
+export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      UPDATE gemini_models SET name = ${name}
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
     await sql`
       DELETE FROM gemini_models
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      UPDATE gemini_prompts SET name = ${name}, content = ${content}
       WHERE id = ${id} AND user_id = ${userId}
     `;
     return { success: true };

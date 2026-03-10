@@ -7,10 +7,12 @@ import {
   saveYoutubeVideo,
   getGeminiModels,
   addGeminiModel,
+  updateGeminiModel,
   deleteGeminiModel,
   setDefaultGeminiModel,
   getGeminiPrompts,
   addGeminiPrompt,
+  updateGeminiPrompt,
   deleteGeminiPrompt,
   setDefaultGeminiPrompt
 } from '@/lib/db';
@@ -44,6 +46,7 @@ export default function AddYouTubePage() {
   const [models, setModels] = useState<any[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [newModelName, setNewModelName] = useState('');
+  const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [showModelManager, setShowModelManager] = useState(false);
 
   // Prompts
@@ -51,7 +54,10 @@ export default function AddYouTubePage() {
   const [selectedPromptId, setSelectedPromptId] = useState('');
   const [newPromptName, setNewPromptName] = useState('');
   const [newPromptText, setNewPromptText] = useState('');
+  const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [showPromptManager, setShowPromptManager] = useState(false);
+
+  const [isAutoAdding, setIsAutoAdding] = useState(false);
 
   const loadSettings = async () => {
     const dbModels = await getGeminiModels();
@@ -72,14 +78,26 @@ export default function AddYouTubePage() {
 
   const handleAddModel = async () => {
     if (newModelName) {
-      const res = await addGeminiModel(newModelName);
+      let res;
+      if (editingModelId) {
+        res = await updateGeminiModel(editingModelId, newModelName);
+      } else {
+        res = await addGeminiModel(newModelName);
+      }
+
       if (res.success) {
         setNewModelName('');
+        setEditingModelId(null);
         await loadSettings();
       } else {
         alert(res.error);
       }
     }
+  };
+
+  const startEditModel = (model: any) => {
+    setEditingModelId(model.id);
+    setNewModelName(model.name);
   };
 
   const handleDeleteModel = async (id: string) => {
@@ -98,15 +116,28 @@ export default function AddYouTubePage() {
 
   const handleAddPrompt = async () => {
     if (newPromptName && newPromptText) {
-      const res = await addGeminiPrompt(newPromptName, newPromptText);
+      let res;
+      if (editingPromptId) {
+        res = await updateGeminiPrompt(editingPromptId, newPromptName, newPromptText);
+      } else {
+        res = await addGeminiPrompt(newPromptName, newPromptText);
+      }
+
       if (res.success) {
         setNewPromptName('');
         setNewPromptText('');
+        setEditingPromptId(null);
         await loadSettings();
       } else {
         alert(res.error);
       }
     }
+  };
+
+  const startEditPrompt = (prompt: any) => {
+    setEditingPromptId(prompt.id);
+    setNewPromptName(prompt.name);
+    setNewPromptText(prompt.content);
   };
 
   const handleDeletePrompt = async (id: string) => {
@@ -174,8 +205,8 @@ export default function AddYouTubePage() {
     }
   };
 
-  const handleSave = async () => {
-    if (!title || !url) return;
+  const handleSave = async (showSuccessAlert = true) => {
+    if (!title || !url) return { success: false, error: 'Title and URL are required' };
 
     setIsSaving(true);
     try {
@@ -185,21 +216,80 @@ export default function AddYouTubePage() {
         thumbnail: metadata?.thumbnail,
         duration,
         published_at: publishedAt,
-        summary: transcript, // UI "요약" renders transcript state (AI Summary)
-        description: summary, // UI "설명" renders summary state (Actual YT Desc)
+        summary: transcript,
+        description: summary,
       });
 
       if (result.success) {
-        alert('유튜브 영상 정보가 저장되었습니다.');
-        router.push('/');
+        if (showSuccessAlert) alert('유튜브 영상 정보가 저장되었습니다.');
+        return { success: true };
       } else {
-        alert(`저장에 실패했습니다: ${result.error}`);
+        if (showSuccessAlert) alert(`저장에 실패했습니다: ${result.error}`);
+        return { success: false, error: result.error };
       }
     } catch (error) {
       console.error('Unexpected error during save:', error);
-      alert('저장 중 알 수 없는 오류가 발생했습니다.');
+      if (showSuccessAlert) alert('저장 중 알 수 없는 오류가 발생했습니다.');
+      return { success: false, error: 'Unknown error' };
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAutoAdd = async () => {
+    if (!url) return;
+
+    setIsAutoAdding(true);
+    setError(null);
+    setSummary('');
+    setTranscript('');
+
+    try {
+      const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
+      const response = await fetch('/api/youtube/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url,
+          model: selectedModel,
+          prompt: selectedPrompt?.content
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) throw new Error(data.error || 'Failed to extract video info');
+
+      // Update state locally for UI feedback (optional but helpful)
+      setTitle(data.title || '');
+      setSummary(data.description || '');
+      setTranscript(data.summary || '');
+      setDuration(data.duration || '00:00');
+      const pubAt = data.publishDate || new Date().toISOString().split('T')[0];
+      setPublishedAt(pubAt);
+
+      // Immediately save
+      const saveResult = await saveYoutubeVideo({
+        title: data.title || 'Untitled Video',
+        url,
+        thumbnail: data.thumbnail,
+        duration: data.duration || '00:00',
+        published_at: pubAt,
+        summary: data.summary || '',
+        description: data.description || '',
+      });
+
+      if (saveResult.success) {
+        alert('자동 추가되었습니다.');
+        router.push('/');
+      } else {
+        alert(`자동 저장 실패: ${saveResult.error}`);
+      }
+    } catch (err: any) {
+      console.error('Auto Add error:', err);
+      setError(err.message || '자동 추가 중 오류가 발생했습니다.');
+    } finally {
+      setIsAutoAdding(false);
     }
   };
 
@@ -247,10 +337,17 @@ export default function AddYouTubePage() {
                 {showModelManager && (
                   <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">모델 추가</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase">
+                        {editingModelId ? '모델 수정' : '모델 추가'}
+                      </label>
                       <div className="flex gap-2">
                         <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
-                        <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">추가</button>
+                        <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">
+                          {editingModelId ? '수정' : '추가'}
+                        </button>
+                        {editingModelId && (
+                          <button onClick={() => { setEditingModelId(null); setNewModelName(''); }} className="bg-slate-200 text-slate-600 px-3 rounded-lg text-sm">취소</button>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -260,6 +357,7 @@ export default function AddYouTubePage() {
                           m.is_default ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200"
                         )}>
                           <button onClick={() => handleSetDefaultModel(m.id)} className="font-medium hover:underline">{m.name}</button>
+                          <button onClick={() => startEditModel(m)} className="opacity-60 hover:opacity-100"><span className="material-symbols-outlined text-[14px]">edit</span></button>
                           <button onClick={() => handleDeleteModel(m.id)} className={cn(
                             "hover:text-red-500 flex items-center",
                             m.is_default ? "text-white/70" : "text-slate-400"
@@ -296,10 +394,19 @@ export default function AddYouTubePage() {
                 {showPromptManager && (
                   <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
                     <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">프롬프트 추가</label>
+                      <label className="text-xs font-bold text-slate-500 uppercase">
+                        {editingPromptId ? '프롬프트 수정' : '프롬프트 추가'}
+                      </label>
                       <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
                       <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
-                      <button onClick={handleAddPrompt} className="bg-primary text-white py-2 rounded-lg text-sm font-bold">프롬프트 저장</button>
+                      <div className="flex gap-2">
+                        <button onClick={handleAddPrompt} className="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-bold">
+                          {editingPromptId ? '프롬프트 수정 저장' : '프롬프트 저장'}
+                        </button>
+                        {editingPromptId && (
+                           <button onClick={() => { setEditingPromptId(null); setNewPromptName(''); setNewPromptText(''); }} className="bg-slate-200 text-slate-600 px-4 rounded-lg text-sm">취소</button>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-500 uppercase">저장된 프롬프트</label>
@@ -318,9 +425,14 @@ export default function AddYouTubePage() {
                               </span>
                               <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.content}</span>
                             </button>
-                            <button onClick={() => handleDeletePrompt(p.id)} className="text-slate-400 hover:text-red-500 ml-2">
-                              <span className="material-symbols-outlined">delete</span>
-                            </button>
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => startEditPrompt(p)} className="text-slate-400 hover:text-primary p-1">
+                                <span className="material-symbols-outlined text-sm">edit</span>
+                              </button>
+                              <button onClick={() => handleDeletePrompt(p.id)} className="text-slate-400 hover:text-red-500 p-1">
+                                <span className="material-symbols-outlined text-sm">delete</span>
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -340,16 +452,28 @@ export default function AddYouTubePage() {
                   className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
                   placeholder="https://www.youtube.com/.."
                 />
-                <button
-                  onClick={handleExtract}
-                  disabled={isExtracting}
-                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
-                >
-                  <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                  <span className="text-[12px] leading-tight">
-                    {isExtracting ? '가져오는 중' : '가져오기'}
-                  </span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleExtract}
+                    disabled={isExtracting || isAutoAdding}
+                    className="bg-primary/10 text-primary hover:bg-primary/20 font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                  >
+                    <span className="material-symbols-outlined text-lg">description</span>
+                    <span className="text-[10px] leading-tight">
+                      {isExtracting ? '분석 중' : '가져오기'}
+                    </span>
+                  </button>
+                  <button
+                    onClick={handleAutoAdd}
+                    disabled={isExtracting || isAutoAdding}
+                    className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                  >
+                    <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                    <span className="text-[10px] leading-tight">
+                      {isAutoAdding ? '추가 중' : '자동 추가'}
+                    </span>
+                  </button>
+                </div>
               </div>
               {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
             </div>
@@ -451,7 +575,7 @@ export default function AddYouTubePage() {
       <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
         <div className="max-w-2xl mx-auto">
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={!title || isSaving}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >

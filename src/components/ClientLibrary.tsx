@@ -34,7 +34,7 @@ export default function ClientLibrary({
   const router = useRouter();
   const [mode, setMode] = useState(initialMode);
   const [youtubeView, setYoutubeView] = useState(initialYoutubeView);
-  const [bookView, setBookView] = useState('grid');
+  const [bookView, setBookView] = useState('3');
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -51,6 +51,13 @@ export default function ClientLibrary({
   const updateBookView = (view: string) => {
     setBookView(view);
     localStorage.setItem('book-view', view);
+  };
+
+  const handleLongPress = (id: string) => {
+    if (!isEditMode) {
+      setIsEditMode(true);
+      setSelectedIds([id]);
+    }
   };
 
   const updateYoutubeView = (view: string) => {
@@ -101,28 +108,7 @@ export default function ClientLibrary({
         title="내 서재"
         transparent
         rightAction={
-          <div className="flex items-center gap-2">
-            {!isEditMode && (
-              mode === 'books' ? (
-                <button
-                  onClick={() => updateBookView(bookView === 'grid' ? 'list' : 'grid')}
-                  className="flex items-center justify-center text-primary"
-                >
-                  <span className="material-symbols-outlined text-2xl">
-                    {bookView === 'grid' ? 'view_list' : 'grid_view'}
-                  </span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => updateYoutubeView(youtubeView === '1' ? '2' : '1')}
-                  className="flex items-center justify-center text-primary"
-                >
-                  <span className="material-symbols-outlined text-2xl">
-                    {youtubeView === '1' ? 'grid_view' : 'view_stream'}
-                  </span>
-                </button>
-              )
-            )}
+          <div className="flex items-center gap-1">
             {hasItems && (
               <button
                 onClick={() => {
@@ -136,6 +122,27 @@ export default function ClientLibrary({
               >
                 {isEditMode ? '취소' : '편집'}
               </button>
+            )}
+            {!isEditMode && (
+              mode === 'books' ? (
+                <button
+                  onClick={() => updateBookView(bookView === '3' ? '5' : '3')}
+                  className="flex size-10 items-center justify-center text-primary"
+                >
+                  <span className="material-symbols-outlined text-2xl">
+                    {bookView === '3' ? 'grid_view' : 'view_comfy'}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => updateYoutubeView(youtubeView === '1' ? '2' : '1')}
+                  className="flex size-10 items-center justify-center text-primary"
+                >
+                  <span className="material-symbols-outlined text-2xl">
+                    {youtubeView === '1' ? 'grid_view' : 'view_stream'}
+                  </span>
+                </button>
+              )
             )}
           </div>
         }
@@ -200,6 +207,7 @@ export default function ClientLibrary({
               isSelectionMode={isEditMode}
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
+              onLongPress={handleLongPress}
             />
           )
         ) : (
@@ -216,6 +224,7 @@ export default function ClientLibrary({
               isSelectionMode={isEditMode}
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
+              onLongPress={handleLongPress}
             />
           )
         )}
