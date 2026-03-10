@@ -90,7 +90,7 @@ export default function BestPage() {
 
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
-      <Header title="베스트셀러" transparent />
+      <Header title="Yes24 베스트 100" transparent />
 
       <main className="mt-6 px-4">
         <div className="flex flex-col gap-6 mb-6">

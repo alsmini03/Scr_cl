@@ -7,13 +7,21 @@ import { cn } from '@/lib/utils';
 
 interface BookGridProps {
   books: Book[];
+  isSelectionMode?: boolean;
+  selectedIds?: string[];
+  onToggleSelection?: (id: string) => void;
 }
 
 type ViewMode = 'grid' | 'list';
 type GridCols = 3 | 5;
 
-export default function BookGrid({ books }: BookGridProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+export default function BookGrid({
+  books,
+  viewMode = 'grid',
+  isSelectionMode = false,
+  selectedIds = [],
+  onToggleSelection
+}: BookGridProps & { viewMode?: string }) {
   const [gridCols, setGridCols] = useState<GridCols>(3);
 
   return (
@@ -21,28 +29,6 @@ export default function BookGrid({ books }: BookGridProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">내 도서</h2>
         <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
-          <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "p-1 rounded-md transition-all",
-                viewMode === 'grid' ? "bg-white text-primary shadow-sm" : "text-slate-400"
-              )}
-            >
-              <span className="material-symbols-outlined text-xl block">grid_view</span>
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "p-1 rounded-md transition-all",
-                viewMode === 'list' ? "bg-white text-primary shadow-sm" : "text-slate-400"
-              )}
-            >
-              <span className="material-symbols-outlined text-xl block">view_list</span>
-            </button>
-          </div>
-
           {/* Grid Column Selector (only visible in grid mode) */}
           {viewMode === 'grid' && (
             <div className="flex bg-slate-100 p-1 rounded-lg">
@@ -68,20 +54,47 @@ export default function BookGrid({ books }: BookGridProps) {
           "grid gap-x-3 gap-y-6",
           gridCols === 3 ? "grid-cols-3" : "grid-cols-5"
         )}>
-          {books.map((book) => (
-            <Link key={book.id} href={`/book/${book.id}`} className="flex flex-col gap-2 group">
-              <div
-                className="relative w-full aspect-[3/4] bg-center bg-no-repeat bg-cover rounded-xl shadow-sm border border-primary/5 transition-transform group-active:scale-95"
-                style={{ backgroundImage: `url("${book.coverImage}")` }}
-              >
-                {book.readingStatus === 'FINISHED' && (
-                  <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-[7px] font-bold px-1 py-0.5 rounded shadow-sm">
-                    DONE
-                  </div>
+          {books.map((book) => {
+            const isSelected = selectedIds.includes(book.id);
+            return (
+              <div key={book.id} className="relative flex flex-col gap-2 group">
+                {isSelectionMode && (
+                  <button
+                    onClick={() => onToggleSelection?.(book.id)}
+                    className={cn(
+                      "absolute top-2 left-2 z-10 size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                      isSelected
+                        ? "bg-primary border-primary text-white"
+                        : "bg-white/80 border-slate-300 text-transparent"
+                    )}
+                  >
+                    <span className="material-symbols-outlined text-[10px] font-bold">check</span>
+                  </button>
                 )}
-              </div>
 
-              <div className="mt-0.5 px-0.5">
+                <Link
+                  href={isSelectionMode ? '#' : `/book/${book.id}`}
+                  onClick={(e) => {
+                    if (isSelectionMode) {
+                      e.preventDefault();
+                      onToggleSelection?.(book.id);
+                    }
+                  }}
+                  className={cn(
+                    "relative w-full aspect-[3/4] bg-center bg-no-repeat bg-cover rounded-xl border transition-all",
+                    isSelected ? "border-primary ring-1 ring-primary" : "border-primary/5 shadow-sm",
+                    !isSelectionMode && "active:scale-95 group-active:scale-95"
+                  )}
+                  style={{ backgroundImage: `url("${book.coverImage}")` }}
+                >
+                  {book.readingStatus === 'FINISHED' && (
+                    <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-[7px] font-bold px-1 py-0.5 rounded shadow-sm">
+                      DONE
+                    </div>
+                  )}
+                </Link>
+
+                <div className="mt-0.5 px-0.5">
                 <p className={cn(
                   "font-bold truncate text-slate-900 leading-tight",
                   gridCols === 3 ? "text-xs" : "text-[9px]"
@@ -109,18 +122,48 @@ export default function BookGrid({ books }: BookGridProps) {
                     ) : null}
                   </>
                 )}
+                </div>
               </div>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-3">
-          {books.map((book) => (
-            <Link key={book.id} href={`/book/${book.id}`} className="flex items-center gap-4 p-3 bg-white border border-slate-100 rounded-2xl active:scale-[0.98] transition-all shadow-sm">
-              <div
-                className="w-16 h-20 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 border border-slate-50"
-                style={{ backgroundImage: `url("${book.coverImage}")` }}
-              />
+          {books.map((book) => {
+            const isSelected = selectedIds.includes(book.id);
+            return (
+              <div key={book.id} className="relative flex items-center gap-4">
+                {isSelectionMode && (
+                  <button
+                    onClick={() => onToggleSelection?.(book.id)}
+                    className={cn(
+                      "size-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0",
+                      isSelected
+                        ? "bg-primary border-primary text-white"
+                        : "bg-white border-slate-300 text-transparent"
+                    )}
+                  >
+                    <span className="material-symbols-outlined text-sm font-bold">check</span>
+                  </button>
+                )}
+                <Link
+                  href={isSelectionMode ? '#' : `/book/${book.id}`}
+                  onClick={(e) => {
+                    if (isSelectionMode) {
+                      e.preventDefault();
+                      onToggleSelection?.(book.id);
+                    }
+                  }}
+                  className={cn(
+                    "flex-1 flex items-center gap-4 p-3 bg-white border rounded-2xl transition-all",
+                    isSelected ? "border-primary ring-1 ring-primary" : "border-slate-100 shadow-sm",
+                    !isSelectionMode && "active:scale-[0.98]"
+                  )}
+                >
+                  <div
+                    className="w-16 h-20 bg-center bg-no-repeat bg-cover rounded-lg shrink-0 border border-slate-50"
+                    style={{ backgroundImage: `url("${book.coverImage}")` }}
+                  />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-slate-900 truncate">{book.title}</p>
                 <p className="text-xs text-slate-500 truncate mb-1">{book.author}</p>
@@ -148,9 +191,11 @@ export default function BookGrid({ books }: BookGridProps) {
                   </div>
                 )}
               </div>
-              <span className="material-symbols-outlined text-slate-300">chevron_right</span>
-            </Link>
-          ))}
+                  <span className="material-symbols-outlined text-slate-300">chevron_right</span>
+                </Link>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

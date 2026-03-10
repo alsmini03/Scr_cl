@@ -39,11 +39,7 @@ export default function Header({ title, showBack, rightAction, transparent }: He
 
       <div className="flex items-center justify-end gap-1">
         <div className="flex size-10 items-center justify-center">
-          {rightAction || (
-            <button className="flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-2xl">search</span>
-            </button>
-          )}
+          {rightAction}
         </div>
       </div>
     </header>

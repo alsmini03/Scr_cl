@@ -188,6 +188,25 @@ export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean
   }
 }
 
+export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    if (ids.length === 0) return { success: true };
+
+    // Use an array of IDs for the query
+    await sql`
+      DELETE FROM youtube_videos
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+    `;
+
+    safeRevalidate('/');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to batch delete youtube videos:', error);
+    return { success: false, error: error.message || '다중 삭제 중 오류가 발생했습니다.' };
+  }
+}
+
 export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
@@ -302,6 +321,26 @@ export async function deleteBook(id: string): Promise<void> {
   } catch (error) {
     console.error(`Failed to move book to trash with id ${id}:`, error);
     throw new Error('Failed to move book to trash');
+  }
+}
+
+export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    if (ids.length === 0) return { success: true };
+
+    const deletedAt = new Date().toISOString();
+    await sql`
+      UPDATE books SET deleted_at = ${deletedAt}
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+    `;
+
+    safeRevalidate('/');
+    safeRevalidate('/trash');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to batch delete books:', error);
+    return { success: false, error: error.message || '다중 삭제 중 오류가 발생했습니다.' };
   }
 }
 

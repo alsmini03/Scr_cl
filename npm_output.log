@@ -49,3 +49,26 @@
  GET /api/auth/session 200 in 333ms (compile: 111ms, proxy.ts: 208ms, render: 15ms)
  GET /login 200 in 186ms (compile: 6ms, render: 179ms)
  GET /api/auth/session 200 in 33ms (compile: 9ms, proxy.ts: 17ms, render: 6ms)
+✓ Compiled in 5.1s
+✓ Compiled in 1523ms
+ GET / 200 in 4.6s (compile: 1752ms, render: 2.8s)
+ GET /api/auth/session 200 in 872ms (compile: 818ms, proxy.ts: 32ms, render: 23ms)
+ GET /api/auth/session 200 in 38ms (compile: 11ms, proxy.ts: 14ms, render: 12ms)
+✓ Compiled in 644ms
+○ Compiling /api/migrate ...
+Starting manual migration...
+ GET /api/migrate 200 in 5.5s (compile: 3.8s, render: 1632ms)
+✓ Compiled in 1931ms
+ GET /best 200 in 1272ms (compile: 631ms, render: 641ms)
+ GET /api/auth/session 200 in 610ms (compile: 330ms, proxy.ts: 132ms, render: 148ms)
+ GET /login 200 in 499ms (compile: 409ms, render: 90ms)
+ GET /api/auth/session 200 in 36ms (compile: 10ms, proxy.ts: 12ms, render: 14ms)
+ GET / 200 in 735ms (compile: 265ms, render: 469ms)
+ GET /api/auth/session 200 in 121ms (compile: 95ms, proxy.ts: 12ms, render: 14ms)
+ GET /api/auth/session 200 in 38ms (compile: 15ms, proxy.ts: 13ms, render: 10ms)
+ GET /add/youtube 200 in 1134ms (compile: 509ms, proxy.ts: 9ms, render: 616ms)
+ GET /api/auth/session 200 in 128ms (compile: 109ms, proxy.ts: 9ms, render: 10ms)
+ POST /add/youtube 200 in 268ms (compile: 112ms, proxy.ts: 12ms, render: 143ms)
+ GET /api/auth/session 200 in 48ms (compile: 18ms, proxy.ts: 20ms, render: 10ms)
+ POST /add/youtube 200 in 76ms (compile: 21ms, proxy.ts: 12ms, render: 42ms)
+✓ Compiled in 77ms
