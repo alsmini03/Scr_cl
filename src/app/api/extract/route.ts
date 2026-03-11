@@ -96,16 +96,48 @@ export async function POST(req: NextRequest) {
     let detailedDescription = description;
 
     const sections = [
-      { id: "infoset_introduce", title: "책소개" },
-      { id: "infoset_toc", title: "목차" },
-      { id: "infoset_author", title: "저자 소개" },
-      { id: "infoset_inBook", title: "책 속으로" },
-      { id: "infoset_pubReview", title: "출판사 리뷰" }
+      { title: "책소개", selector: "#infoset_introduce" },
+      { title: "목차", selector: "#infoset_toc" },
+      { title: "저자 소개", selector: "#infoset_author, #infoset_authorGrp" },
+      { title: "책 속으로", selector: "#infoset_inBook" },
+      { title: "출판사 리뷰", selector: "#infoset_pubReview, #infoset_pubReivew" }
     ];
 
     let combinedDetails = "";
     sections.forEach(section => {
-      const content = $(`#${section.id} .infoText_wrap`).first().text().trim();
+      let content = "";
+
+      // Try to get text from the specific container(s)
+      const container = $(section.selector).first();
+
+      if (container.length > 0) {
+        // YES24 stores content in various places. Priority:
+        // 1. textarea.txtContentText (Full content)
+        // 2. .info_origin (Full author info)
+        // 3. .infoText_wrap
+        // 4. .fullTxt
+
+        let rawContent = container.find("textarea.txtContentText").text().trim() ||
+                         container.find(".info_origin").text().trim() ||
+                         container.find(".infoText_wrap").text().trim() ||
+                         container.find(".fullTxt").text().trim();
+
+        if (!rawContent) {
+          // If no specific content container found, get text from the main wrap
+          rawContent = container.find(".infoSetCont_wrap").text().trim();
+        }
+
+        if (rawContent) {
+          // Clean up HTML-like breaks and extra whitespace
+          content = rawContent
+            .replace(/<br\s*\/?>/gi, "\n")
+            .replace(/&nbsp;/g, " ")
+            .replace(/접기$/g, "")
+            .replace(/더보기$/g, "")
+            .trim();
+        }
+      }
+
       if (content) {
         combinedDetails += `### ${section.title}\n${content}\n\n`;
       }

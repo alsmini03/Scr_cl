@@ -72,6 +72,7 @@ export default function AddYouTubePage() {
   const [newPromptText, setNewPromptText] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
   const [showPromptManager, setShowPromptManager] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [isAutoAdding, setIsAutoAdding] = useState(false);
 
@@ -330,151 +331,166 @@ export default function AddYouTubePage() {
 
         <section className="mb-10 space-y-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-6">
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center ml-1">
-                  <label className="text-sm font-medium text-slate-700">제미나이 모델</label>
-                  <span className="text-xs font-bold text-primary">{selectedModel}</span>
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedModel}
-                    onChange={async (e) => {
-                      const name = e.target.value;
-                      setSelectedModel(name);
-                      const model = models.find(m => m.name === name);
-                      if (model) await setDefaultGeminiModel(model.id);
-                    }}
-                    className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
-                  >
-                    {models.map(model => (
-                      <option key={model.id} value={model.name}>{model.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setShowModelManager(!showModelManager)}
-                    className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
-                  >
-                    <span className="material-symbols-outlined text-sm">{showModelManager ? 'close' : 'settings'}</span>
-                  </button>
-                </div>
-
-                {showModelManager && (
-                  <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        {editingModelId ? '모델 수정' : '모델 추가'}
-                      </label>
-                      <div className="flex gap-2">
-                        <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
-                        <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">
-                          {editingModelId ? '수정' : '추가'}
-                        </button>
-                        {editingModelId && (
-                          <button onClick={() => { setEditingModelId(null); setNewModelName(''); }} className="bg-slate-200 text-slate-600 px-3 rounded-lg text-sm">취소</button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {models.map(m => (
-                        <div key={m.id} className={cn(
-                          "flex items-center gap-2 border px-3 py-1.5 rounded-full text-xs transition-colors",
-                          m.is_default ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200"
-                        )}>
-                          <button onClick={() => handleSetDefaultModel(m.id)} className="font-medium hover:underline">{m.name}</button>
-                          <button onClick={() => startEditModel(m)} className="opacity-60 hover:opacity-100"><span className="material-symbols-outlined text-[14px]">edit</span></button>
-                          <button onClick={() => handleDeleteModel(m.id)} className={cn(
-                            "hover:text-red-500 flex items-center",
-                            m.is_default ? "text-white/70" : "text-slate-400"
-                          )}>
-                            <span className="material-symbols-outlined text-[14px]">close</span>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className={cn(
+                  "flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors text-xs font-bold",
+                  showSettings ? "bg-primary text-white" : "bg-primary/10 text-primary"
                 )}
-              </div>
+              >
+                <span className="material-symbols-outlined text-sm">{showSettings ? 'close' : 'settings'}</span>
+                제미나이 설정
+              </button>
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center ml-1">
-                  <label className="text-sm font-medium text-slate-700">분석 프롬프트</label>
-                  <span className="text-xs font-bold text-primary truncate max-w-[100px]">
-                    {prompts.find(p => p.id === selectedPromptId)?.name}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedPromptId}
-                    onChange={async (e) => {
-                      const id = e.target.value;
-                      setSelectedPromptId(id);
-                      await setDefaultGeminiPrompt(id);
-                    }}
-                    className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
-                  >
-                    {prompts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => setShowPromptManager(!showPromptManager)}
-                    className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
-                  >
-                    <span className="material-symbols-outlined text-sm">{showPromptManager ? 'close' : 'terminal'}</span>
-                  </button>
-                </div>
+            {showSettings && (
+              <div className="grid grid-cols-1 gap-6 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-sm font-medium text-slate-700">제미나이 모델</label>
+                    <span className="text-xs font-bold text-primary">{selectedModel}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedModel}
+                      onChange={async (e) => {
+                        const name = e.target.value;
+                        setSelectedModel(name);
+                        const model = models.find(m => m.name === name);
+                        if (model) await setDefaultGeminiModel(model.id);
+                      }}
+                      className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                    >
+                      {models.map(model => (
+                        <option key={model.id} value={model.name}>{model.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowModelManager(!showModelManager)}
+                      className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                    >
+                      <span className="material-symbols-outlined text-sm">{showModelManager ? 'close' : 'settings'}</span>
+                    </button>
+                  </div>
 
-                {showPromptManager && (
-                  <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">
-                        {editingPromptId ? '프롬프트 수정' : '프롬프트 추가'}
-                      </label>
-                      <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
-                      <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
-                      <div className="flex gap-2">
-                        <button onClick={handleAddPrompt} className="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-bold">
-                          {editingPromptId ? '프롬프트 수정 저장' : '프롬프트 저장'}
-                        </button>
-                        {editingPromptId && (
-                           <button onClick={() => { setEditingPromptId(null); setNewPromptName(''); setNewPromptText(''); }} className="bg-slate-200 text-slate-600 px-4 rounded-lg text-sm">취소</button>
-                        )}
+                  {showModelManager && (
+                    <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">
+                          {editingModelId ? '모델 수정' : '모델 추가'}
+                        </label>
+                        <div className="flex gap-2">
+                          <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
+                          <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">
+                            {editingModelId ? '수정' : '추가'}
+                          </button>
+                          {editingModelId && (
+                            <button onClick={() => { setEditingModelId(null); setNewModelName(''); }} className="bg-slate-200 text-slate-600 px-3 rounded-lg text-sm">취소</button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">저장된 프롬프트</label>
-                      <div className="space-y-2">
-                        {prompts.map((p) => (
-                          <div key={p.id} className={cn(
-                            "flex items-center justify-between p-3 rounded-xl border transition-colors",
-                            p.is_default ? "bg-primary/5 border-primary/20" : "bg-white border-slate-200"
+                      <div className="flex flex-wrap gap-2">
+                        {models.map(m => (
+                          <div key={m.id} className={cn(
+                            "flex items-center gap-2 border px-3 py-1.5 rounded-full text-xs transition-colors",
+                            m.is_default ? "bg-primary text-white border-primary" : "bg-white text-slate-600 border-slate-200"
                           )}>
-                            <button
-                              onClick={() => handleSetDefaultPrompt(p.id)}
-                              className="flex flex-col flex-1 text-left"
-                            >
-                              <span className={cn("text-sm font-bold", p.is_default ? "text-primary" : "text-slate-900")}>
-                                {p.name} {p.is_default && " (기본값)"}
-                              </span>
-                              <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.content}</span>
+                            <button onClick={() => handleSetDefaultModel(m.id)} className="font-medium hover:underline">{m.name}</button>
+                            <button onClick={() => startEditModel(m)} className="opacity-60 hover:opacity-100"><span className="material-symbols-outlined text-[14px]">edit</span></button>
+                            <button onClick={() => handleDeleteModel(m.id)} className={cn(
+                              "hover:text-red-500 flex items-center",
+                              m.is_default ? "text-white/70" : "text-slate-400"
+                            )}>
+                              <span className="material-symbols-outlined text-[14px]">close</span>
                             </button>
-                            <div className="flex items-center gap-1">
-                              <button onClick={() => startEditPrompt(p)} className="text-slate-400 hover:text-primary p-1">
-                                <span className="material-symbols-outlined text-sm">edit</span>
-                              </button>
-                              <button onClick={() => handleDeletePrompt(p.id)} className="text-slate-400 hover:text-red-500 p-1">
-                                <span className="material-symbols-outlined text-sm">delete</span>
-                              </button>
-                            </div>
                           </div>
                         ))}
                       </div>
                     </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center ml-1">
+                    <label className="text-sm font-medium text-slate-700">분석 프롬프트</label>
+                    <span className="text-xs font-bold text-primary truncate max-w-[100px]">
+                      {prompts.find(p => p.id === selectedPromptId)?.name}
+                    </span>
                   </div>
-                )}
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedPromptId}
+                      onChange={async (e) => {
+                        const id = e.target.value;
+                        setSelectedPromptId(id);
+                        await setDefaultGeminiPrompt(id);
+                      }}
+                      className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                    >
+                      {prompts.map((p) => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => setShowPromptManager(!showPromptManager)}
+                      className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                    >
+                      <span className="material-symbols-outlined text-sm">{showPromptManager ? 'close' : 'terminal'}</span>
+                    </button>
+                  </div>
+
+                  {showPromptManager && (
+                    <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">
+                          {editingPromptId ? '프롬프트 수정' : '프롬프트 추가'}
+                        </label>
+                        <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
+                        <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
+                        <div className="flex gap-2">
+                          <button onClick={handleAddPrompt} className="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-bold">
+                            {editingPromptId ? '프롬프트 수정 저장' : '프롬프트 저장'}
+                          </button>
+                          {editingPromptId && (
+                            <button onClick={() => { setEditingPromptId(null); setNewPromptName(''); setNewPromptText(''); }} className="bg-slate-200 text-slate-600 px-4 rounded-lg text-sm">취소</button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase">저장된 프롬프트</label>
+                        <div className="space-y-2">
+                          {prompts.map((p) => (
+                            <div key={p.id} className={cn(
+                              "flex items-center justify-between p-3 rounded-xl border transition-colors",
+                              p.is_default ? "bg-primary/5 border-primary/20" : "bg-white border-slate-200"
+                            )}>
+                              <button
+                                onClick={() => handleSetDefaultPrompt(p.id)}
+                                className="flex flex-col flex-1 text-left"
+                              >
+                                <span className={cn("text-sm font-bold", p.is_default ? "text-primary" : "text-slate-900")}>
+                                  {p.name} {p.is_default && " (기본값)"}
+                                </span>
+                                <span className="text-xs text-slate-400 truncate max-w-[200px]">{p.content}</span>
+                              </button>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => startEditPrompt(p)} className="text-slate-400 hover:text-primary p-1">
+                                  <span className="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button onClick={() => handleDeletePrompt(p.id)} className="text-slate-400 hover:text-red-500 p-1">
+                                  <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
