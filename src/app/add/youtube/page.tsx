@@ -331,19 +331,6 @@ export default function AddYouTubePage() {
 
         <section className="mb-10 space-y-6">
           <div className="space-y-4">
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={cn(
-                  "flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors text-xs font-bold",
-                  showSettings ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                )}
-              >
-                <span className="material-symbols-outlined text-sm">{showSettings ? 'close' : 'settings'}</span>
-                제미나이 설정
-              </button>
-            </div>
-
             {showSettings && (
               <div className="grid grid-cols-1 gap-6 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <div className="flex flex-col gap-2">
@@ -493,7 +480,19 @@ export default function AddYouTubePage() {
             )}
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 ml-1">유튜브 영상 URL</label>
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-sm font-medium text-slate-700">유튜브 영상 URL</label>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1 rounded-lg transition-colors text-[10px] font-bold border",
+                    showSettings ? "bg-primary text-white border-primary" : "bg-white text-slate-400 border-slate-200"
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[14px]">{showSettings ? 'close' : 'settings'}</span>
+                  제미나이 설정
+                </button>
+              </div>
               <div className="flex flex-col gap-3">
                 <input
                   type="text"

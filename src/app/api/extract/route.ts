@@ -117,19 +117,28 @@ export async function POST(req: NextRequest) {
         // 3. .infoText_wrap
         // 4. .fullTxt
 
-        let rawContent = container.find("textarea.txtContentText").text().trim() ||
-                         container.find(".info_origin").text().trim() ||
-                         container.find(".infoText_wrap").text().trim() ||
-                         container.find(".fullTxt").text().trim();
+        // Find ALL textareas and infoText_wraps within the container and combine them
+        const textareas = container.find("textarea.txtContentText");
+        let combinedRaw = "";
 
-        if (!rawContent) {
-          // If no specific content container found, get text from the main wrap
-          rawContent = container.find(".infoSetCont_wrap").text().trim();
+        if (textareas.length > 0) {
+            textareas.each((_, el) => {
+                combinedRaw += $(el).text().trim() + "\n";
+            });
+        } else {
+            combinedRaw = container.find(".info_origin").text().trim() ||
+                          container.find(".infoText_wrap").text().trim() ||
+                          container.find(".fullTxt").text().trim();
         }
 
-        if (rawContent) {
+        if (!combinedRaw) {
+          // If no specific content container found, get text from the main wrap
+          combinedRaw = container.find(".infoSetCont_wrap").text().trim();
+        }
+
+        if (combinedRaw) {
           // Clean up HTML-like breaks and extra whitespace
-          content = rawContent
+          content = combinedRaw
             .replace(/<br\s*\/?>/gi, "\n")
             .replace(/&nbsp;/g, " ")
             .replace(/접기$/g, "")

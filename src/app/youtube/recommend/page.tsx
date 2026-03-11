@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
@@ -20,16 +20,22 @@ interface RecommendedVideo {
 export default function YouTubeRecommendPage() {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
-  const [allData, setAllData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [cols, setCols] = useState<1 | 2>(1);
-  const [activeTab, setActiveTab] = useState<'all' | 'under' | 'sampro' | 'eo'>('all');
+  const [tabs, setTabs] = useState<any[]>([]);
+  const [activeTabId, setActiveTabId] = useState('all');
+
+  // Tab Management
+  const [showTabManager, setShowTabManager] = useState(false);
+  const [newTabName, setNewTabName] = useState('');
+  const [newTabUrl, setNewTabUrl] = useState('');
+  const [isAddingTab, setIsAddingTab] = useState(false);
 
   useEffect(() => {
-    const savedTab = localStorage.getItem('youtube_recommend_tab');
-    if (savedTab && (savedTab === 'all' || savedTab === 'under' || savedTab === 'sampro' || savedTab === 'eo')) {
-      setActiveTab(savedTab as any);
+    const savedTab = localStorage.getItem('youtube_recommend_tab_v2');
+    if (savedTab) {
+      setActiveTabId(savedTab);
     }
 
     const savedCols = localStorage.getItem('youtube_recommend_cols');
@@ -43,20 +49,37 @@ export default function YouTubeRecommendPage() {
   }, [cols]);
 
   useEffect(() => {
-    localStorage.setItem('youtube_recommend_tab', activeTab);
-  }, [activeTab]);
+    localStorage.setItem('youtube_recommend_tab_v2', activeTabId);
+  }, [activeTabId]);
+
+  const loadTabs = async () => {
+    const dbTabs = await getYoutubeTabs();
+    setTabs(dbTabs);
+  };
 
   useEffect(() => {
-    async function fetchRecommended() {
+    loadTabs();
+  }, []);
+
+  useEffect(() => {
+    async function fetchVideos() {
       setIsLoading(true);
       try {
-        const res = await fetch('/api/youtube/recommend');
+        let fetchUrl = '/api/youtube/recommend';
+        if (activeTabId !== 'all') {
+          const activeTab = tabs.find(t => t.id === activeTabId);
+          if (activeTab) {
+            fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
+          }
+        }
+
+        const res = await fetch(fetchUrl);
         const data = await res.json();
-        setAllData(data);
-        if (data && data.all) {
-          setVideos(data.all);
+
+        if (activeTabId === 'all') {
+          setVideos(data.all || []);
         } else {
-          setVideos([]);
+          setVideos(data.videos || []);
         }
       } catch (err) {
         console.error(err);
@@ -65,16 +88,12 @@ export default function YouTubeRecommendPage() {
         setIsLoading(false);
       }
     }
-    fetchRecommended();
-  }, []);
 
-  useEffect(() => {
-    if (!allData) return;
-    if (activeTab === 'all') setVideos(allData.all || []);
-    else if (activeTab === 'under') setVideos(allData.under || []);
-    else if (activeTab === 'sampro') setVideos(allData.sampro || []);
-    else if (activeTab === 'eo') setVideos(allData.eo || []);
-  }, [activeTab, allData]);
+    // Only fetch if tabs are loaded or if activeTab is 'all'
+    if (activeTabId === 'all' || tabs.length > 0) {
+      fetchVideos();
+    }
+  }, [activeTabId, tabs]);
 
   const handleCopyUrl = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -139,63 +158,125 @@ export default function YouTubeRecommendPage() {
     }
   };
 
+  const handleAddTab = async () => {
+    if (!newTabName || !newTabUrl) return;
+    setIsAddingTab(true);
+    const res = await addYoutubeTab(newTabName, newTabUrl);
+    if (res.success) {
+      setNewTabName('');
+      setNewTabUrl('');
+      await loadTabs();
+    } else {
+      alert(res.error);
+    }
+    setIsAddingTab(false);
+  };
+
+  const handleDeleteTab = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('탭을 삭제하시겠습니까?')) return;
+    const res = await deleteYoutubeTab(id);
+    if (res.success) {
+      if (activeTabId === id) setActiveTabId('all');
+      await loadTabs();
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
       <Header
         title="유튜브 추천"
         transparent
         rightAction={
-          <button
-            onClick={() => setCols(cols === 1 ? 2 : 1)}
-            className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined">
-              {cols === 1 ? 'grid_view' : 'view_stream'}
-            </span>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+               onClick={() => window.location.href = '/add/youtube'}
+               className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+            >
+               <span className="material-symbols-outlined">settings</span>
+            </button>
+            <button
+              onClick={() => setCols(cols === 1 ? 2 : 1)}
+              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined">
+                {cols === 1 ? 'grid_view' : 'view_stream'}
+              </span>
+            </button>
+          </div>
         }
       />
 
       <main className="mt-4 px-4">
         {/* Source Tabs */}
-        <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 pb-2 -mx-4 px-4 sticky top-[64px] bg-white z-10">
+        <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-white z-10">
+          <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
+            <button
+              onClick={() => setActiveTabId('all')}
+              className={cn(
+                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+              )}
+            >
+              전체
+            </button>
+            {tabs.map(tab => (
+              <div key={tab.id} className="relative flex-shrink-0 group">
+                <button
+                  onClick={() => setActiveTabId(tab.id)}
+                  className={cn(
+                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all pr-8",
+                    activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  {tab.name}
+                </button>
+                <button
+                  onClick={(e) => handleDeleteTab(tab.id, e)}
+                  className={cn(
+                    "absolute right-2 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors",
+                    activeTabId === tab.id ? "text-white/70" : "text-slate-400"
+                  )}
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              </div>
+            ))}
+          </div>
           <button
-            onClick={() => setActiveTab('all')}
-            className={cn(
-              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-              activeTab === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
-            )}
+            onClick={() => setShowTabManager(!showTabManager)}
+            className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
           >
-            전체
-          </button>
-          <button
-            onClick={() => setActiveTab('under')}
-            className={cn(
-              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-              activeTab === 'under' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
-            )}
-          >
-            언더스탠딩
-          </button>
-          <button
-            onClick={() => setActiveTab('sampro')}
-            className={cn(
-              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-              activeTab === 'sampro' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
-            )}
-          >
-            월가월부
-          </button>
-          <button
-            onClick={() => setActiveTab('eo')}
-            className={cn(
-              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-              activeTab === 'eo' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
-            )}
-          >
-            EO
+            <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
           </button>
         </div>
+
+        {showTabManager && (
+          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+            <p className="text-xs font-bold text-slate-500 uppercase ml-1">탭 추가</p>
+            <input
+              type="text"
+              value={newTabName}
+              onChange={(e) => setNewTabName(e.target.value)}
+              placeholder="탭 이름 (예: 언더스탠딩)"
+              className="w-full rounded-xl border p-3 text-sm"
+            />
+            <input
+              type="text"
+              value={newTabUrl}
+              onChange={(e) => setNewTabUrl(e.target.value)}
+              placeholder="채널 동영상 URL (예: https://m.youtube.com/@.../videos)"
+              className="w-full rounded-xl border p-3 text-sm"
+            />
+            <button
+              onClick={handleAddTab}
+              disabled={isAddingTab || !newTabName || !newTabUrl}
+              className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
+            >
+              {isAddingTab ? '추가 중...' : '탭 추가하기'}
+            </button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">

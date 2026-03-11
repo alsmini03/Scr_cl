@@ -70,6 +70,15 @@ async function fetchChannelVideos(channelUrl: string) {
 
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const url = searchParams.get("url");
+
+    if (url) {
+      const videos = await fetchChannelVideos(url);
+      return NextResponse.json({ videos });
+    }
+
+    // Default channels if no URL is provided
     const urls = [
       "https://m.youtube.com/@understanding./videos",
       "https://m.youtube.com/@MK_Invest/videos",
@@ -78,14 +87,7 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.allSettled(urls.map(url => fetchChannelVideos(url)));
 
-    let allVideos: any[] = [];
-    results.forEach((res) => {
-      if (res.status === 'fulfilled') {
-        allVideos = [...allVideos, ...res.value];
-      }
-    });
-
-    const videoGroups = results.map((res, index) => {
+    const videoGroups = results.map((res) => {
       return res.status === 'fulfilled' ? res.value : [];
     });
 

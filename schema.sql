@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS gemini_prompts (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- YouTube Tabs Table
+CREATE TABLE IF NOT EXISTS youtube_tabs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Auth.js Tables (PostgreSQL Adapter)
 -- https://authjs.dev/reference/adapter/pg
 

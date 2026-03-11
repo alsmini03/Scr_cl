@@ -126,6 +126,52 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
   }
 }
 
+/**
+ * YouTube Recommendation Tabs
+ */
+export async function getYoutubeTabs(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM youtube_tabs
+      WHERE user_id = ${user.id}
+      ORDER BY created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = Math.random().toString(36).substring(2, 11);
+    await sql`
+      INSERT INTO youtube_tabs (id, user_id, name, url)
+      VALUES (${id}, ${userId}, ${name}, ${url})
+    `;
+    safeRevalidate('/youtube/recommend');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM youtube_tabs
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/youtube/recommend');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
