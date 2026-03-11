@@ -6,13 +6,23 @@ import BottomNav from '@/components/BottomNav';
 import Link from 'next/link';
 import BookGrid from '@/components/BookGrid';
 import YoutubeGrid from '@/components/YoutubeGrid';
+import { Book } from '@/types/book';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
+interface YoutubeVideo {
+  id: string;
+  title: string;
+  url: string;
+  thumbnail: string;
+  duration: string;
+  published_at: string;
+}
+
 interface ClientLibraryProps {
   session: any;
-  books: any[];
-  youtubeVideos: any[];
+  books: Book[];
+  youtubeVideos: YoutubeVideo[];
   mode: string;
   youtubeView: string;
   isDev: boolean;
@@ -46,7 +56,16 @@ export default function ClientLibrary({
 
     const savedYoutubeView = localStorage.getItem('youtube-view');
     if (savedYoutubeView) setYoutubeView(savedYoutubeView);
+
+    const savedMode = localStorage.getItem('library-mode');
+    if (savedMode && (savedMode === 'books' || savedMode === 'youtube')) {
+      setMode(savedMode);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('library-mode', mode);
+  }, [mode]);
 
   const updateBookView = (view: string) => {
     setBookView(view);
@@ -109,6 +128,11 @@ export default function ClientLibrary({
         transparent
         rightAction={
           <div className="flex items-center gap-1">
+            {!isEditMode && mode === 'youtube' && (session?.user || isDev) && (
+              <Link href="/add/youtube" className="flex size-10 items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-2xl">add</span>
+              </Link>
+            )}
             {hasItems && (
               <button
                 onClick={() => {
@@ -120,7 +144,7 @@ export default function ClientLibrary({
                   isEditMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
                 )}
               >
-                {isEditMode ? '취소' : '편집'}
+                {isEditMode ? '취소' : '삭제'}
               </button>
             )}
             {!isEditMode && (
@@ -249,9 +273,9 @@ export default function ClientLibrary({
         </div>
       )}
 
-      {!isEditMode && (session?.user || isDev) && (
+      {!isEditMode && mode === 'books' && (session?.user || isDev) && (
         <Link
-          href={mode === 'books' ? "/add" : "/add/youtube"}
+          href="/add"
           className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"
         >
           <span className="material-symbols-outlined text-3xl">add</span>

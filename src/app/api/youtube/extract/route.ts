@@ -142,11 +142,21 @@ export async function POST(req: NextRequest) {
         const geminiModel = requestedModel || "gemini-1.5-flash"; // Use stable model
         const model = genAI.getGenerativeModel({ model: geminiModel });
 
-        const prompt = (requestedPrompt || "이 영상을 분석해 주세요.") +
-                      (transcript ? `\n\n[스크립트 내용]\n${transcript}` : "");
+        const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
 
-        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}]...`);
-        const result = await model.generateContent(prompt);
+        // Use fileData with fileUri as requested for multimodal analysis
+        const parts = [
+          {
+            fileData: {
+              fileUri: url,
+              mimeType: "video/mp4" // Required by SDK for fileData
+            }
+          },
+          { text: promptText + (transcript ? `\n\n[스크립트 내용]\n${transcript}` : "") }
+        ];
+
+        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}] using fileUri...`);
+        const result = await model.generateContent(parts);
         const response = await result.response;
         summary = response.text();
       } catch (geminiError: any) {

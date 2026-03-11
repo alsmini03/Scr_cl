@@ -27,6 +27,11 @@ export default function YouTubeRecommendPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'under' | 'sampro' | 'eo'>('all');
 
   useEffect(() => {
+    const savedTab = localStorage.getItem('youtube_recommend_tab');
+    if (savedTab && (savedTab === 'all' || savedTab === 'under' || savedTab === 'sampro' || savedTab === 'eo')) {
+      setActiveTab(savedTab as any);
+    }
+
     const savedCols = localStorage.getItem('youtube_recommend_cols');
     if (savedCols === '1' || savedCols === '2') {
       setCols(parseInt(savedCols) as 1 | 2);
@@ -36,6 +41,10 @@ export default function YouTubeRecommendPage() {
   useEffect(() => {
     localStorage.setItem('youtube_recommend_cols', cols.toString());
   }, [cols]);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_recommend_tab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     async function fetchRecommended() {
@@ -66,6 +75,14 @@ export default function YouTubeRecommendPage() {
     else if (activeTab === 'sampro') setVideos(allData.sampro || []);
     else if (activeTab === 'eo') setVideos(allData.eo || []);
   }, [activeTab, allData]);
+
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      alert('URL이 클립보드에 복사되었습니다.');
+    }).catch(err => {
+      console.error('Copy failed:', err);
+    });
+  };
 
   const handleAddVideo = async (e: React.MouseEvent, video: RecommendedVideo) => {
     e.preventDefault();
@@ -194,10 +211,24 @@ export default function YouTubeRecommendPage() {
             "grid gap-4",
             cols === 1 ? "grid-cols-1" : "grid-cols-2"
           )}>
-            {videos.map((video) => (
+            {videos.map((video) => {
+              let timer: any;
+              const startPress = () => {
+                timer = setTimeout(() => handleCopyUrl(video.url), 600);
+              };
+              const endPress = () => {
+                clearTimeout(timer);
+              };
+
+              return (
               <div
                 key={video.videoId}
                 className="group relative bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
+                onTouchStart={startPress}
+                onTouchEnd={endPress}
+                onMouseDown={startPress}
+                onMouseUp={endPress}
+                onMouseLeave={endPress}
               >
                 <a
                   href={video.url}
@@ -252,7 +283,7 @@ export default function YouTubeRecommendPage() {
                   </button>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
       </main>

@@ -1,0 +1,33 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3001
+- Network:       http://192.168.0.2:3001
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 1924ms
+
+thread 'tokio-runtime-worker' (309777) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
+range start index 19592264 out of range for slice of length 19591672
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+-----
+[1m[31mFATAL[39m[0m: An unexpected Turbopack error occurred. A panic log has been written to /tmp/next-panic-b97897819bd7acbb0d935962baeccec7.log.
+
+To help make Turbopack better, report this error by clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title=Turbopack%20Error%3A%20range%20start%20index%2019592264%20out%20of%20range%20for%20slice%20of%20length%2019591672&body=Turbopack%20version%3A%20%600c06f068%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ATurbopack%20Error%3A%20range%20start%20index%2019592264%20out%20of%20range%20for%20slice%20of%20length%2019591672%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace
+-----
+
+
+thread 'tokio-runtime-worker' (309790) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
+range start index 19592276 out of range for slice of length 19591672
+
+thread 'tokio-runtime-worker' (309789) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
+range start index 19592276 out of range for slice of length 19591672
+○ Compiling /_error ...
+
+thread 'tokio-runtime-worker' (309777) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
+range start index 4678244 out of range for slice of length 4677836

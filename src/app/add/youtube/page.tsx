@@ -25,6 +25,22 @@ interface YouTubeMetadata {
   description: string;
   thumbnail: string;
   url: string;
+  duration?: string;
+  publishDate?: string;
+  summary?: string;
+}
+
+interface GeminiModel {
+  id: string;
+  name: string;
+  is_default: boolean;
+}
+
+interface GeminiPrompt {
+  id: string;
+  name: string;
+  content: string;
+  is_default: boolean;
 }
 
 export default function AddYouTubePage() {
@@ -43,14 +59,14 @@ export default function AddYouTubePage() {
   const [transcript, setTranscript] = useState('');
 
   // Gemini Models
-  const [models, setModels] = useState<any[]>([]);
+  const [models, setModels] = useState<GeminiModel[]>([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [newModelName, setNewModelName] = useState('');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [showModelManager, setShowModelManager] = useState(false);
 
   // Prompts
-  const [prompts, setPrompts] = useState<any[]>([]);
+  const [prompts, setPrompts] = useState<GeminiPrompt[]>([]);
   const [selectedPromptId, setSelectedPromptId] = useState('');
   const [newPromptName, setNewPromptName] = useState('');
   const [newPromptText, setNewPromptText] = useState('');
@@ -95,7 +111,7 @@ export default function AddYouTubePage() {
     }
   };
 
-  const startEditModel = (model: any) => {
+  const startEditModel = (model: GeminiModel) => {
     setEditingModelId(model.id);
     setNewModelName(model.name);
   };
@@ -134,7 +150,7 @@ export default function AddYouTubePage() {
     }
   };
 
-  const startEditPrompt = (prompt: any) => {
+  const startEditPrompt = (prompt: GeminiPrompt) => {
     setEditingPromptId(prompt.id);
     setNewPromptName(prompt.name);
     setNewPromptText(prompt.content);
@@ -286,9 +302,9 @@ export default function AddYouTubePage() {
       } else {
         alert(`자동 저장 실패: ${saveResult.error}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Auto Add error:', err);
-      setError(err.message || '자동 추가 중 오류가 발생했습니다.');
+      setError(err instanceof Error ? err.message : '자동 추가 중 오류가 발생했습니다.');
     } finally {
       setIsAutoAdding(false);
     }
@@ -316,11 +332,19 @@ export default function AddYouTubePage() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-slate-700 ml-1">제미나이 모델</label>
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-sm font-medium text-slate-700">제미나이 모델</label>
+                  <span className="text-xs font-bold text-primary">{selectedModel}</span>
+                </div>
                 <div className="flex gap-2">
                   <select
                     value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
+                    onChange={async (e) => {
+                      const name = e.target.value;
+                      setSelectedModel(name);
+                      const model = models.find(m => m.name === name);
+                      if (model) await setDefaultGeminiModel(model.id);
+                    }}
                     className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
                   >
                     {models.map(model => (
@@ -373,11 +397,20 @@ export default function AddYouTubePage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-slate-700 ml-1">분석 프롬프트</label>
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-sm font-medium text-slate-700">분석 프롬프트</label>
+                  <span className="text-xs font-bold text-primary truncate max-w-[100px]">
+                    {prompts.find(p => p.id === selectedPromptId)?.name}
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <select
                     value={selectedPromptId}
-                    onChange={(e) => setSelectedPromptId(e.target.value)}
+                    onChange={async (e) => {
+                      const id = e.target.value;
+                      setSelectedPromptId(id);
+                      await setDefaultGeminiPrompt(id);
+                    }}
                     className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
                   >
                     {prompts.map((p) => (

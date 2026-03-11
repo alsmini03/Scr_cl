@@ -80,6 +80,12 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
     }
   };
 
+  const handleCopyUrl = () => {
+    navigator.clipboard.writeText(video?.url || '').then(() => {
+      alert('URL이 클립보드에 복사되었습니다.');
+    });
+  };
+
   const handleRefetch = async () => {
     if (!confirm('AI를 사용하여 정보를 다시 가져오시겠습니까? 기존 요약 내용이 덮어씌워집니다.')) return;
 
@@ -177,15 +183,24 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
              <span>•</span>
              <span>{video.published_at}</span>
           </div>
-          <a
-            href={video.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-primary text-sm font-bold mt-1"
-          >
-            <span className="material-symbols-outlined text-sm">link</span>
-            유튜브에서 보기
-          </a>
+          <div className="flex items-center gap-3 mt-1">
+            <a
+              href={video.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-primary text-sm font-bold"
+            >
+              <span className="material-symbols-outlined text-sm">link</span>
+              유튜브에서 보기
+            </a>
+            <button
+              onClick={handleCopyUrl}
+              className="inline-flex items-center gap-1 text-slate-500 hover:text-primary text-sm font-bold transition-colors"
+            >
+              <span className="material-symbols-outlined text-sm">content_copy</span>
+              URL 복사
+            </button>
+          </div>
         </div>
 
         <section className="space-y-6">

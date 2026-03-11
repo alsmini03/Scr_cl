@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { useSession } from 'next-auth/react';
 
 interface BottomNavProps {
   activeTab: 'home' | 'library' | 'stats' | 'profile' | 'best' | 'recommend';
@@ -23,7 +22,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <div className="flex h-8 items-center justify-center">
             <span className="material-symbols-outlined" style={activeTab === 'best' ? { fontVariationSettings: "'FILL' 1" } : {}}>workspace_premium</span>
           </div>
-          <p className="text-xs font-medium leading-normal tracking-wide">베스트</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">Yes24</p>
         </Link>
 
         {/* 2. Recommend (YouTube) */}
@@ -37,7 +36,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <div className="flex h-8 items-center justify-center">
             <span className="material-symbols-outlined" style={activeTab === 'recommend' ? { fontVariationSettings: "'FILL' 1" } : {}}>play_circle</span>
           </div>
-          <p className="text-xs font-medium leading-normal tracking-wide">추천</p>
+          <p className="text-xs font-medium leading-normal tracking-wide">Youtube</p>
         </Link>
 
         {/* 3. Library */}

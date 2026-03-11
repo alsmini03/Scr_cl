@@ -37,10 +37,8 @@ export default function Header({ title, showBack, rightAction, transparent }: He
         {title}
       </h1>
 
-      <div className="flex items-center justify-end gap-1">
-        <div className="flex size-10 items-center justify-center">
-          {rightAction}
-        </div>
+      <div className="flex items-center justify-end gap-1 min-w-10">
+        {rightAction}
       </div>
     </header>
   );
