@@ -22,6 +22,7 @@ export default function YouTubeRecommendPage() {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [cols, setCols] = useState<1 | 2>(1);
 
   useEffect(() => {
     async function fetchRecommended() {
@@ -101,7 +102,20 @@ export default function YouTubeRecommendPage() {
 
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
-      <Header title="유튜브 추천" transparent />
+      <Header
+        title="유튜브 추천"
+        transparent
+        rightAction={
+          <button
+            onClick={() => setCols(cols === 1 ? 2 : 1)}
+            className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined">
+              {cols === 1 ? 'grid_view' : 'view_stream'}
+            </span>
+          </button>
+        }
+      />
 
       <main className="mt-6 px-4">
         {isLoading ? (
@@ -114,7 +128,10 @@ export default function YouTubeRecommendPage() {
             <p>추천 영상 정보를 불러올 수 없습니다.</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className={cn(
+            "grid gap-4",
+            cols === 1 ? "grid-cols-1" : "grid-cols-2"
+          )}>
             {videos.map((video) => (
               <div
                 key={video.videoId}
@@ -124,24 +141,33 @@ export default function YouTubeRecommendPage() {
                   href={video.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col p-3 rounded-2xl"
+                  className={cn(
+                    "flex flex-col rounded-2xl",
+                    cols === 1 ? "p-3" : "p-2"
+                  )}
                 >
                   <div className="relative w-full aspect-video bg-slate-100 rounded-xl overflow-hidden mb-3">
                     <div
                       className="w-full h-full bg-center bg-no-repeat bg-cover"
                       style={{ backgroundImage: `url("${video.thumbnail}")` }}
                     />
-                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 bg-black/80 text-white text-[10px] font-bold rounded">
+                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/80 text-white text-[9px] font-bold rounded">
                       {video.duration}
                     </div>
                   </div>
 
-                  <div className="flex-1 min-w-0 pr-12">
-                    <p className="text-base font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{video.title}</p>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <span>{video.viewCount}</span>
+                  <div className={cn(
+                    "flex-1 min-w-0",
+                    cols === 1 ? "pr-12" : "pr-0 pb-10"
+                  )}>
+                    <p className={cn(
+                      "font-bold text-slate-900 line-clamp-2 leading-snug mb-1",
+                      cols === 1 ? "text-base" : "text-[13px]"
+                    )}>{video.title}</p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                      <span className="truncate">{video.viewCount}</span>
                       <span>•</span>
-                      <span>{video.publishedTime}</span>
+                      <span className="truncate">{video.publishedTime}</span>
                     </div>
                   </div>
                 </a>
@@ -150,7 +176,10 @@ export default function YouTubeRecommendPage() {
                   <button
                     onClick={(e) => handleAddVideo(e, video)}
                     disabled={addingId === video.videoId}
-                    className="absolute right-3 bottom-4 z-10 size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                    className={cn(
+                      "absolute z-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
+                      cols === 1 ? "right-3 bottom-4 size-10" : "right-2 bottom-2 size-8"
+                    )}
                     title="내 서재에 추가"
                   >
                     {addingId === video.videoId ? (

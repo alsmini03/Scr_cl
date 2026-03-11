@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -138,27 +138,17 @@ export async function POST(req: NextRequest) {
     // 2. Use Gemini for summary/transcript refinement
     if (process.env.GEMINI_API_KEY) {
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-        const geminiModel = requestedModel || "gemini-3-flash-preview";
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const geminiModel = requestedModel || "gemini-1.5-flash"; // Use stable model
+        const model = genAI.getGenerativeModel({ model: geminiModel });
 
-        const contents: any[] = [
-          {
-            fileData: {
-              fileUri: url,
-            }
-          },
-          {
-            text: (requestedPrompt || "이 영상을 분석해 주세요.") +
-                  (transcript ? `\n\n[스크립트 내용]\n${transcript}` : "")
-          }
-        ];
+        const prompt = (requestedPrompt || "이 영상을 분석해 주세요.") +
+                      (transcript ? `\n\n[스크립트 내용]\n${transcript}` : "");
 
-        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}] using fileUri...`);
-        const result = await ai.models.generateContent({
-          model: geminiModel,
-          contents: contents,
-        });
-        summary = result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}]...`);
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        summary = response.text();
       } catch (geminiError: any) {
         console.error("Gemini processing failed:", geminiError);
         summary = `### 제미나이 요약 오류\n\n영상 분석 중 오류가 발생했습니다: ${geminiError.message || '알 수 없는 오류'}\n\n스크립트를 가져오지 못했거나 영상이 너무 깁니다.`;
