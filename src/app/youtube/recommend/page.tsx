@@ -25,6 +25,17 @@ export default function YouTubeRecommendPage() {
   const [cols, setCols] = useState<1 | 2>(1);
 
   useEffect(() => {
+    const savedCols = localStorage.getItem('youtube_recommend_cols');
+    if (savedCols === '1' || savedCols === '2') {
+      setCols(parseInt(savedCols) as 1 | 2);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_recommend_cols', cols.toString());
+  }, [cols]);
+
+  useEffect(() => {
     async function fetchRecommended() {
       setIsLoading(true);
       try {
