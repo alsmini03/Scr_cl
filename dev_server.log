@@ -1,33 +1,35 @@
 
 > book-journal@0.1.0 dev
-> next dev
+> next dev -p 3001
 
-⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
 ▲ Next.js 16.1.6 (Turbopack)
 - Local:         http://localhost:3001
 - Network:       http://192.168.0.2:3001
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 1924ms
-
-thread 'tokio-runtime-worker' (309777) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
-range start index 19592264 out of range for slice of length 19591672
-note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
-
------
-[1m[31mFATAL[39m[0m: An unexpected Turbopack error occurred. A panic log has been written to /tmp/next-panic-b97897819bd7acbb0d935962baeccec7.log.
-
-To help make Turbopack better, report this error by clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title=Turbopack%20Error%3A%20range%20start%20index%2019592264%20out%20of%20range%20for%20slice%20of%20length%2019591672&body=Turbopack%20version%3A%20%600c06f068%60%0ANext.js%20version%3A%20%600.0.0%60%0A%0AError%20message%3A%0A%60%60%60%0ATurbopack%20Error%3A%20range%20start%20index%2019592264%20out%20of%20range%20for%20slice%20of%20length%2019591672%0A%60%60%60&labels=Turbopack,Turbopack%20Panic%20Backtrace
------
-
-
-thread 'tokio-runtime-worker' (309790) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
-range start index 19592276 out of range for slice of length 19591672
-
-thread 'tokio-runtime-worker' (309789) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
-range start index 19592276 out of range for slice of length 19591672
-○ Compiling /_error ...
-
-thread 'tokio-runtime-worker' (309777) panicked at turbopack/crates/turbo-persistence/src/static_sorted_file.rs:387:51:
-range start index 4678244 out of range for slice of length 4677836
+⚠ Turbopack's filesystem cache has been deleted because we previously detected an internal error in Turbopack. Builds or page loads may be slower as a result.
+✓ Ready in 7.3s
+○ Compiling / ...
+ GET / 200 in 5.1s (compile: 4.7s, render: 469ms)
+ GET /?mode=youtube 200 in 78ms (compile: 9ms, render: 69ms)
+ GET /api/auth/session 200 in 2.6s (compile: 2.4s, proxy.ts: 122ms, render: 33ms)
+ GET /api/auth/session 200 in 58ms (compile: 36ms, proxy.ts: 11ms, render: 11ms)
+ GET /add/youtube 200 in 2.5s (compile: 2.2s, proxy.ts: 29ms, render: 267ms)
+ GET /api/auth/session 200 in 118ms (compile: 77ms, proxy.ts: 16ms, render: 25ms)
+ POST /add/youtube 200 in 112ms (compile: 8ms, proxy.ts: 14ms, render: 89ms)
+ POST /add/youtube 200 in 32ms (compile: 9ms, proxy.ts: 7ms, render: 17ms)
+ GET /api/auth/session 200 in 36ms (compile: 9ms, proxy.ts: 20ms, render: 6ms)
+ GET /youtube/recommend 200 in 856ms (compile: 738ms, render: 118ms)
+ GET /api/auth/session 200 in 63ms (compile: 39ms, proxy.ts: 14ms, render: 10ms)
+ GET /api/auth/session 200 in 37ms (compile: 11ms, proxy.ts: 13ms, render: 13ms)
+ GET /api/youtube/recommend 200 in 2.1s (compile: 1839ms, render: 216ms)
+ GET /youtube/recommend 200 in 94ms (compile: 12ms, render: 82ms)
+ GET /api/auth/session 200 in 93ms (compile: 57ms, proxy.ts: 25ms, render: 11ms)
+ GET /api/auth/session 200 in 32ms (compile: 13ms, proxy.ts: 12ms, render: 7ms)
+ GET /api/youtube/recommend 200 in 1038ms (compile: 4ms, render: 1035ms)
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+○ Compiling middleware ...
+✓ Compiled in 4.6s
+✓ Compiled in 40ms
+✓ Compiled in 111ms

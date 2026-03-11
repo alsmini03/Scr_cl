@@ -184,7 +184,7 @@ export default function YouTubeRecommendPage() {
               activeTab === 'sampro' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
             )}
           >
-            삼프로TV
+            월가월부
           </button>
           <button
             onClick={() => setActiveTab('eo')}
@@ -249,14 +249,32 @@ export default function YouTubeRecommendPage() {
                     </div>
                   </div>
 
-                  <div className={cn(
-                    "flex-1 min-w-0",
-                    cols === 1 ? "pr-12" : "pr-0 pb-10"
-                  )}>
-                    <p className={cn(
-                      "font-bold text-slate-900 line-clamp-2 leading-snug mb-1",
-                      cols === 1 ? "text-base" : "text-[13px]"
-                    )}>{video.title}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start gap-2 mb-1">
+                      <p className={cn(
+                        "font-bold text-slate-900 line-clamp-2 leading-snug",
+                        cols === 1 ? "text-base" : "text-[13px]"
+                      )}>{video.title}</p>
+
+                      {session && (
+                        <button
+                          onClick={(e) => handleAddVideo(e, video)}
+                          disabled={addingId === video.videoId}
+                          className={cn(
+                            "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
+                            cols === 1 ? "size-9" : "size-7"
+                          )}
+                          title="내 서재에 추가"
+                        >
+                          {addingId === video.videoId ? (
+                            <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <span className={cn("material-symbols-outlined", cols === 1 ? "text-lg" : "text-base")}>library_add</span>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
                     <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                       <span className="truncate">{video.viewCount}</span>
                       <span>•</span>
@@ -264,24 +282,6 @@ export default function YouTubeRecommendPage() {
                     </div>
                   </div>
                 </a>
-
-                {session && (
-                  <button
-                    onClick={(e) => handleAddVideo(e, video)}
-                    disabled={addingId === video.videoId}
-                    className={cn(
-                      "absolute z-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
-                      cols === 1 ? "right-3 bottom-4 size-10" : "right-2 bottom-2 size-8"
-                    )}
-                    title="내 서재에 추가"
-                  >
-                    {addingId === video.videoId ? (
-                      <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <span className="material-symbols-outlined text-xl">library_add</span>
-                    )}
-                  </button>
-                )}
               </div>
             );})}
           </div>

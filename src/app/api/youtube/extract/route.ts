@@ -144,18 +144,12 @@ export async function POST(req: NextRequest) {
 
         const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
 
-        // Use fileData with fileUri as requested for multimodal analysis
+        // Analyze using transcript and metadata
         const parts = [
-          {
-            fileData: {
-              fileUri: url,
-              mimeType: "video/mp4" // Required by SDK for fileData
-            }
-          },
-          { text: promptText + (transcript ? `\n\n[스크립트 내용]\n${transcript}` : "") }
+          { text: promptText + (transcript ? `\n\n[스크립트 내용]\n${transcript}` : `\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`) }
         ];
 
-        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}] using fileUri...`);
+        console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}]...`);
         const result = await model.generateContent(parts);
         const response = await result.response;
         summary = response.text();

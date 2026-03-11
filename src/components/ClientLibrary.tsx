@@ -128,11 +128,6 @@ export default function ClientLibrary({
         transparent
         rightAction={
           <div className="flex items-center gap-1">
-            {!isEditMode && mode === 'youtube' && (session?.user || isDev) && (
-              <Link href="/add/youtube" className="flex size-10 items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-2xl">add</span>
-              </Link>
-            )}
             {hasItems && (
               <button
                 onClick={() => {
@@ -273,9 +268,9 @@ export default function ClientLibrary({
         </div>
       )}
 
-      {!isEditMode && mode === 'books' && (session?.user || isDev) && (
+      {!isEditMode && (session?.user || isDev) && (
         <Link
-          href="/add"
+          href={mode === 'books' ? "/add" : "/add/youtube"}
           className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"
         >
           <span className="material-symbols-outlined text-3xl">add</span>

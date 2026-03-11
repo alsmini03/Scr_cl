@@ -330,7 +330,7 @@ export default function AddYouTubePage() {
 
         <section className="mb-10 space-y-6">
           <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-6">
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center ml-1">
                   <label className="text-sm font-medium text-slate-700">제미나이 모델</label>

@@ -92,6 +92,29 @@ export async function POST(req: NextRequest) {
     if (!description) description = $("#infoset_introduce .infoText_wrap").first().text().trim();
     if (!coverImage) coverImage = $(".gImg").attr("src") || $("em.imgBdr img").attr("src") || "";
 
+    // 4. Detailed Sections Extraction
+    let detailedDescription = description;
+
+    const sections = [
+      { id: "infoset_introduce", title: "책소개" },
+      { id: "infoset_toc", title: "목차" },
+      { id: "infoset_author", title: "저자 소개" },
+      { id: "infoset_inBook", title: "책 속으로" },
+      { id: "infoset_pubReview", title: "출판사 리뷰" }
+    ];
+
+    let combinedDetails = "";
+    sections.forEach(section => {
+      const content = $(`#${section.id} .infoText_wrap`).first().text().trim();
+      if (content) {
+        combinedDetails += `### ${section.title}\n${content}\n\n`;
+      }
+    });
+
+    if (combinedDetails) {
+      description = combinedDetails;
+    }
+
     // 3. Open Graph Fallbacks
     if (!title) title = $('meta[property="og:title"]').attr("content")?.split("|")[0].trim() || "";
     if (!description) description = $('meta[name="description"]').attr("content") || $('meta[property="og:description"]').attr("content") || "";
@@ -117,10 +140,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Final string cleanups
-    if (description.length > 300) {
-      description = description.slice(0, 300) + "...";
-    }
-    if (!description) description = "설명이 없습니다.";
+    if (!description || description.trim() === "") description = "설명이 없습니다.";
 
     return NextResponse.json({
       title,
