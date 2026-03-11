@@ -156,6 +156,46 @@ export async function POST(req: NextRequest) {
       description = combinedDetails;
     }
 
+    const details: Record<string, string> = {};
+    sections.forEach(section => {
+        let sectionContent = "";
+        const container = $(section.selector).first();
+        if (container.length > 0) {
+            const textareas = container.find("textarea.txtContentText");
+            if (textareas.length > 0) {
+                textareas.each((_, el) => {
+                    sectionContent += $(el).text().trim() + "\n";
+                });
+            } else {
+                sectionContent = container.find(".info_origin").text().trim() ||
+                                 container.find(".infoText_wrap").text().trim() ||
+                                 container.find(".fullTxt").text().trim() ||
+                                 container.find(".infoSetCont_wrap").text().trim();
+            }
+            if (sectionContent) {
+                sectionContent = sectionContent
+                    .replace(/<br\s*\/?>/gi, "\n")
+                    .replace(/&nbsp;/g, " ")
+                    .replace(/접기$/g, "")
+                    .replace(/더보기$/g, "")
+                    .trim();
+            }
+        }
+
+        // Map section titles to database field names
+        const fieldMap: Record<string, string> = {
+            "책소개": "intro",
+            "목차": "toc",
+            "저자 소개": "author_intro",
+            "책 속으로": "inside",
+            "출판사 리뷰": "publisher_review"
+        };
+        const fieldName = fieldMap[section.title];
+        if (fieldName) {
+            details[fieldName] = sectionContent || "";
+        }
+    });
+
     // 3. Open Graph Fallbacks
     if (!title) title = $('meta[property="og:title"]').attr("content")?.split("|")[0].trim() || "";
     if (!description) description = $('meta[name="description"]').attr("content") || $('meta[property="og:description"]').attr("content") || "";
@@ -192,6 +232,7 @@ export async function POST(req: NextRequest) {
       description,
       coverImage,
       category,
+      ...details
     });
   } catch (error) {
     console.error("Extraction error:", error);

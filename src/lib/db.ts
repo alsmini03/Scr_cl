@@ -40,6 +40,11 @@ function mapRowToBook(row: any): Book {
     rating: row.rating,
     notes: row.notes,
     createdAt: row.added_at,
+    intro: row.intro,
+    toc: row.toc,
+    authorIntro: row.author_intro,
+    inside: row.inside,
+    publisherReview: row.publisher_review,
   };
 }
 
@@ -359,13 +364,15 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     await sql`
       INSERT INTO books (
         id, title, author, cover_image, description, published_date,
-        price, category, status, progress, rating, notes, added_at, user_id
+        price, category, status, progress, rating, notes, added_at, user_id,
+        intro, toc, author_intro, inside, publisher_review
       ) VALUES (
         ${id}, ${book.title}, ${book.author}, ${book.coverImage},
         ${book.description || null}, ${book.publishDate || null},
         ${book.price || null}, ${book.category || null},
         ${book.readingStatus}, ${book.progress || 0},
-        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${userId}
+        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${userId},
+        ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null}
       )
     `;
 
@@ -395,7 +402,12 @@ export async function updateBook(book: Book): Promise<void> {
         status = ${book.readingStatus},
         progress = ${book.progress || 0},
         rating = ${book.rating || 0},
-        notes = ${book.notes || null}
+        notes = ${book.notes || null},
+        intro = ${book.intro || null},
+        toc = ${book.toc || null},
+        author_intro = ${book.authorIntro || null},
+        inside = ${book.inside || null},
+        publisher_review = ${book.publisherReview || null}
       WHERE id = ${book.id} AND user_id = ${userId}
     `;
     safeRevalidate('/');

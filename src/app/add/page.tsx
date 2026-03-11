@@ -15,6 +15,11 @@ interface ExtractedBook {
   category: string;
   description: string;
   coverImage?: string;
+  intro?: string;
+  toc?: string;
+  author_intro?: string;
+  inside?: string;
+  publisher_review?: string;
 }
 
 export default function AddBookPage() {
@@ -71,6 +76,11 @@ export default function AddBookPage() {
         description: extractedBook.description,
         readingStatus: 'READING',
         progress: 0,
+        intro: extractedBook.intro,
+        toc: extractedBook.toc,
+        authorIntro: extractedBook.author_intro,
+        inside: extractedBook.inside,
+        publisherReview: extractedBook.publisher_review,
       });
 
       if (result.success) {
@@ -185,14 +195,61 @@ export default function AddBookPage() {
               </div>
 
               {/* Description - Bottom Full Width */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
-                <div className={cn(
-                  "min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap",
-                  isExtracting && "animate-pulse"
-                )}>
-                  {isExtracting ? "제미나이가 정보를 분석 중입니다..." : (extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다.")}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
+                  <div className={cn(
+                    "min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap",
+                    isExtracting && "animate-pulse"
+                  )}>
+                    {isExtracting ? "제미나이가 정보를 분석 중입니다..." : (extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다.")}
+                  </div>
                 </div>
+
+                {!isExtracting && extractedBook && (
+                  <>
+                    {extractedBook.intro && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">책소개</label>
+                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
+                          {extractedBook.intro}
+                        </div>
+                      </div>
+                    )}
+                    {extractedBook.toc && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">목차</label>
+                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
+                          {extractedBook.toc}
+                        </div>
+                      </div>
+                    )}
+                    {extractedBook.author_intro && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자 소개</label>
+                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
+                          {extractedBook.author_intro}
+                        </div>
+                      </div>
+                    )}
+                    {extractedBook.inside && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">책 속으로</label>
+                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
+                          {extractedBook.inside}
+                        </div>
+                      </div>
+                    )}
+                    {extractedBook.publisher_review && (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">출판사 리뷰</label>
+                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
+                          {extractedBook.publisher_review}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>

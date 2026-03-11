@@ -15,7 +15,12 @@ CREATE TABLE IF NOT EXISTS books (
   added_at TEXT,
   completed_at TEXT,
   deleted_at TEXT,
-  user_id TEXT
+  user_id TEXT,
+  intro TEXT,
+  toc TEXT,
+  author_intro TEXT,
+  inside TEXT,
+  publisher_review TEXT
 );
 
 -- YouTube Videos Table

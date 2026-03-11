@@ -1,0 +1,17 @@
+
+> book-journal@0.1.0 dev
+> next dev -p 3000
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 5.1s
+○ Compiling /add ...
+ GET /add 200 in 14.9s (compile: 13.3s, proxy.ts: 1083ms, render: 501ms)
+ GET /api/auth/session 200 in 3.1s (compile: 3.0s, proxy.ts: 16ms, render: 27ms)
+ GET /api/auth/session 200 in 63ms (compile: 46ms, proxy.ts: 9ms, render: 8ms)
+ POST /api/extract 200 in 3.6s (compile: 1095ms, render: 2.5s)
+✓ Compiled in 62ms

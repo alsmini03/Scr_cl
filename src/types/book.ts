@@ -12,4 +12,9 @@ export interface Book {
   rating?: number; // 0-5
   notes?: string;
   createdAt?: string; // ISO date string
+  intro?: string;
+  toc?: string;
+  authorIntro?: string;
+  inside?: string;
+  publisherReview?: string;
 }
