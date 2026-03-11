@@ -20,9 +20,11 @@ interface RecommendedVideo {
 export default function YouTubeRecommendPage() {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
+  const [allData, setAllData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [cols, setCols] = useState<1 | 2>(1);
+  const [activeTab, setActiveTab] = useState<'all' | 'under' | 'sampro' | 'eo'>('all');
 
   useEffect(() => {
     const savedCols = localStorage.getItem('youtube_recommend_cols');
@@ -41,8 +43,9 @@ export default function YouTubeRecommendPage() {
       try {
         const res = await fetch('/api/youtube/recommend');
         const data = await res.json();
-        if (Array.isArray(data)) {
-          setVideos(data);
+        setAllData(data);
+        if (data && data.all) {
+          setVideos(data.all);
         } else {
           setVideos([]);
         }
@@ -55,6 +58,14 @@ export default function YouTubeRecommendPage() {
     }
     fetchRecommended();
   }, []);
+
+  useEffect(() => {
+    if (!allData) return;
+    if (activeTab === 'all') setVideos(allData.all || []);
+    else if (activeTab === 'under') setVideos(allData.under || []);
+    else if (activeTab === 'sampro') setVideos(allData.sampro || []);
+    else if (activeTab === 'eo') setVideos(allData.eo || []);
+  }, [activeTab, allData]);
 
   const handleAddVideo = async (e: React.MouseEvent, video: RecommendedVideo) => {
     e.preventDefault();
@@ -128,7 +139,47 @@ export default function YouTubeRecommendPage() {
         }
       />
 
-      <main className="mt-6 px-4">
+      <main className="mt-4 px-4">
+        {/* Source Tabs */}
+        <div className="flex overflow-x-auto no-scrollbar gap-2 mb-6 pb-2 -mx-4 px-4 sticky top-[64px] bg-white z-10">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+              activeTab === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            전체
+          </button>
+          <button
+            onClick={() => setActiveTab('under')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+              activeTab === 'under' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            언더스탠딩
+          </button>
+          <button
+            onClick={() => setActiveTab('sampro')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+              activeTab === 'sampro' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            삼프로TV
+          </button>
+          <button
+            onClick={() => setActiveTab('eo')}
+            className={cn(
+              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+              activeTab === 'eo' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+            )}
+          >
+            EO
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="size-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />

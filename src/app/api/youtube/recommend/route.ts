@@ -85,12 +85,12 @@ export async function GET(req: NextRequest) {
       }
     });
 
+    const videoGroups = results.map((res, index) => {
+      return res.status === 'fulfilled' ? res.value : [];
+    });
+
     // Interleave videos from different channels for variety
     const interleaved: any[] = [];
-    const videoGroups = results
-      .filter((res): res is PromiseFulfilledResult<any[]> => res.status === 'fulfilled')
-      .map(res => res.value);
-
     const maxLength = Math.max(...videoGroups.map(g => g.length));
     for (let i = 0; i < maxLength; i++) {
       for (const group of videoGroups) {
@@ -98,7 +98,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(interleaved);
+    return NextResponse.json({
+      all: interleaved,
+      under: videoGroups[0],
+      sampro: videoGroups[1],
+      eo: videoGroups[2]
+    });
   } catch (error: any) {
     console.error("YouTube Recommend Error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

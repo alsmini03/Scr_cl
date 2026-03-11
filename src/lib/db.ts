@@ -66,6 +66,35 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+export async function updateYoutubeVideo(id: string, video: {
+  title: string;
+  thumbnail?: string;
+  duration?: string;
+  published_at?: string;
+  summary?: string;
+  description?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      UPDATE youtube_videos SET
+        title = ${video.title},
+        thumbnail = ${video.thumbnail || null},
+        duration = ${video.duration || null},
+        published_at = ${video.published_at || null},
+        summary = ${video.summary || null},
+        description = ${video.description || null}
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/');
+    safeRevalidate(`/youtube/${id}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to update youtube video with id ${id}:`, error);
+    return { success: false, error: error.message || '업데이트 중 오류가 발생했습니다.' };
+  }
+}
+
 /**
  * Gemini Settings Database Operations
  */
