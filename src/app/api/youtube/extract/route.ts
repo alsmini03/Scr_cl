@@ -144,9 +144,9 @@ export async function POST(req: NextRequest) {
 
         const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
 
-        // Analyze using transcript and metadata
+        // Analyze using video metadata (Title and Description)
         const parts = [
-          { text: promptText + (transcript ? `\n\n[스크립트 내용]\n${transcript}` : `\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`) }
+          { text: `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}` }
         ];
 
         console.log(`Analyzing YouTube video with Gemini [Model: ${geminiModel}]...`);
