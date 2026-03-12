@@ -98,15 +98,15 @@ export default function BookGrid({
                 </p>
                 <p className="text-xs text-slate-500 truncate">{book.author}</p>
 
-                {book.readingStatus === 'READING' ? (
+                {book.readingStatus === 'READING' && (book.progress || 0) > 0 ? (
                   <div className="flex items-center gap-1 mt-2">
                     <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary"
-                        style={{ width: `${book.progress || 0}%` }}
+                        style={{ width: `${book.progress}%` }}
                       ></div>
                     </div>
-                    <span className="text-[10px] font-bold text-primary">{book.progress || 0}%</span>
+                    <span className="text-[10px] font-bold text-primary">{book.progress}%</span>
                   </div>
                 ) : book.readingStatus === 'FINISHED' ? (
                   <div className="flex items-center mt-1 text-primary">

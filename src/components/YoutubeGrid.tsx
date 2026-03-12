@@ -83,8 +83,8 @@ export default function YoutubeGrid({
                 }
               }}
               className={cn(
-                "flex flex-col bg-slate-50 rounded-2xl overflow-hidden border transition-all",
-                isSelected ? "border-primary ring-1 ring-primary" : "border-slate-100 shadow-sm",
+                "flex flex-col bg-slate-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border transition-all",
+                isSelected ? "border-primary ring-1 ring-primary" : "border-slate-100 dark:border-primary/10 shadow-sm",
                 !isSelectionMode && "active:scale-[0.98]"
               )}
             >
@@ -97,12 +97,12 @@ export default function YoutubeGrid({
               </div>
               <div className="p-4 flex flex-col justify-between flex-1">
                 <h3 className={cn(
-                  "font-bold text-slate-900 line-clamp-2 mb-1",
+                  "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1",
                   viewMode === '2' ? "text-sm" : "text-base"
                 )}>
                   {video.title}
                 </h3>
-                <p className="text-xs text-slate-500 font-medium">{video.published_at}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{video.published_at}</p>
               </div>
             </Link>
           </div>

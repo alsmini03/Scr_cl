@@ -224,7 +224,7 @@ export default function YouTubeRecommendPage() {
   };
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-white">
+    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
         title="유튜브 추천"
         transparent
@@ -261,14 +261,14 @@ export default function YouTubeRecommendPage() {
 
       <main className="mt-4 px-4">
         {/* Source Tabs */}
-        <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-white z-10">
+        <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
             {!isReordering && (
               <button
                 onClick={() => setActiveTabId('all')}
                 className={cn(
                   "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                  activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+                  activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
                 )}
               >
                 전체
@@ -306,7 +306,7 @@ export default function YouTubeRecommendPage() {
                   onClick={() => !isReordering && setActiveTabId(tab.id)}
                   className={cn(
                     "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all pr-8",
-                    activeTabId === tab.id && !isReordering ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500",
+                    activeTabId === tab.id && !isReordering ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
                     isReordering && "cursor-move"
                   )}
                 >
@@ -330,7 +330,7 @@ export default function YouTubeRecommendPage() {
           {!isReordering && (
             <button
               onClick={() => setShowTabManager(!showTabManager)}
-              className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+              className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center"
             >
               <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
             </button>
@@ -338,7 +338,7 @@ export default function YouTubeRecommendPage() {
           {isReordering && (
             <button
               onClick={() => setIsReordering(false)}
-              className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+              className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center"
             >
               <span className="material-symbols-outlined text-xl">close</span>
             </button>
@@ -346,21 +346,21 @@ export default function YouTubeRecommendPage() {
         </div>
 
         {showTabManager && (
-          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-            <p className="text-xs font-bold text-slate-500 uppercase ml-1">탭 추가</p>
+          <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
+            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">탭 추가</p>
             <input
               type="text"
               value={newTabName}
               onChange={(e) => setNewTabName(e.target.value)}
               placeholder="탭 이름 (예: 언더스탠딩)"
-              className="w-full rounded-xl border p-3 text-sm"
+              className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
             />
             <input
               type="text"
               value={newTabUrl}
               onChange={(e) => setNewTabUrl(e.target.value)}
               placeholder="채널 동영상 URL (예: https://m.youtube.com/@.../videos)"
-              className="w-full rounded-xl border p-3 text-sm"
+              className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
             />
             <button
               onClick={handleAddTab}
@@ -398,7 +398,7 @@ export default function YouTubeRecommendPage() {
               return (
               <div
                 key={video.videoId}
-                className="group relative bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
+                className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
                 onTouchStart={startPress}
                 onTouchEnd={endPress}
                 onMouseDown={startPress}
@@ -427,7 +427,7 @@ export default function YouTubeRecommendPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-2 mb-1">
                       <p className={cn(
-                        "font-bold text-slate-900 line-clamp-2 leading-snug",
+                        "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug",
                         cols === 1 ? "text-base" : "text-[13px]"
                       )}>{video.title}</p>
 
@@ -450,7 +450,7 @@ export default function YouTubeRecommendPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
                       <span className="truncate">{video.viewCount}</span>
                       <span>•</span>
                       <span className="truncate">{video.publishedTime}</span>

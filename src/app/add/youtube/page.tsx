@@ -312,19 +312,19 @@ export default function AddYouTubePage() {
   };
 
   return (
-    <div className="font-display min-h-screen flex flex-col bg-white">
+    <div className="font-display min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header title="유튜브" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
         {/* Switch Mode Tab */}
-        <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
+        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
           <button
             onClick={() => router.push('/add')}
-            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
+            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 transition-colors"
           >
             Yes24
           </button>
-          <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
+          <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-primary shadow-sm">
             Youtube
           </button>
         </div>
@@ -335,7 +335,7 @@ export default function AddYouTubePage() {
               <div className="grid grid-cols-1 gap-6 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between items-center ml-1">
-                    <label className="text-sm font-medium text-slate-700">제미나이 모델</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">제미나이 모델</label>
                     <span className="text-xs font-bold text-primary">{selectedModel}</span>
                   </div>
                   <div className="flex gap-2">
@@ -347,7 +347,7 @@ export default function AddYouTubePage() {
                         const model = models.find(m => m.name === name);
                         if (model) await setDefaultGeminiModel(model.id);
                       }}
-                      className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                      className="flex-1 rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-14 px-4 outline-none appearance-none"
                     >
                       {models.map(model => (
                         <option key={model.id} value={model.name}>{model.name}</option>
@@ -355,20 +355,20 @@ export default function AddYouTubePage() {
                     </select>
                     <button
                       onClick={() => setShowModelManager(!showModelManager)}
-                      className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                      className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-4 rounded-xl flex items-center justify-center"
                     >
                       <span className="material-symbols-outlined text-sm">{showModelManager ? 'close' : 'settings'}</span>
                     </button>
                   </div>
 
                   {showModelManager && (
-                    <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                    <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-4">
                       <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
                           {editingModelId ? '모델 수정' : '모델 추가'}
                         </label>
                         <div className="flex gap-2">
-                          <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border p-2 text-sm" />
+                          <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="모델명 (예: gemini-pro)" className="flex-1 rounded-lg border dark:border-primary/20 bg-white dark:bg-slate-900 p-2 text-sm text-slate-900 dark:text-slate-100" />
                           <button onClick={handleAddModel} className="bg-primary text-white px-4 rounded-lg text-sm">
                             {editingModelId ? '수정' : '추가'}
                           </button>
@@ -400,7 +400,7 @@ export default function AddYouTubePage() {
 
                 <div className="flex flex-col gap-2">
                   <div className="flex justify-between items-center ml-1">
-                    <label className="text-sm font-medium text-slate-700">분석 프롬프트</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">분석 프롬프트</label>
                     <span className="text-xs font-bold text-primary truncate max-w-[100px]">
                       {prompts.find(p => p.id === selectedPromptId)?.name}
                     </span>
@@ -413,7 +413,7 @@ export default function AddYouTubePage() {
                         setSelectedPromptId(id);
                         await setDefaultGeminiPrompt(id);
                       }}
-                      className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 h-14 px-4 outline-none appearance-none"
+                      className="flex-1 rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 h-14 px-4 outline-none appearance-none"
                     >
                       {prompts.map((p) => (
                         <option key={p.id} value={p.id}>{p.name}</option>
@@ -421,20 +421,20 @@ export default function AddYouTubePage() {
                     </select>
                     <button
                       onClick={() => setShowPromptManager(!showPromptManager)}
-                      className="bg-slate-100 text-slate-600 px-4 rounded-xl flex items-center justify-center"
+                      className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-4 rounded-xl flex items-center justify-center"
                     >
                       <span className="material-symbols-outlined text-sm">{showPromptManager ? 'close' : 'terminal'}</span>
                     </button>
                   </div>
 
                   {showPromptManager && (
-                    <div className="mt-2 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                    <div className="mt-2 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-4">
                       <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase">
+                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">
                           {editingPromptId ? '프롬프트 수정' : '프롬프트 추가'}
                         </label>
-                        <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border p-2 text-sm" />
-                        <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border p-2 text-sm h-24" />
+                        <input type="text" value={newPromptName} onChange={(e) => setNewPromptName(e.target.value)} placeholder="프롬프트 이름" className="rounded-lg border dark:border-primary/20 bg-white dark:bg-slate-900 p-2 text-sm text-slate-900 dark:text-slate-100" />
+                        <textarea value={newPromptText} onChange={(e) => setNewPromptText(e.target.value)} placeholder="프롬프트 내용" className="rounded-lg border dark:border-primary/20 bg-white dark:bg-slate-900 p-2 text-sm text-slate-900 dark:text-slate-100 h-24" />
                         <div className="flex gap-2">
                           <button onClick={handleAddPrompt} className="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-bold">
                             {editingPromptId ? '프롬프트 수정 저장' : '프롬프트 저장'}
@@ -450,7 +450,7 @@ export default function AddYouTubePage() {
                           {prompts.map((p) => (
                             <div key={p.id} className={cn(
                               "flex items-center justify-between p-3 rounded-xl border transition-colors",
-                              p.is_default ? "bg-primary/5 border-primary/20" : "bg-white border-slate-200"
+                              p.is_default ? "bg-primary/5 border-primary/20" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-primary/20"
                             )}>
                               <button
                                 onClick={() => handleSetDefaultPrompt(p.id)}
@@ -481,7 +481,7 @@ export default function AddYouTubePage() {
 
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center ml-1">
-                <label className="text-sm font-medium text-slate-700">유튜브 영상 URL</label>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">유튜브 영상 URL</label>
                 <button
                   onClick={() => setShowSettings(!showSettings)}
                   className={cn(
@@ -498,7 +498,7 @@ export default function AddYouTubePage() {
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="w-full rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
+                  className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
                   placeholder="https://www.youtube.com/.."
                 />
                 <div className="flex gap-2">
@@ -534,7 +534,7 @@ export default function AddYouTubePage() {
           <div className={cn("mt-4 transition-opacity", !metadata && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
             <div className="flex flex-col gap-6">
               {/* Video Thumbnail - Full Width 16:9 */}
-              <div className="w-full aspect-video bg-slate-100 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm relative group">
+              <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-200 dark:border-primary/10 overflow-hidden shadow-sm relative group">
                 {metadata?.thumbnail ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={metadata.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
@@ -550,9 +550,9 @@ export default function AddYouTubePage() {
               {/* Metadata - Below Thumbnail */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">제목</label>
                   <div className={cn(
-                    "min-h-12 bg-slate-50 rounded-xl px-4 py-3 flex items-center text-sm font-medium text-slate-900 border border-slate-100 shadow-inner break-words",
+                    "min-h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 py-3 flex items-center text-sm font-medium text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner break-words",
                     (isExtracting || isAutoAdding) && "animate-pulse"
                   )}>
                     {(isExtracting || isAutoAdding) ? "가져오는 중..." : (title || "영상 제목")}
@@ -561,18 +561,18 @@ export default function AddYouTubePage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">재생 시간</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">재생 시간</label>
                     <div className={cn(
-                      "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                      "h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner",
                       (isExtracting || isAutoAdding) && "animate-pulse"
                     )}>
                       {(isExtracting || isAutoAdding) ? "--:--" : (duration || "00:00")}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">등록일자</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">등록일자</label>
                     <div className={cn(
-                      "h-12 bg-slate-50 rounded-xl px-4 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner",
+                      "h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner",
                       (isExtracting || isAutoAdding) && "animate-pulse"
                     )}>
                       {(isExtracting || isAutoAdding) ? "YYYY-MM-DD" : (publishedAt || "2024-01-01")}
@@ -582,9 +582,9 @@ export default function AddYouTubePage() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
+                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">설명</label>
                   <div className={cn(
-                    "min-h-32 bg-slate-50 rounded-xl p-4 text-sm text-slate-900 border border-slate-100 shadow-inner whitespace-pre-wrap overflow-hidden",
+                    "min-h-32 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner whitespace-pre-wrap overflow-hidden",
                     (isExtracting || isAutoAdding) && "animate-pulse"
                   )}>
                     {(isExtracting || isAutoAdding) ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
@@ -598,20 +598,20 @@ export default function AddYouTubePage() {
         <section className={cn("mt-6 space-y-6 transition-opacity", !metadata && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
 
           <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 ml-1">요약</label>
+            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">요약</label>
             {(isExtracting || isAutoAdding) ? (
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 min-h-64 shadow-inner animate-pulse flex flex-col gap-2">
-                 <div className="h-4 bg-slate-200 rounded w-3/4"></div>
-                 <div className="h-4 bg-slate-200 rounded w-full"></div>
-                 <div className="h-4 bg-slate-200 rounded w-5/6"></div>
-                 <div className="mt-4 text-slate-400 text-sm italic">AI가 영상을 분석하여 요약 중입니다. 잠시만 기다려 주세요...</div>
+              <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 min-h-64 shadow-inner animate-pulse flex flex-col gap-2">
+                 <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                 <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
+                 <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div>
+                 <div className="mt-4 text-slate-400 dark:text-slate-500 text-sm italic">AI가 영상을 분석하여 요약 중입니다. 잠시만 기다려 주세요...</div>
               </div>
             ) : transcript ? (
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-900 p-4 prose prose-sm max-w-none shadow-inner">
+              <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner">
                 <ReactMarkdown>{transcript}</ReactMarkdown>
               </div>
             ) : (
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 text-slate-500 min-h-64 p-4 shadow-inner">
+              <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-600 min-h-64 p-4 shadow-inner">
                 요약 내용이 여기에 마크다운으로 표시됩니다.
               </div>
             )}
@@ -623,7 +623,7 @@ export default function AddYouTubePage() {
       <BottomNav activeTab="youtube" />
 
       {/* Fixed Bottom Action Bar - above BottomNav */}
-      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
+      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
         <div className="max-w-2xl mx-auto flex justify-center">
           <button
             onClick={() => handleSave()}
