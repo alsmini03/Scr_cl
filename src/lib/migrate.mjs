@@ -23,6 +23,31 @@ async function migrate() {
     `);
     console.log("Created youtube_tabs table.");
 
+    // Create gemini_models table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gemini_models (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created gemini_models table.");
+
+    // Create gemini_prompts table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gemini_prompts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        content TEXT NOT NULL,
+        is_default BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created gemini_prompts table.");
+
     // Migration for position column if table already exists
     try {
       await client.query(`ALTER TABLE youtube_tabs ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`);

@@ -145,6 +145,44 @@ export default function BookDetailPage() {
           </div>
         </div>
 
+        {/* Detailed Info Sections */}
+        {(book.toc || book.authorIntro || book.publisherReview || book.inside) && (
+          <section className="px-4 py-8 space-y-10">
+            {book.toc && (
+              <div className="space-y-3">
+                <h3 className="text-xl font-bold border-l-4 border-primary pl-3">목차</h3>
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap shadow-inner max-h-96 overflow-y-auto no-scrollbar border border-slate-100 dark:border-primary/5">
+                  {book.toc}
+                </div>
+              </div>
+            )}
+            {book.authorIntro && (
+              <div className="space-y-3">
+                <h3 className="text-xl font-bold border-l-4 border-primary pl-3">저자 소개</h3>
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap shadow-inner border border-slate-100 dark:border-primary/5">
+                  {book.authorIntro}
+                </div>
+              </div>
+            )}
+            {book.inside && (
+              <div className="space-y-3">
+                <h3 className="text-xl font-bold border-l-4 border-primary pl-3">책 속으로</h3>
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap shadow-inner border border-slate-100 dark:border-primary/5">
+                  {book.inside}
+                </div>
+              </div>
+            )}
+            {book.publisherReview && (
+              <div className="space-y-3">
+                <h3 className="text-xl font-bold border-l-4 border-primary pl-3">출판사 리뷰</h3>
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 text-slate-600 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap shadow-inner border border-slate-100 dark:border-primary/5">
+                  {book.publisherReview}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
         {/* User Recording Section */}
         <section className="px-4 py-6 space-y-8 bg-white/50 dark:bg-primary/5 rounded-t-[2.5rem] mt-4 shadow-inner">
           {/* Status & Rating */}
