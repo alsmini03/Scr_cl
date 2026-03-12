@@ -5,10 +5,20 @@ import BottomNav from '@/components/BottomNav';
 import Link from 'next/link';
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
+import { useEffect, useState } from 'react';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (status === "unauthenticated") {
     router.push("/login");
@@ -59,6 +69,45 @@ export default function ProfilePage() {
             )}
           </div>
         </section>
+
+        {/* Theme Settings Section */}
+        {mounted && (
+          <section className="space-y-3">
+            <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">화면 테마</h3>
+            <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
+              <button
+                onClick={() => setTheme('light')}
+                className={cn(
+                  "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
+                  theme === 'light' ? "bg-white text-primary shadow-sm" : "text-slate-500"
+                )}
+              >
+                <span className="material-symbols-outlined text-sm">light_mode</span>
+                라이트
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                className={cn(
+                  "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
+                  theme === 'dark' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500"
+                )}
+              >
+                <span className="material-symbols-outlined text-sm">dark_mode</span>
+                다크
+              </button>
+              <button
+                onClick={() => setTheme('system')}
+                className={cn(
+                  "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2",
+                  theme === 'system' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500"
+                )}
+              >
+                <span className="material-symbols-outlined text-sm">settings_brightness</span>
+                시스템
+              </button>
+            </div>
+          </section>
+        )}
 
         {/* Menu Section */}
         <section className="space-y-2">

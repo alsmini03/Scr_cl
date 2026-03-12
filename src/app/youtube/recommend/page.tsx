@@ -463,7 +463,7 @@ export default function YouTubeRecommendPage() {
         )}
       </main>
 
-      <BottomNav activeTab="recommend" />
+      <BottomNav activeTab="youtube" />
     </div>
   );
 }

@@ -215,7 +215,7 @@ export default function AddBookPage() {
         </div>
       </main>
 
-      <BottomNav activeTab="home" />
+      <BottomNav activeTab="library" />
     </div>
   );
 }

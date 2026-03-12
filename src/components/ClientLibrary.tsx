@@ -288,7 +288,7 @@ export default function ClientLibrary({
         </Link>
       )}
 
-      <BottomNav activeTab="home" />
+      <BottomNav activeTab="library" />
     </div>
   );
 }

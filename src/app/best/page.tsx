@@ -187,7 +187,7 @@ export default function BestPage() {
         )}
       </main>
 
-      <BottomNav activeTab="best" />
+      <BottomNav activeTab="yes24" />
     </div>
   );
 }

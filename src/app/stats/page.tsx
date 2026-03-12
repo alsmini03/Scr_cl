@@ -195,7 +195,7 @@ export default function CalendarPage() {
         )}
       </main>
 
-      <BottomNav activeTab="stats" />
+      <BottomNav activeTab="calendar" />
     </div>
   );
 }

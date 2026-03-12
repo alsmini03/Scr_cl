@@ -58,7 +58,7 @@ export default async function YoutubeListPage() {
         )}
       </main>
 
-      <BottomNav activeTab="home" />
+      <BottomNav activeTab="library" />
     </div>
   );
 }
