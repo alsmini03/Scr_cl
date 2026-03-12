@@ -89,17 +89,17 @@ export default function BestPage() {
   };
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-white">
+    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header title="Yes24 베스트 100" transparent />
 
       <main className="mt-6 px-4">
         <div className="flex flex-col gap-6 mb-6">
-          <div className="flex p-1 bg-slate-100 rounded-xl w-full">
+          <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-xl w-full">
             <button
               onClick={() => setCategory('total')}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all",
-                category === 'total' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                category === 'total' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
               )}
             >
               종합
@@ -108,7 +108,7 @@ export default function BestPage() {
               onClick={() => setCategory('economy')}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
-                category === 'economy' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                category === 'economy' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
               )}
             >
               경제
@@ -117,7 +117,7 @@ export default function BestPage() {
               onClick={() => setCategory('essay')}
               className={cn(
                 "flex-1 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap",
-                category === 'essay' ? "bg-white text-primary shadow-sm" : "text-slate-500 hover:text-slate-700"
+                category === 'essay' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
               )}
             >
               에세이
@@ -128,10 +128,10 @@ export default function BestPage() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="size-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-            <p className="text-slate-500 font-medium">실시간 베스트를 읽어오는 중...</p>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">실시간 베스트를 읽어오는 중...</p>
           </div>
         ) : books.length === 0 ? (
-          <div className="text-center py-20 text-slate-400">
+          <div className="text-center py-20 text-slate-400 dark:text-slate-600">
             <p>베스트셀러 정보를 불러올 수 없습니다.</p>
           </div>
         ) : (
@@ -139,7 +139,7 @@ export default function BestPage() {
             {books.map((book, idx) => (
               <div
                 key={idx}
-                className="group relative bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
+                className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
               >
                 <a
                   href={book.yes24Url}
@@ -158,10 +158,10 @@ export default function BestPage() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-base font-bold text-slate-900 line-clamp-2 leading-snug mb-1">{book.title}</p>
-                    <p className="text-sm text-slate-500 truncate">{book.author} · {book.publisher}</p>
+                    <p className="text-base font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug mb-1">{book.title}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{book.author} · {book.publisher}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <p className="text-xs text-slate-400">{book.publishDate}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{book.publishDate}</p>
                       <p className="text-xs font-bold text-primary">{book.price}</p>
                     </div>
                   </div>
