@@ -122,7 +122,7 @@ export default function ClientLibrary({
   const hasItems = mode === 'books' ? books.length > 0 : youtubeVideos.length > 0;
 
   return (
-    <div className="font-display min-h-screen pb-32 bg-white">
+    <div className="font-display min-h-screen pb-32 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
         title="내 서재"
         transparent
@@ -143,25 +143,9 @@ export default function ClientLibrary({
               </button>
             )}
             {!isEditMode && (
-              mode === 'books' ? (
-                <button
-                  onClick={() => updateBookView(bookView === '3' ? '5' : '3')}
-                  className="flex size-10 items-center justify-center text-primary"
-                >
-                  <span className="material-symbols-outlined text-2xl">
-                    {bookView === '3' ? 'grid_view' : 'view_comfy'}
-                  </span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => updateYoutubeView(youtubeView === '1' ? '2' : '1')}
-                  className="flex size-10 items-center justify-center text-primary"
-                >
-                  <span className="material-symbols-outlined text-2xl">
-                    {youtubeView === '1' ? 'grid_view' : 'view_stream'}
-                  </span>
-                </button>
-              )
+              <button className="flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-2xl">search</span>
+              </button>
             )}
           </div>
         }
@@ -170,7 +154,7 @@ export default function ClientLibrary({
       <main className="mt-6 px-4">
         {/* Toggle Mode */}
         {!isEditMode && (
-          <div className="flex gap-2 mb-8 p-1 bg-slate-100 rounded-xl max-w-xs mx-auto">
+          <div className="flex gap-2 mb-8 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
             <button
               onClick={() => {
                 setMode('books');
@@ -178,7 +162,7 @@ export default function ClientLibrary({
               }}
               className={cn(
                 "flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all text-center",
-                mode === 'books' ? "bg-white text-primary shadow-sm" : "text-slate-500"
+                mode === 'books' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
               )}
             >
               도서
@@ -190,7 +174,7 @@ export default function ClientLibrary({
               }}
               className={cn(
                 "flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all text-center",
-                mode === 'youtube' ? "bg-white text-primary shadow-sm" : "text-slate-500"
+                mode === 'youtube' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
               )}
             >
               유튜브
@@ -198,13 +182,40 @@ export default function ClientLibrary({
           </div>
         )}
 
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold tracking-tight">
+            {mode === 'books' ? '내 도서' : '유튜브 보관함'}
+          </h2>
+          {!isEditMode && (
+            <div className="flex gap-2 text-primary">
+              <span className="material-symbols-outlined cursor-pointer">filter_list</span>
+              <button
+                onClick={() => {
+                  if (mode === 'books') {
+                    updateBookView(bookView === '3' ? '5' : '3');
+                  } else {
+                    updateYoutubeView(youtubeView === '1' ? '2' : '1');
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined cursor-pointer">
+                  {mode === 'books'
+                    ? (bookView === '3' ? 'grid_view' : 'view_comfy')
+                    : (youtubeView === '1' ? 'grid_view' : 'view_stream')
+                  }
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
+
         {!session?.user && !isDev ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
               <span className="material-symbols-outlined text-4xl text-primary">lock</span>
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">로그인이 필요합니다</h3>
-            <p className="text-slate-500 mb-8 px-8">서재를 이용하고 독서 기록을 남기려면 먼저 로그인해 주세요.</p>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">서재를 이용하고 독서 기록을 남기려면 먼저 로그인해 주세요.</p>
             <Link
               href="/login"
               className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
@@ -251,15 +262,15 @@ export default function ClientLibrary({
 
       {/* Fixed Bottom Action Bar for Selection Mode */}
       {isEditMode && selectedIds.length > 0 && (
-        <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-slate-100 z-40 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
           <div className="max-w-lg mx-auto flex items-center justify-between">
-            <p className="text-sm font-bold text-slate-900">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
               <span className="text-primary">{selectedIds.length}</span>개 선택됨
             </p>
             <button
               onClick={handleBatchDelete}
               disabled={isDeleting}
-              className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-200 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+              className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
             >
               <span className="material-symbols-outlined text-sm">delete</span>
               {isDeleting ? '삭제 중...' : '삭제하기'}

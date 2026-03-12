@@ -98,43 +98,35 @@ export default function AddBookPage() {
   };
 
   return (
-    <div className="font-display min-h-screen flex flex-col bg-white">
+    <div className="font-display min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header title="새 책 추가" showBack />
 
-      <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-32">
-        {/* Switch Mode Tab */}
-        <div className="flex gap-2 mb-6 p-1 bg-slate-100 rounded-xl">
-          <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white text-primary shadow-sm">
-            Yes24
-          </button>
-          <button
-            onClick={() => router.push('/add/youtube')}
-            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
-          >
-            Youtube
-          </button>
-        </div>
-
+      <main className="flex-1 max-w-2xl mx-auto w-full p-6">
         {/* Main Action Section */}
         <section className="mb-10">
+          <h2 className="text-3xl font-bold leading-tight tracking-tight mb-2">URL로 가져오기</h2>
+          <p className="text-slate-600 dark:text-slate-400 text-lg mb-6">
+            아래에 Yes24 도서 링크를 붙여넣으세요. <span className="text-primary font-semibold">제미나이</span>가 자동으로 도서 정보를 확인하여 입력해 드립니다.
+          </p>
+
           <div className="space-y-4">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-slate-700 ml-1">Yes24 상품 URL</label>
-              <div className="flex gap-2">
+              <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Yes24 상품 URL</label>
+              <div className="relative group">
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  className="flex-1 rounded-xl border border-primary/20 bg-white text-slate-900 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
+                  className="w-full rounded-xl border-primary/20 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-14 px-4 pr-32 transition-all outline-none border"
                   placeholder="https://www.yes24.com/Product/Goods/..."
                 />
                 <button
                   onClick={handleExtract}
                   disabled={isExtracting}
-                  className="bg-primary hover:bg-primary/90 text-white font-bold px-3 rounded-xl transition-colors flex flex-col items-center justify-center gap-0 disabled:opacity-50 min-w-[80px]"
+                  className="absolute right-2 top-2 bottom-2 bg-primary hover:bg-primary/90 text-white font-bold px-4 rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
                 >
-                  <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                  <span className="text-[12px] leading-tight">{isExtracting ? '가져오는 중' : '가져오기'}</span>
+                  <span>{isExtracting ? '가져오는 중' : '가져오기'}</span>
+                  <span className="material-symbols-outlined text-sm">auto_awesome</span>
                 </button>
               </div>
               {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
@@ -143,133 +135,85 @@ export default function AddBookPage() {
         </section>
 
         {/* Preview Placeholder / Loading State */}
-        <section className="border-t border-primary/10 pt-6">
+        <section className="border-t border-primary/10 pt-10">
           <div className={cn("mt-4 transition-opacity", !extractedBook && "opacity-50 pointer-events-none select-none")}>
-            <div className="flex flex-col gap-6">
-              <div className="flex gap-4 items-start">
-                {/* Book Cover Placeholder or Image - Adjusted size (w-40 h-52) */}
-                <div className="w-40 h-52 bg-slate-50 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-200 overflow-hidden shadow-sm">
-                  {extractedBook?.coverImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined text-slate-400 text-3xl mb-1">image</span>
-                      <span className="text-[8px] text-slate-400 font-medium">표지 이미지</span>
-                    </>
-                  )}
-                </div>
-
-                {/* Book Details - Top Row */}
-                <div className="flex-1 space-y-3 min-w-0">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">제목</label>
-                    <div className={cn(
-                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner break-words",
-                      isExtracting && "animate-pulse"
-                    )}>
-                      {isExtracting ? "가져오는 중..." : (extractedBook?.title || "도서 제목")}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자</label>
-                    <div className={cn(
-                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate",
-                      isExtracting && "animate-pulse"
-                    )}>
-                      {isExtracting ? "가져오는 중..." : (extractedBook?.author || "저자명")}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">발행일자</label>
-                    <div className={cn(
-                      "min-h-10 bg-slate-50 rounded px-3 py-2 flex items-center text-sm text-slate-900 border border-slate-100 shadow-inner truncate",
-                      isExtracting && "animate-pulse"
-                    )}>
-                      {isExtracting ? "가져오는 중..." : (extractedBook?.publishDate || "2024년 01월 01일")}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description - Bottom Full Width */}
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">설명</label>
-                  <div className={cn(
-                    "min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap",
-                    isExtracting && "animate-pulse"
-                  )}>
-                    {isExtracting ? "제미나이가 정보를 분석 중입니다..." : (extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다.")}
-                  </div>
-                </div>
-
-                {!isExtracting && extractedBook && (
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* Book Cover Placeholder */}
+              <div className="w-40 h-56 bg-slate-200 dark:bg-slate-800 rounded-lg flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 overflow-hidden shadow-sm">
+                {extractedBook?.coverImage ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
+                ) : (
                   <>
-                    {extractedBook.intro && (
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">책소개</label>
-                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                          {extractedBook.intro}
-                        </div>
-                      </div>
-                    )}
-                    {extractedBook.toc && (
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">목차</label>
-                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                          {extractedBook.toc}
-                        </div>
-                      </div>
-                    )}
-                    {extractedBook.author_intro && (
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">저자 소개</label>
-                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                          {extractedBook.author_intro}
-                        </div>
-                      </div>
-                    )}
-                    {extractedBook.inside && (
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">책 속으로</label>
-                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                          {extractedBook.inside}
-                        </div>
-                      </div>
-                    )}
-                    {extractedBook.publisher_review && (
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 ml-1">출판사 리뷰</label>
-                        <div className="min-h-24 bg-slate-50 rounded p-3 text-sm text-slate-900 overflow-hidden border border-slate-100 shadow-inner whitespace-pre-wrap">
-                          {extractedBook.publisher_review}
-                        </div>
-                      </div>
-                    )}
+                    <span className="material-symbols-outlined text-slate-400 text-4xl mb-2">image</span>
+                    <span className="text-[10px] text-slate-400 font-medium">표지 이미지</span>
                   </>
                 )}
+              </div>
+
+              {/* Book Details */}
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">제목</label>
+                    <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-500 truncate">
+                      {extractedBook?.title || "도서 제목이 여기에 표시됩니다"}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">저자</label>
+                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-500 truncate">
+                        {extractedBook?.author || "저자명"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">발행일자</label>
+                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-500 truncate">
+                        {extractedBook?.publishDate || "2024년 01월 01일"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">가격</label>
+                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-500 truncate">
+                        {extractedBook?.price || "00,000원"}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
+                      <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded px-3 flex items-center text-sm text-slate-500 truncate">
+                        {extractedBook?.category || "카테고리"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 ml-1">설명</label>
+                    <div className="h-24 bg-slate-200 dark:bg-slate-800 rounded p-3 text-sm text-slate-500 overflow-hidden break-words line-clamp-4">
+                      {extractedBook?.description || "도서에 대한 간략한 설명 또는 줄거리가 여기에 추출되어 표시됩니다."}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-      </main>
-
-      {/* Fixed Bottom Action Bar - above BottomNav */}
-      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-100 z-20">
-        <div className="max-w-2xl mx-auto flex justify-center">
+        <div className="mt-10 mb-4">
           <button
             onClick={handleSave}
             disabled={!extractedBook || isSaving}
-            className="px-12 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-xl">save</span>
-            {isSaving ? '저장 중...' : '저장하기'}
+            <span className="material-symbols-outlined">save</span>
+            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
           </button>
         </div>
-      </div>
+      </main>
 
       <BottomNav activeTab="home" />
     </div>

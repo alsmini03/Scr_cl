@@ -7,7 +7,7 @@ import { useRef } from 'react';
 
 interface BookGridProps {
   books: Book[];
-  viewMode: string; // '3' or '5' (for cols)
+  viewMode: string; // '2' or '3' or '5' (based on design col counts)
   isSelectionMode?: boolean;
   selectedIds?: string[];
   onToggleSelection?: (id: string) => void;
@@ -16,13 +16,13 @@ interface BookGridProps {
 
 export default function BookGrid({
   books,
-  viewMode = '3',
+  viewMode = '2',
   isSelectionMode = false,
   selectedIds = [],
   onToggleSelection,
   onLongPress
 }: BookGridProps) {
-  const gridCols = parseInt(viewMode) || 3;
+  const gridCols = parseInt(viewMode) || 2;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const startPress = (id: string) => {
@@ -41,8 +41,8 @@ export default function BookGrid({
   return (
     <div className="space-y-6">
       <div className={cn(
-        "grid gap-x-3 gap-y-6",
-        gridCols === 3 ? "grid-cols-3" : "grid-cols-5"
+        "grid gap-4",
+        gridCols === 2 ? "grid-cols-2" : (gridCols === 3 ? "grid-cols-3" : "grid-cols-5")
       )}>
         {books.map((book) => {
           const isSelected = selectedIds.includes(book.id);
@@ -83,40 +83,37 @@ export default function BookGrid({
                 style={{ backgroundImage: `url("${book.coverImage}")` }}
               >
                 {book.readingStatus === 'FINISHED' && (
-                  <div className="absolute top-1.5 right-1.5 bg-green-500 text-white text-[7px] font-bold px-1 py-0.5 rounded shadow-sm">
-                    DONE
+                  <div className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
+                    FINISHED
                   </div>
                 )}
               </Link>
 
-              <div className="mt-0.5 px-0.5">
+              <div className="mt-1">
                 <p className={cn(
-                  "font-bold truncate text-slate-900 leading-tight",
-                  gridCols === 3 ? "text-xs" : "text-[9px]"
+                  "font-bold truncate text-slate-900 dark:text-slate-100",
+                  gridCols === 2 ? "text-sm" : "text-xs"
                 )}>
                   {book.title}
                 </p>
-                {gridCols === 3 && (
-                  <>
-                    <p className="text-[10px] text-slate-500 truncate mb-1">{book.author}</p>
-                    {book.readingStatus === 'READING' && book.progress !== undefined && book.progress > 0 ? (
-                      <div className="flex items-center gap-1 mt-1">
-                        <div className="flex-1 h-0.5 bg-primary/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary"
-                            style={{ width: `${book.progress}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-[8px] font-bold text-primary">{book.progress}%</span>
-                      </div>
-                    ) : book.readingStatus === 'FINISHED' ? (
-                      <div className="flex items-center mt-0.5 text-primary">
-                        <span className="material-symbols-outlined text-[8px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        <span className="text-[8px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
-                      </div>
-                    ) : null}
-                  </>
-                )}
+                <p className="text-xs text-slate-500 truncate">{book.author}</p>
+
+                {book.readingStatus === 'READING' ? (
+                  <div className="flex items-center gap-1 mt-2">
+                    <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary"
+                        style={{ width: `${book.progress || 0}%` }}
+                      ></div>
+                    </div>
+                    <span className="text-[10px] font-bold text-primary">{book.progress || 0}%</span>
+                  </div>
+                ) : book.readingStatus === 'FINISHED' ? (
+                  <div className="flex items-center mt-1 text-primary">
+                    <span className="material-symbols-outlined text-[10px] fill-1">star</span>
+                    <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
+                  </div>
+                ) : null}
               </div>
             </div>
           );

@@ -123,7 +123,7 @@ export async function getGeminiModels(): Promise<any[]> {
 export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = crypto.randomUUID();
     await sql`
       INSERT INTO gemini_models (id, user_id, name)
       VALUES (${id}, ${userId}, ${name})
@@ -154,7 +154,7 @@ export async function getYoutubeTabs(): Promise<any[]> {
 export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = crypto.randomUUID();
 
     // Get max position
     const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM youtube_tabs WHERE user_id = ${userId}`;
@@ -272,7 +272,7 @@ export async function getGeminiPrompts(): Promise<any[]> {
 export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = crypto.randomUUID();
     await sql`
       INSERT INTO gemini_prompts (id, user_id, name, content)
       VALUES (${id}, ${userId}, ${name}, ${content})
@@ -386,7 +386,7 @@ export async function getBookById(id: string): Promise<Book | undefined> {
 export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boolean; data?: Book; error?: string }> {
   try {
     const userId = await ensureApproved();
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
     await sql`
@@ -534,7 +534,7 @@ export async function saveYoutubeVideo(video: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();
-    const id = Math.random().toString(36).substring(2, 11);
+    const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
     await sql`

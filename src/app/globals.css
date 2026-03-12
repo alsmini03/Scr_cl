@@ -1,24 +1,38 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 @plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/container-queries";
 
 @theme {
   --color-primary: #1978e5;
   --color-background-light: #f6f7f8;
   --color-background-dark: #111821;
   --font-display: "Inter", sans-serif;
+
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
 }
 
 @layer base {
   body {
-    @apply bg-white text-slate-900;
+    @apply bg-background-light text-slate-900 dark:bg-background-dark dark:text-slate-100 font-display min-h-screen antialiased;
   }
 }
 
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .fill-1 {
+    font-variation-settings: 'FILL' 1;
+  }
 }
