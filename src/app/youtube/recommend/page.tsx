@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +31,8 @@ export default function YouTubeRecommendPage() {
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedTab = localStorage.getItem('youtube_recommend_tab_v2');
@@ -63,10 +65,25 @@ export default function YouTubeRecommendPage() {
 
   useEffect(() => {
     async function fetchVideos() {
+      if (tabs.length === 0 && activeTabId === 'all') {
+        setVideos([]);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         let fetchUrl = '/api/youtube/recommend';
-        if (activeTabId !== 'all') {
+        if (activeTabId === 'all') {
+          const allUrls = tabs.map(t => t.url).join(',');
+          if (allUrls) {
+            fetchUrl += `?url=${encodeURIComponent(allUrls)}`;
+          } else {
+            setVideos([]);
+            setIsLoading(false);
+            return;
+          }
+        } else {
           const activeTab = tabs.find(t => t.id === activeTabId);
           if (activeTab) {
             fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
@@ -76,11 +93,7 @@ export default function YouTubeRecommendPage() {
         const res = await fetch(fetchUrl);
         const data = await res.json();
 
-        if (activeTabId === 'all') {
-          setVideos(data.all || []);
-        } else {
-          setVideos(data.videos || []);
-        }
+        setVideos(data.videos || []);
       } catch (err) {
         console.error(err);
         setVideos([]);
@@ -182,6 +195,34 @@ export default function YouTubeRecommendPage() {
     }
   };
 
+  const handleTabLongPress = (id: string) => {
+    if (id === 'all') return;
+    setIsReordering(true);
+  };
+
+  const moveTab = (draggedId: string, hoverId: string) => {
+    if (draggedId === hoverId) return;
+
+    const draggedIndex = tabs.findIndex(t => t.id === draggedId);
+    const hoverIndex = tabs.findIndex(t => t.id === hoverId);
+
+    const newTabs = [...tabs];
+    const [draggedTab] = newTabs.splice(draggedIndex, 1);
+    newTabs.splice(hoverIndex, 0, draggedTab);
+
+    setTabs(newTabs);
+  };
+
+  const saveTabOrder = async () => {
+    const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
+    const res = await updateYoutubeTabOrder(orders);
+    if (res.success) {
+      setIsReordering(false);
+    } else {
+      alert(res.error);
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-white">
       <Header
@@ -189,20 +230,31 @@ export default function YouTubeRecommendPage() {
         transparent
         rightAction={
           <div className="flex items-center gap-1">
-            <button
-               onClick={() => window.location.href = '/add/youtube'}
-               className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
-            >
-               <span className="material-symbols-outlined">settings</span>
-            </button>
-            <button
-              onClick={() => setCols(cols === 1 ? 2 : 1)}
-              className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
-            >
-              <span className="material-symbols-outlined">
-                {cols === 1 ? 'grid_view' : 'view_stream'}
-              </span>
-            </button>
+            {isReordering ? (
+              <button
+                onClick={saveTabOrder}
+                className="text-primary font-bold px-3 py-1 bg-primary/10 rounded-lg"
+              >
+                순서 저장
+              </button>
+            ) : (
+              <>
+                <button
+                   onClick={() => window.location.href = '/add/youtube'}
+                   className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+                >
+                   <span className="material-symbols-outlined">settings</span>
+                </button>
+                <button
+                  onClick={() => setCols(cols === 1 ? 2 : 1)}
+                  className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+                >
+                  <span className="material-symbols-outlined">
+                    {cols === 1 ? 'grid_view' : 'view_stream'}
+                  </span>
+                </button>
+              </>
+            )}
           </div>
         }
       />
@@ -211,44 +263,86 @@ export default function YouTubeRecommendPage() {
         {/* Source Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-white z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
-            <button
-              onClick={() => setActiveTabId('all')}
-              className={cn(
-                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
-              )}
-            >
-              전체
-            </button>
-            {tabs.map(tab => (
-              <div key={tab.id} className="relative flex-shrink-0 group">
+            {!isReordering && (
+              <button
+                onClick={() => setActiveTabId('all')}
+                className={cn(
+                  "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                  activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+                )}
+              >
+                전체
+              </button>
+            )}
+            {tabs.map(tab => {
+              let timer: any;
+              const handleTouchStart = () => {
+                timer = setTimeout(() => handleTabLongPress(tab.id), 600);
+              };
+              const handleTouchEnd = () => {
+                clearTimeout(timer);
+              };
+
+              return (
+              <div
+                key={tab.id}
+                className={cn(
+                  "relative flex-shrink-0 group transition-all",
+                  isReordering && draggedId === tab.id ? "opacity-50 scale-95" : "opacity-100"
+                )}
+                draggable={isReordering}
+                onDragStart={() => setDraggedId(tab.id)}
+                onDragEnd={() => setDraggedId(null)}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (draggedId) moveTab(draggedId, tab.id);
+                }}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onMouseDown={handleTouchStart}
+                onMouseUp={handleTouchEnd}
+              >
                 <button
-                  onClick={() => setActiveTabId(tab.id)}
+                  onClick={() => !isReordering && setActiveTabId(tab.id)}
                   className={cn(
                     "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all pr-8",
-                    activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500"
+                    activeTabId === tab.id && !isReordering ? "bg-primary text-white shadow-md" : "bg-slate-100 text-slate-500",
+                    isReordering && "cursor-move"
                   )}
                 >
+                  {isReordering && <span className="material-symbols-outlined text-[14px] mr-1 align-middle">drag_indicator</span>}
                   {tab.name}
                 </button>
-                <button
-                  onClick={(e) => handleDeleteTab(tab.id, e)}
-                  className={cn(
-                    "absolute right-2 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors",
-                    activeTabId === tab.id ? "text-white/70" : "text-slate-400"
-                  )}
-                >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
-                </button>
+                {!isReordering && (
+                  <button
+                    onClick={(e) => handleDeleteTab(tab.id, e)}
+                    className={cn(
+                      "absolute right-2 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors",
+                      activeTabId === tab.id ? "text-white/70" : "text-slate-400"
+                    )}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">close</span>
+                  </button>
+                )}
               </div>
-            ))}
+            );})}
           </div>
-          <button
-            onClick={() => setShowTabManager(!showTabManager)}
-            className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
-          </button>
+          {!isReordering && (
+            <button
+              onClick={() => setShowTabManager(!showTabManager)}
+              className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
+            </button>
+          )}
+          {isReordering && (
+            <button
+              onClick={() => setIsReordering(false)}
+              className="flex-shrink-0 size-9 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+          )}
         </div>
 
         {showTabManager && (

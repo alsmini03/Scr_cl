@@ -17,10 +17,19 @@ async function migrate() {
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
         url TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       )
     `);
     console.log("Created youtube_tabs table.");
+
+    // Migration for position column if table already exists
+    try {
+      await client.query(`ALTER TABLE youtube_tabs ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`);
+      console.log("Ensured position column in youtube_tabs table.");
+    } catch (e) {
+      console.error("Failed to add position column:", e.message);
+    }
 
     // 2. Add new columns to books table
     const columns = [
@@ -53,6 +62,19 @@ async function migrate() {
       console.log(`Approved ${updateRes.rowCount} existing users.`);
     } catch (e) {
       console.error("Failed to update users table:", e.message);
+    }
+
+    // 4. Delete default YouTube tabs as per user request
+    try {
+      const defaultUrls = [
+        'https://m.youtube.com/@understanding./videos',
+        'https://m.youtube.com/@MK_Invest/videos',
+        'https://m.youtube.com/@eo_korea/videos'
+      ];
+      const deleteRes = await client.query(`DELETE FROM youtube_tabs WHERE url = ANY($1)`, [defaultUrls]);
+      console.log(`Deleted ${deleteRes.rowCount} default YouTube tabs.`);
+    } catch (e) {
+      console.error("Failed to delete default tabs:", e.message);
     }
 
     console.log("Migration completed successfully.");

@@ -71,19 +71,18 @@ async function fetchChannelVideos(channelUrl: string) {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const url = searchParams.get("url");
+    const urlParam = searchParams.get("url");
 
-    if (url) {
-      const videos = await fetchChannelVideos(url);
-      return NextResponse.json({ videos });
+    if (!urlParam) {
+      return NextResponse.json({ videos: [], all: [] });
     }
 
-    // Default channels if no URL is provided
-    const urls = [
-      "https://m.youtube.com/@understanding./videos",
-      "https://m.youtube.com/@MK_Invest/videos",
-      "https://m.youtube.com/@eo_korea/videos"
-    ];
+    const urls = urlParam.split(',').filter(Boolean);
+
+    if (urls.length === 1) {
+      const videos = await fetchChannelVideos(urls[0]);
+      return NextResponse.json({ videos });
+    }
 
     const results = await Promise.allSettled(urls.map(url => fetchChannelVideos(url)));
 
@@ -102,9 +101,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       all: interleaved,
-      under: videoGroups[0],
-      sampro: videoGroups[1],
-      eo: videoGroups[2]
+      videos: interleaved
     });
   } catch (error: any) {
     console.error("YouTube Recommend Error:", error);
