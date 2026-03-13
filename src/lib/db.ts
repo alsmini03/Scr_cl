@@ -74,6 +74,80 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+/**
+ * Naver Blog Database Operations
+ */
+export async function saveBlog(blog: {
+  title: string;
+  url: string;
+  thumbnail?: string;
+  content?: string;
+  published_at?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = crypto.randomUUID();
+    const addedAt = new Date().toISOString();
+
+    await sql`
+      INSERT INTO naver_blogs (
+        id, title, url, thumbnail, content, published_at, user_id, added_at
+      ) VALUES (
+        ${id}, ${blog.title}, ${blog.url}, ${blog.thumbnail || null},
+        ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
+      )
+    `;
+
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to save blog:', error);
+    return { success: false, error: error.message || '블로그 정보를 저장하는 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function getBlogs(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM naver_blogs
+      WHERE user_id = ${user.id}
+      ORDER BY added_at DESC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function getBlogById(id: string): Promise<any | undefined> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM naver_blogs
+      WHERE id = ${id} AND user_id = ${user.id}
+    `;
+    if (rows.length === 0) return undefined;
+    return rows[0];
+  } catch (error) {
+    return undefined;
+  }
+}
+
+export async function deleteBlog(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM naver_blogs
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function updateYoutubeVideo(id: string, video: {
   title: string;
   thumbnail?: string;

@@ -39,6 +39,20 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
           <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'youtube' ? "font-bold" : "font-medium")}>Youtube</p>
         </Link>
 
+        {/* Blog */}
+        <Link
+          href="/blog"
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeTab === 'blog' ? "text-primary" : "text-slate-400 dark:text-slate-500"
+          )}
+        >
+          <div className="flex h-8 items-center justify-center">
+            <span className={cn("material-symbols-outlined", activeTab === 'blog' && "fill-1")}>rss_feed</span>
+          </div>
+          <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'blog' ? "font-bold" : "font-medium")}>블로그</p>
+        </Link>
+
         {/* Library */}
         <Link
           href="/"
@@ -51,20 +65,6 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
             <span className={cn("material-symbols-outlined", activeTab === 'library' && "fill-1")}>auto_stories</span>
           </div>
           <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'library' ? "font-bold" : "font-medium")}>서재</p>
-        </Link>
-
-        {/* Calendar */}
-        <Link
-          href="/stats"
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'calendar' ? "text-primary" : "text-slate-400 dark:text-slate-500"
-          )}
-        >
-          <div className="flex h-8 items-center justify-center">
-            <span className={cn("material-symbols-outlined", activeTab === 'calendar' && "fill-1")}>calendar_month</span>
-          </div>
-          <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'calendar' ? "font-bold" : "font-medium")}>달력</p>
         </Link>
 
         {/* Profile */}
