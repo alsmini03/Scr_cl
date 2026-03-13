@@ -248,7 +248,7 @@ export default function BookDetailPage() {
               onClick={handleSave}
               className="w-full py-4 bg-primary hover:opacity-90 transition-opacity text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined">save</span> 기록 저장하기
+              <span className="material-symbols-outlined">save</span> 저장하기
             </button>
           </div>
         </section>
