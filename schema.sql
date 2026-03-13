@@ -62,7 +62,30 @@ CREATE TABLE IF NOT EXISTS youtube_tabs (
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   url TEXT NOT NULL,
+  position INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Blog Tabs Table
+CREATE TABLE IF NOT EXISTS blog_tabs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  url TEXT NOT NULL,
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Naver Blogs Table
+CREATE TABLE IF NOT EXISTS naver_blogs (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  thumbnail TEXT,
+  content TEXT,
+  published_at TEXT,
+  user_id TEXT NOT NULL,
+  added_at TEXT NOT NULL
 );
 
 -- Auth.js Tables (PostgreSQL Adapter)

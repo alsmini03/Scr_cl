@@ -48,6 +48,34 @@ async function migrate() {
     `);
     console.log("Created gemini_prompts table.");
 
+    // Create blog_tabs table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS blog_tabs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created blog_tabs table.");
+
+    // Create naver_blogs table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS naver_blogs (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        thumbnail TEXT,
+        content TEXT,
+        published_at TEXT,
+        user_id TEXT NOT NULL,
+        added_at TEXT NOT NULL
+      )
+    `);
+    console.log("Created naver_blogs table.");
+
     // Migration for position column if table already exists
     try {
       await client.query(`ALTER TABLE youtube_tabs ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0`);

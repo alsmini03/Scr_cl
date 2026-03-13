@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
-import { saveBlog, getBlogs, deleteBlog } from '@/lib/db';
+import { saveBlog, getBlogs, deleteBlog, getBlogTabs, addBlogTab, deleteBlogTab, updateBlogTabOrder } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -16,15 +16,65 @@ export default function BlogListPage() {
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
+  const [tabs, setTabs] = useState<any[]>([]);
+  const [activeTabId, setActiveTabId] = useState('all');
+  const [showTabManager, setShowTabManager] = useState(false);
+  const [newTabName, setNewTabName] = useState('');
+  const [newTabUrl, setNewTabUrl] = useState('');
+  const [isAddingTab, setIsAddingTab] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
   const loadMyBlogs = async () => {
     const data = await getBlogs();
     setBlogs(data);
   };
 
+  const loadTabs = async () => {
+    const dbTabs = await getBlogTabs();
+    setTabs(dbTabs);
+  };
+
   const fetchRecommend = async () => {
+    if (tabs.length === 0 && activeTabId === 'all') {
+      setRecommendPosts([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const res = await fetch('/api/blog/list?blogId=totcar');
+      let fetchUrl = '/api/blog/list';
+      if (activeTabId === 'all') {
+        const allBlogIds = tabs.map(t => {
+            try {
+                const url = new URL(t.url);
+                return url.searchParams.get('blogId') || url.pathname.split('/')[1];
+            } catch {
+                return t.url;
+            }
+        }).join(',');
+        if (allBlogIds) {
+          fetchUrl += `?blogId=${encodeURIComponent(allBlogIds)}`;
+        } else {
+            setRecommendPosts([]);
+            setIsLoading(false);
+            return;
+        }
+      } else {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (activeTab) {
+          try {
+              const url = new URL(activeTab.url);
+              const blogId = url.searchParams.get('blogId') || url.pathname.split('/')[1];
+              fetchUrl += `?blogId=${encodeURIComponent(blogId)}`;
+          } catch {
+              fetchUrl += `?blogId=${encodeURIComponent(activeTab.url)}`;
+          }
+        }
+      }
+
+      const res = await fetch(fetchUrl);
       const data = await res.json();
       setRecommendPosts(data.posts || []);
     } catch (err) {
@@ -36,8 +86,14 @@ export default function BlogListPage() {
 
   useEffect(() => {
     loadMyBlogs();
-    fetchRecommend();
+    loadTabs();
   }, []);
+
+  useEffect(() => {
+    if (viewMode === 'recommend') {
+        fetchRecommend();
+    }
+  }, [activeTabId, tabs, viewMode]);
 
   const handleAddBlog = async (post: any) => {
     if (!session) {
@@ -85,17 +141,79 @@ export default function BlogListPage() {
       }
   };
 
+  const handleAddTab = async () => {
+    if (!newTabName || !newTabUrl) return;
+    setIsAddingTab(true);
+    const res = await addBlogTab(newTabName, newTabUrl);
+    if (res.success) {
+      setNewTabName('');
+      setNewTabUrl('');
+      await loadTabs();
+    } else {
+      alert(res.error);
+    }
+    setIsAddingTab(false);
+  };
+
+  const handleDeleteTab = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm('탭을 삭제하시겠습니까?')) return;
+    const res = await deleteBlogTab(id);
+    if (res.success) {
+      if (activeTabId === id) setActiveTabId('all');
+      await loadTabs();
+    }
+  };
+
+  const handleTabLongPress = (id: string) => {
+    if (id === 'all') return;
+    setIsReordering(true);
+  };
+
+  const moveTab = (draggedId: string, hoverId: string) => {
+    if (draggedId === hoverId) return;
+    const draggedIndex = tabs.findIndex(t => t.id === draggedId);
+    const hoverIndex = tabs.findIndex(t => t.id === hoverId);
+    const newTabs = [...tabs];
+    const [draggedTab] = newTabs.splice(draggedIndex, 1);
+    newTabs.splice(hoverIndex, 0, draggedTab);
+    setTabs(newTabs);
+  };
+
+  const saveTabOrder = async () => {
+    const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
+    const res = await updateBlogTabOrder(orders);
+    if (res.success) {
+      setIsReordering(false);
+    } else {
+      alert(res.error);
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
         title="블로그"
         rightAction={
-            <button
-                onClick={() => window.location.href = '/add?tab=blog'}
-                className="text-primary p-2"
-            >
-                <span className="material-symbols-outlined text-2xl">add_circle</span>
-            </button>
+            <div className="flex items-center gap-1">
+                {isReordering ? (
+                    <button
+                        onClick={saveTabOrder}
+                        className="text-primary font-bold px-3 py-1 bg-primary/10 rounded-lg"
+                    >
+                        순서 저장
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            onClick={() => window.location.href = '/add?tab=blog'}
+                            className="text-primary p-2"
+                        >
+                            <span className="material-symbols-outlined text-2xl">add_circle</span>
+                        </button>
+                    </>
+                )}
+            </div>
         }
       />
 
@@ -103,7 +221,7 @@ export default function BlogListPage() {
         {/* Toggle View Mode */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
             <button
-              onClick={() => setViewMode('recommend')}
+              onClick={() => { setViewMode('recommend'); setIsReordering(false); }}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
                 viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
@@ -112,7 +230,7 @@ export default function BlogListPage() {
               추천
             </button>
             <button
-              onClick={() => setViewMode('my')}
+              onClick={() => { setViewMode('my'); setIsReordering(false); }}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
                 viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
@@ -123,7 +241,110 @@ export default function BlogListPage() {
         </div>
 
         {viewMode === 'recommend' ? (
-            isLoading ? (
+            <>
+            {/* Blog Source Tabs */}
+            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
+                <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
+                    {!isReordering && (
+                        <button
+                            onClick={() => setActiveTabId('all')}
+                            className={cn(
+                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            )}
+                        >
+                            전체
+                        </button>
+                    )}
+                    {tabs.map(tab => {
+                        let timer: any;
+                        const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
+                        const handleTouchEnd = () => { clearTimeout(timer); };
+                        return (
+                            <div
+                                key={tab.id}
+                                className={cn(
+                                    "relative flex-shrink-0 group transition-all",
+                                    isReordering && draggedId === tab.id ? "opacity-50 scale-95" : "opacity-100",
+                                    isReordering && "animate-pulse"
+                                )}
+                                draggable={isReordering}
+                                onDragStart={() => setDraggedId(tab.id)}
+                                onDragEnd={() => setDraggedId(null)}
+                                onDragOver={(e) => { e.preventDefault(); if (draggedId) moveTab(draggedId, tab.id); }}
+                                onTouchStart={handleTouchStart}
+                                onTouchEnd={handleTouchEnd}
+                                onMouseDown={handleTouchStart}
+                                onMouseUp={handleTouchEnd}
+                            >
+                                <button
+                                    onClick={() => !isReordering && setActiveTabId(tab.id)}
+                                    className={cn(
+                                        "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                                        !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
+                                        isReordering && "cursor-move ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark pr-10"
+                                    )}
+                                >
+                                    {isReordering && <span className="material-symbols-outlined text-[14px] mr-1 align-middle">drag_indicator</span>}
+                                    {tab.name}
+                                </button>
+                                {isReordering && (
+                                    <button
+                                        onClick={(e) => handleDeleteTab(tab.id, e)}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full bg-red-500 text-white shadow-sm z-10"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px] font-bold">close</span>
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+                {!isReordering && (
+                    <button
+                        onClick={() => setShowTabManager(!showTabManager)}
+                        className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center"
+                    >
+                        <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
+                    </button>
+                )}
+                {isReordering && (
+                    <button
+                        onClick={() => setIsReordering(false)}
+                        className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center"
+                    >
+                        <span className="material-symbols-outlined text-xl">close</span>
+                    </button>
+                )}
+            </div>
+
+            {showTabManager && (
+                <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">블로그 추가</p>
+                    <input
+                        type="text"
+                        value={newTabName}
+                        onChange={(e) => setNewTabName(e.target.value)}
+                        placeholder="블로그 이름 (예: 토트카)"
+                        className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                    />
+                    <input
+                        type="text"
+                        value={newTabUrl}
+                        onChange={(e) => setNewTabUrl(e.target.value)}
+                        placeholder="블로그 URL (예: https://m.blog.naver.com/totcar)"
+                        className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                        onClick={handleAddTab}
+                        disabled={isAddingTab || !newTabName || !newTabUrl}
+                        className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
+                    >
+                        {isAddingTab ? '추가 중...' : '블로그 추가하기'}
+                    </button>
+                </div>
+            )}
+            {isLoading ? (
                 <div className="flex justify-center py-20"><div className="animate-spin text-primary"><span className="material-symbols-outlined text-4xl">sync</span></div></div>
             ) : (
                 <div className="space-y-4">
@@ -151,6 +372,8 @@ export default function BlogListPage() {
                     ))}
                 </div>
             )
+            }
+            </>
         ) : (
             blogs.length === 0 ? (
                 <div className="py-20 text-center text-slate-400">저장된 글이 없습니다.</div>

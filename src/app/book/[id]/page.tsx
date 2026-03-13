@@ -6,7 +6,7 @@ import { Book } from '@/types/book';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
-import { getBookById, updateBook, deleteBook } from '@/lib/db';
+import { getBookById, updateBook, softDeleteBook } from '@/lib/db';
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -63,7 +63,7 @@ export default function BookDetailPage() {
 
     if (confirm('정말로 이 책을 삭제하시겠습니까?')) {
       try {
-        await deleteBook(book.id);
+        await softDeleteBook(book.id);
         alert('책이 삭제되었습니다.');
         router.push('/');
       } catch (error) {

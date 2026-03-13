@@ -74,6 +74,70 @@ export async function getBooks(): Promise<Book[]> {
   }
 }
 
+export async function getBlogTabs(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM blog_tabs
+      WHERE user_id = ${user.id}
+      ORDER BY position ASC, created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = crypto.randomUUID();
+
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM blog_tabs WHERE user_id = ${userId}`;
+    const nextPos = rows[0].max_pos + 1;
+
+    await sql`
+      INSERT INTO blog_tabs (id, user_id, name, url, position)
+      VALUES (${id}, ${userId}, ${name}, ${url}, ${nextPos})
+    `;
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    for (const item of tabOrders) {
+      await sql`
+        UPDATE blog_tabs
+        SET position = ${item.position}
+        WHERE id = ${item.id} AND user_id = ${userId}
+      `;
+    }
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteBlogTab(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM blog_tabs
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 /**
  * Naver Blog Database Operations
  */
@@ -523,7 +587,7 @@ export async function updateBook(book: Book): Promise<void> {
 /**
  * Moves a book to the trash (soft delete)
  */
-export async function deleteBook(id: string): Promise<void> {
+export async function softDeleteBook(id: string): Promise<void> {
   const userId = await ensureApproved();
   const deletedAt = new Date().toISOString();
   try {

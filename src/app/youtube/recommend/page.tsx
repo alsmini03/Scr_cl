@@ -288,7 +288,8 @@ export default function YouTubeRecommendPage() {
                 key={tab.id}
                 className={cn(
                   "relative flex-shrink-0 group transition-all",
-                  isReordering && draggedId === tab.id ? "opacity-50 scale-95" : "opacity-100"
+                  isReordering && draggedId === tab.id ? "opacity-50 scale-95" : "opacity-100",
+                  isReordering && "animate-pulse"
                 )}
                 draggable={isReordering}
                 onDragStart={() => setDraggedId(tab.id)}
@@ -305,23 +306,20 @@ export default function YouTubeRecommendPage() {
                 <button
                   onClick={() => !isReordering && setActiveTabId(tab.id)}
                   className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all pr-8",
-                    activeTabId === tab.id && !isReordering ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
-                    isReordering && "cursor-move"
+                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                    !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
+                    isReordering && "cursor-move ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark pr-10"
                   )}
                 >
                   {isReordering && <span className="material-symbols-outlined text-[14px] mr-1 align-middle">drag_indicator</span>}
                   {tab.name}
                 </button>
-                {!isReordering && (
+                {isReordering && (
                   <button
                     onClick={(e) => handleDeleteTab(tab.id, e)}
-                    className={cn(
-                      "absolute right-2 top-1/2 -translate-y-1/2 size-5 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors",
-                      activeTabId === tab.id ? "text-white/70" : "text-slate-400"
-                    )}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full bg-red-500 text-white shadow-sm z-10"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <span className="material-symbols-outlined text-[14px] font-bold">close</span>
                   </button>
                 )}
               </div>
