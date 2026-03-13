@@ -26,7 +26,7 @@ export default function BestPage() {
   const [addingId, setAddingId] = useState<number | null>(null);
 
   const [tabs, setTabs] = useState<any[]>([]);
-  const [activeTabId, setActiveTabId] = useState('total');
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showTabManager, setShowTabManager] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
@@ -37,6 +37,9 @@ export default function BestPage() {
   const loadTabs = async () => {
     const dbTabs = await getYes24Tabs();
     setTabs(dbTabs);
+    if (dbTabs.length > 0 && !activeTabId) {
+        setActiveTabId(dbTabs[0].id);
+    }
   };
 
   useEffect(() => {
@@ -45,11 +48,16 @@ export default function BestPage() {
 
   useEffect(() => {
     async function fetchBest() {
+      if (!activeTabId) {
+        setBooks([]);
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         let fetchUrl = `/api/best?category=${activeTabId}`;
 
-        // If it's a custom tab, we might need a different API approach or just pass the URL
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (activeTab) {
             fetchUrl = `/api/best?url=${encodeURIComponent(activeTab.url)}`;
@@ -193,37 +201,6 @@ export default function BestPage() {
         {/* Source Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
-            {!isReordering && (
-              <>
-                <button
-                  onClick={() => setActiveTabId('total')}
-                  className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    activeTabId === 'total' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                  )}
-                >
-                  종합
-                </button>
-                <button
-                  onClick={() => setActiveTabId('economy')}
-                  className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    activeTabId === 'economy' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                  )}
-                >
-                  경제
-                </button>
-                <button
-                  onClick={() => setActiveTabId('essay')}
-                  className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    activeTabId === 'essay' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
-                  )}
-                >
-                  에세이
-                </button>
-              </>
-            )}
             {tabs.map(tab => {
                 let timer: any;
                 const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
