@@ -46,16 +46,9 @@ export default function BlogListPage() {
     try {
       let fetchUrl = '/api/blog/list';
       if (activeTabId === 'all') {
-        const allBlogIds = tabs.map(t => {
-            try {
-                const url = new URL(t.url);
-                return url.searchParams.get('blogId') || url.pathname.split('/')[1];
-            } catch {
-                return t.url;
-            }
-        }).join(',');
-        if (allBlogIds) {
-          fetchUrl += `?blogId=${encodeURIComponent(allBlogIds)}`;
+        const allSources = tabs.map(t => t.url).join(',');
+        if (allSources) {
+          fetchUrl += `?blogId=${encodeURIComponent(allSources)}`;
         } else {
             setRecommendPosts([]);
             setIsLoading(false);
@@ -64,13 +57,7 @@ export default function BlogListPage() {
       } else {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (activeTab) {
-          try {
-              const url = new URL(activeTab.url);
-              const blogId = url.searchParams.get('blogId') || url.pathname.split('/')[1];
-              fetchUrl += `?blogId=${encodeURIComponent(blogId)}`;
-          } catch {
-              fetchUrl += `?blogId=${encodeURIComponent(activeTab.url)}`;
-          }
+          fetchUrl += `?blogId=${encodeURIComponent(activeTab.url)}`;
         }
       }
 

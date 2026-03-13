@@ -3,15 +3,24 @@ import * as cheerio from "cheerio";
 
 export async function POST(req: NextRequest) {
   try {
-    const { url } = await req.json();
+    let { url } = await req.json();
 
     if (!url || !url.includes("blog.naver.com")) {
       return NextResponse.json({ error: "Invalid Naver Blog URL" }, { status: 400 });
     }
 
+    // Handle List URL: if user provides a list URL, get the latest post first
+    if (url.includes("PostList.naver") || (url.split('/').length <= 4 && !url.includes('logNo'))) {
+        const listRes = await fetch(`${req.nextUrl.origin}/api/blog/list?blogId=${encodeURIComponent(url)}`);
+        const listData = await listRes.json();
+        if (listData.posts && listData.posts.length > 0) {
+            url = listData.posts[0].url;
+        }
+    }
+
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
       },
     });
 
@@ -23,21 +32,24 @@ export async function POST(req: NextRequest) {
     const $ = cheerio.load(html);
 
     // Naver Blog Mobile Content Selector
-    const title = $("h2.title").first().text().trim() || $("meta[property='og:title']").attr("content");
+    let title = $(".se-title-text, h2.title").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+
+    // Clean up title (remove " : 네이버 블로그" etc)
+    title = title.replace(/\s*:\s*네이버\s*블로그$/, "");
 
     // Content extraction logic
     let content = "";
 
     // Naver smart editor 3.0 / ONE selectors
-    const contentArea = $(".se-main-container, .post_ct, #post-view");
+    const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap");
 
     if (contentArea.length > 0) {
-        contentArea.find(".se-component").each((_, el) => {
+        contentArea.find(".se-component, .se_component").each((_, el) => {
             const $comp = $(el);
 
             // Text component
-            if ($comp.hasClass("se-text")) {
-                $comp.find(".se-text-paragraph").each((_, p) => {
+            if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea")) {
+                $comp.find(".se-text-paragraph, .se_textarea").each((_, p) => {
                     const text = $(p).text().trim();
                     if (text) content += text + "\n";
                 });
@@ -45,9 +57,9 @@ export async function POST(req: NextRequest) {
             }
 
             // Image component
-            else if ($comp.hasClass("se-image")) {
-                const imgSrc = $comp.find("img").attr("src");
-                const caption = $comp.find(".se-caption").text().trim();
+            else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
+                const imgSrc = $comp.find("img").attr("src") || $comp.find("img").attr("data-lazy-src");
+                const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
                 if (imgSrc) {
                     content += `![image](${imgSrc})\n`;
                     if (caption) content += `*${caption}*\n`;
@@ -56,21 +68,23 @@ export async function POST(req: NextRequest) {
             }
 
             // Link component
-            else if ($comp.hasClass("se-oglink")) {
-                const linkTitle = $comp.find(".se-oglink-title").text().trim();
+            else if ($comp.hasClass("se-oglink") || $comp.hasClass("se_oglink")) {
+                const linkTitle = $comp.find(".se-oglink-title, .se_oglink_title").text().trim();
                 const linkUrl = $comp.find("a").attr("href");
                 if (linkUrl) {
                     content += `[${linkTitle || 'Link'}](${linkUrl})\n\n`;
                 }
             }
         });
-    } else {
-        // Fallback for older editor
-        content = $("#postViewArea").text().trim().replace(/\n+/g, "\n\n");
+    }
+
+    // If still empty, try fallback selectors
+    if (!content.trim()) {
+        content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
     }
 
     const thumbnail = $("meta[property='og:image']").attr("content");
-    const date = $(".se_publishDate, .date").first().text().trim();
+    const date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
 
     return NextResponse.json({
       title,
