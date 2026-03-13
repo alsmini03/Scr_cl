@@ -107,6 +107,73 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
   }
 }
 
+/**
+ * Yes24 Tabs
+ */
+export async function getYes24Tabs(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM yes24_tabs
+      WHERE user_id = ${user.id}
+      ORDER BY position ASC, created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    const id = crypto.randomUUID();
+
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM yes24_tabs WHERE user_id = ${userId}`;
+    const nextPos = rows[0].max_pos + 1;
+
+    await sql`
+      INSERT INTO yes24_tabs (id, user_id, name, url, position)
+      VALUES (${id}, ${userId}, ${name}, ${url}, ${nextPos})
+    `;
+    safeRevalidate('/best');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateYes24TabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    for (const item of tabOrders) {
+      await sql`
+        UPDATE yes24_tabs
+        SET position = ${item.position}
+        WHERE id = ${item.id} AND user_id = ${userId}
+      `;
+    }
+    safeRevalidate('/best');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteYes24Tab(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    await sql`
+      DELETE FROM yes24_tabs
+      WHERE id = ${id} AND user_id = ${userId}
+    `;
+    safeRevalidate('/best');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await ensureApproved();

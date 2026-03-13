@@ -4,9 +4,16 @@ import * as cheerio from 'cheerio';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get('category') || 'total';
+  const urlParam = searchParams.get('url');
 
   let targetUrl = 'https://m.yes24.com/home/best?dispNo=001&tab=1&pageNo=1&pageSize=100';
-  if (category === 'economy') {
+  if (urlParam) {
+    targetUrl = urlParam;
+    // Ensure mobile URL if possible
+    if (targetUrl.includes("www.yes24.com")) {
+        targetUrl = targetUrl.replace("www.yes24.com", "m.yes24.com");
+    }
+  } else if (category === 'economy') {
     targetUrl = 'https://m.yes24.com/home/best?dispNo=001001025&tab=1&pageNo=1&pageSize=100';
   } else if (category === 'essay') {
     targetUrl = 'https://m.yes24.com/home/best?dispNo=001001047&tab=1&pageNo=1&pageSize=100';

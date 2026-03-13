@@ -230,7 +230,7 @@ export default function BlogListPage() {
         {viewMode === 'recommend' ? (
             <>
             {/* Blog Source Tabs */}
-            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
+            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20">
                 <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
                     {!isReordering && (
                         <button
@@ -334,15 +334,12 @@ export default function BlogListPage() {
             {isLoading ? (
                 <div className="flex justify-center py-20"><div className="animate-spin text-primary"><span className="material-symbols-outlined text-4xl">sync</span></div></div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {recommendPosts.map((post, idx) => (
                         <div key={idx} className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex">
-                            <a href={post.url} target="_blank" rel="noopener" className="flex-1 flex gap-4 p-3">
-                                <div className="size-20 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden shrink-0">
-                                    {post.thumbnail && <img src={post.thumbnail} alt="" className="w-full h-full object-cover" />}
-                                </div>
+                            <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4">
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1">{post.title}</h3>
+                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
                                     <p className="text-[10px] text-slate-400 dark:text-slate-500">{post.published_at}</p>
                                 </div>
                             </a>
@@ -365,21 +362,21 @@ export default function BlogListPage() {
             blogs.length === 0 ? (
                 <div className="py-20 text-center text-slate-400">저장된 글이 없습니다.</div>
             ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
                     {blogs.map((blog) => (
-                        <Link key={blog.id} href={`/blog/${blog.id}`} className="flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group">
-                            <div className="aspect-square bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                {blog.thumbnail && <img src={blog.thumbnail} alt="" className="w-full h-full object-cover" />}
-                            </div>
-                            <div className="p-3">
+                        <Link key={blog.id} href={`/blog/${blog.id}`} className="flex bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group">
+                            <div className="flex-1 p-4">
                                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{blog.published_at}</p>
                             </div>
-                            <button
-                                onClick={(e) => handleDelete(blog.id, e)}
-                                className="absolute top-2 right-2 size-7 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                                <span className="material-symbols-outlined text-sm">delete</span>
-                            </button>
+                            <div className="flex items-center pr-3">
+                                <button
+                                    onClick={(e) => handleDelete(blog.id, e)}
+                                    className="size-10 text-slate-300 hover:text-red-500 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined">delete</span>
+                                </button>
+                            </div>
                         </Link>
                     ))}
                 </div>

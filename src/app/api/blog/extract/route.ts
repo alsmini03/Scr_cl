@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { getBlogPosts } from "@/lib/naver";
 
 export async function POST(req: NextRequest) {
   try {
-    let { url } = await req.json();
+    const body = await req.json();
+    let url = body.url;
 
     if (!url || !url.includes("blog.naver.com")) {
       return NextResponse.json({ error: "Invalid Naver Blog URL" }, { status: 400 });
@@ -11,10 +13,9 @@ export async function POST(req: NextRequest) {
 
     // Handle List URL: if user provides a list URL, get the latest post first
     if (url.includes("PostList.naver") || (url.split('/').length <= 4 && !url.includes('logNo'))) {
-        const listRes = await fetch(`${req.nextUrl.origin}/api/blog/list?blogId=${encodeURIComponent(url)}`);
-        const listData = await listRes.json();
-        if (listData.posts && listData.posts.length > 0) {
-            url = listData.posts[0].url;
+        const posts = await getBlogPosts(url);
+        if (posts && posts.length > 0) {
+            url = posts[0].url;
         }
     }
 

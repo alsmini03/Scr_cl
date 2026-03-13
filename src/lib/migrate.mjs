@@ -61,6 +61,19 @@ async function migrate() {
     `);
     console.log("Created blog_tabs table.");
 
+    // Create yes24_tabs table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS yes24_tabs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created yes24_tabs table.");
+
     // Create naver_blogs table
     await client.query(`
       CREATE TABLE IF NOT EXISTS naver_blogs (
