@@ -60,9 +60,15 @@ export async function POST(req: NextRequest) {
                     });
                     content += "\n";
                 } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
-                    const imgSrc = $comp.find("img").attr("src") || $comp.find("img").attr("data-lazy-src");
+                    let imgSrc = $comp.find("img").attr("data-lazy-src") || $comp.find("img").attr("src");
                     const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
                     if (imgSrc) {
+                        // Naver Blog specific: Try to get original image instead of thumbnail
+                        if (imgSrc.includes("mblogthumb-phinf.pstatic.net")) {
+                            // Extract original file path if possible or change type to large
+                            imgSrc = imgSrc.replace("mblogthumb-phinf.pstatic.net", "postfiles.pstatic.net");
+                            imgSrc = imgSrc.split('?')[0]; // Remove type=...
+                        }
                         content += `![image](${imgSrc})\n`;
                         if (caption) content += `*${caption}*\n`;
                         content += "\n";

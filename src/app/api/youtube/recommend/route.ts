@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
+function parseYouTubeRelativeTime(timeStr: string): number {
+  if (!timeStr) return 0;
+
+  const now = Date.now();
+  const match = timeStr.match(/(\d+)\s*(초|분|시간|일|주|개월|년)\s*전/);
+
+  if (!match) return 0;
+
+  const value = parseInt(match[1]);
+  const unit = match[2];
+
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+  const week = 7 * day;
+  const month = 30 * day;
+  const year = 365 * day;
+
+  switch (unit) {
+    case '초': return now - (value * 1000);
+    case '분': return now - (value * minute);
+    case '시간': return now - (value * hour);
+    case '일': return now - (value * day);
+    case '주': return now - (value * week);
+    case '개월': return now - (value * month);
+    case '년': return now - (value * year);
+    default: return now;
+  }
+}
+
 async function fetchChannelVideos(channelUrl: string) {
   const response = await fetch(channelUrl, {
     headers: {
@@ -90,18 +120,18 @@ export async function GET(req: NextRequest) {
       return res.status === 'fulfilled' ? res.value : [];
     });
 
-    // Interleave videos from different channels for variety
-    const interleaved: any[] = [];
-    const maxLength = Math.max(...videoGroups.map(g => g.length));
-    for (let i = 0; i < maxLength; i++) {
-      for (const group of videoGroups) {
-        if (group[i]) interleaved.push(group[i]);
-      }
-    }
+    // Combine all videos and sort by date (newest first)
+    const allVideos = videoGroups.flat();
+
+    allVideos.sort((a, b) => {
+        const timeA = parseYouTubeRelativeTime(a.publishedTime);
+        const timeB = parseYouTubeRelativeTime(b.publishedTime);
+        return timeB - timeA;
+    });
 
     return NextResponse.json({
-      all: interleaved,
-      videos: interleaved
+      all: allVideos,
+      videos: allVideos
     });
   } catch (error: any) {
     console.error("YouTube Recommend Error:", error);
