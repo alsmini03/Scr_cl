@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
-import { getBlogPosts } from "@/lib/naver";
+import { getBlogPosts } from "@/lib/blog";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     let url = body.url;
 
-    if (!url || !url.includes("blog.naver.com")) {
-      return NextResponse.json({ error: "Invalid Naver Blog URL" }, { status: 400 });
+    const isNaver = url.includes("blog.naver.com");
+    const isTistory = url.includes("tistory.com");
+
+    if (!url || (!isNaver && !isTistory)) {
+      return NextResponse.json({ error: "Invalid Blog URL (Supports Naver and Tistory)" }, { status: 400 });
     }
 
     // Handle List URL: if user provides a list URL, get the latest post first
-    if (url.includes("PostList.naver") || (url.split('/').length <= 4 && !url.includes('logNo'))) {
+    if (isNaver && (url.includes("PostList.naver") || (url.split('/').length <= 4 && !url.includes('logNo')))) {
+        const posts = await getBlogPosts(url);
+        if (posts && posts.length > 0) {
+            url = posts[0].url;
+        }
+    } else if (isTistory && (url.endsWith('/m') || url.endsWith('/m/'))) {
         const posts = await getBlogPosts(url);
         if (posts && posts.length > 0) {
             url = posts[0].url;
@@ -32,60 +40,64 @@ export async function POST(req: NextRequest) {
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    // Naver Blog Mobile Content Selector
-    let title = $(".se-title-text, h2.title").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
-
-    // Clean up title (remove " : 네이버 블로그" etc)
-    title = title.replace(/\s*:\s*네이버\s*블로그$/, "");
-
-    // Content extraction logic
+    let title = "";
     let content = "";
+    let date = "";
+    let thumbnail = $("meta[property='og:image']").attr("content");
 
-    // Naver smart editor 3.0 / ONE selectors
-    const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap");
+    if (isNaver) {
+        title = $(".se-title-text, h2.title").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = title.replace(/\s*:\s*네이버\s*블로그$/, "");
 
-    if (contentArea.length > 0) {
-        contentArea.find(".se-component, .se_component").each((_, el) => {
-            const $comp = $(el);
-
-            // Text component
-            if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea")) {
-                $comp.find(".se-text-paragraph, .se_textarea").each((_, p) => {
-                    const text = $(p).text().trim();
-                    if (text) content += text + "\n";
-                });
-                content += "\n";
-            }
-
-            // Image component
-            else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
-                const imgSrc = $comp.find("img").attr("src") || $comp.find("img").attr("data-lazy-src");
-                const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
-                if (imgSrc) {
-                    content += `![image](${imgSrc})\n`;
-                    if (caption) content += `*${caption}*\n`;
+        const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap");
+        if (contentArea.length > 0) {
+            contentArea.find(".se-component, .se_component").each((_, el) => {
+                const $comp = $(el);
+                if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea")) {
+                    $comp.find(".se-text-paragraph, .se_textarea").each((_, p) => {
+                        const text = $(p).text().trim();
+                        if (text) content += text + "\n";
+                    });
                     content += "\n";
+                } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
+                    const imgSrc = $comp.find("img").attr("src") || $comp.find("img").attr("data-lazy-src");
+                    const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
+                    if (imgSrc) {
+                        content += `![image](${imgSrc})\n`;
+                        if (caption) content += `*${caption}*\n`;
+                        content += "\n";
+                    }
+                } else if ($comp.hasClass("se-oglink") || $comp.hasClass("se_oglink")) {
+                    const linkTitle = $comp.find(".se-oglink-title, .se_oglink_title").text().trim();
+                    const linkUrl = $comp.find("a").attr("href");
+                    if (linkUrl) content += `[${linkTitle || 'Link'}](${linkUrl})\n\n`;
                 }
-            }
+            });
+        }
+        if (!content.trim()) content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
+        date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
+    } else if (isTistory) {
+        title = $(".title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
 
-            // Link component
-            else if ($comp.hasClass("se-oglink") || $comp.hasClass("se_oglink")) {
-                const linkTitle = $comp.find(".se-oglink-title, .se_oglink_title").text().trim();
-                const linkUrl = $comp.find("a").attr("href");
-                if (linkUrl) {
-                    content += `[${linkTitle || 'Link'}](${linkUrl})\n\n`;
+        // Tistory Mobile content selector
+        const contentArea = $(".article_view, .view_section, .post-content");
+        if (contentArea.length > 0) {
+            contentArea.find("p, div, img").each((_, el) => {
+                const tag = el.tagName.toLowerCase();
+                if (tag === 'img') {
+                    const src = $(el).attr('src');
+                    if (src) content += `![image](${src})\n\n`;
+                } else {
+                    const text = $(el).text().trim();
+                    if (text && !$(el).parents('p, div').length) { // Avoid nested text duplication
+                        content += text + "\n\n";
+                    }
                 }
-            }
-        });
+            });
+        }
+        if (!content.trim()) content = $(".article_view").text().trim();
+        date = $(".date, .txt_date").first().text().trim();
     }
-
-    // If still empty, try fallback selectors
-    if (!content.trim()) {
-        content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
-    }
-
-    const thumbnail = $("meta[property='og:image']").attr("content");
-    const date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
 
     return NextResponse.json({
       title,

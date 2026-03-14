@@ -3,12 +3,17 @@ import * as cheerio from 'cheerio';
 export async function getBlogPosts(idOrUrl: string) {
     let blogId = idOrUrl;
     let categoryNo = "";
+    let isTistory = idOrUrl.includes("tistory.com");
 
     if (idOrUrl.startsWith('http')) {
         try {
             const parsedUrl = new URL(idOrUrl);
-            blogId = parsedUrl.searchParams.get('blogId') || parsedUrl.pathname.split('/')[1] || idOrUrl;
-            categoryNo = parsedUrl.searchParams.get('categoryNo') || "";
+            if (isTistory) {
+                blogId = parsedUrl.hostname.split('.')[0];
+            } else {
+                blogId = parsedUrl.searchParams.get('blogId') || parsedUrl.pathname.split('/')[1] || idOrUrl;
+                categoryNo = parsedUrl.searchParams.get('categoryNo') || "";
+            }
         } catch {
             blogId = idOrUrl;
         }
@@ -16,9 +21,9 @@ export async function getBlogPosts(idOrUrl: string) {
 
     let allPosts: any[] = [];
 
-    // Use RSS as the most reliable list source for Naver Blog
-    let rssUrl = `https://rss.blog.naver.com/${blogId}.xml`;
-    if (categoryNo) {
+    // RSS approach
+    let rssUrl = isTistory ? `https://${blogId}.tistory.com/rss` : `https://rss.blog.naver.com/${blogId}.xml`;
+    if (!isTistory && categoryNo) {
         rssUrl += `?categoryNo=${categoryNo}`;
     }
 
@@ -37,13 +42,17 @@ export async function getBlogPosts(idOrUrl: string) {
                 const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
                 const thumbnail = imgMatch ? imgMatch[1] : null;
 
-                if (link.includes("blog.naver.com/")) {
+                if (!isTistory && link.includes("blog.naver.com/")) {
                     const parts = link.split('/');
                     const lastPart = parts[parts.length - 1];
                     const logNo = lastPart.split('?')[0];
                     if (!isNaN(Number(logNo))) {
                         link = `https://m.blog.naver.com/${blogId}/${logNo}`;
                     }
+                } else if (isTistory && !link.includes('/m/')) {
+                    // Convert to mobile link
+                    const url = new URL(link);
+                    link = `${url.origin}/m${url.pathname}`;
                 }
 
                 if (title && link) {
