@@ -77,10 +77,10 @@ export async function POST(req: NextRequest) {
         if (!content.trim()) content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
         date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
     } else if (isTistory) {
-        title = $(".title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = $(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
 
         // Tistory Mobile content selector
-        const contentArea = $(".article_view, .view_section, .post-content");
+        const contentArea = $(".blogview_content, .article_view, .view_section, .post-content");
         if (contentArea.length > 0) {
             contentArea.find("p, div, img").each((_, el) => {
                 const tag = el.tagName.toLowerCase();
@@ -88,15 +88,17 @@ export async function POST(req: NextRequest) {
                     const src = $(el).attr('src');
                     if (src) content += `![image](${src})\n\n`;
                 } else {
-                    const text = $(el).text().trim();
-                    if (text && !$(el).parents('p, div').length) { // Avoid nested text duplication
-                        content += text + "\n\n";
+                    const $el = $(el);
+                    // Only get text from leaf nodes or direct children to avoid duplication
+                    if ($el.children().length === 0 || tag === 'p') {
+                        const text = $el.text().trim();
+                        if (text) content += text + "\n\n";
                     }
                 }
             });
         }
-        if (!content.trim()) content = $(".article_view").text().trim();
-        date = $(".date, .txt_date").first().text().trim();
+        if (!content.trim()) content = $(".blogview_content, .article_view").text().trim().replace(/\n+/g, "\n\n");
+        date = $(".txt_date, .date").first().text().trim();
     }
 
     return NextResponse.json({
