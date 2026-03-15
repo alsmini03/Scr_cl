@@ -71,9 +71,10 @@ export async function POST(req: NextRequest) {
                     if (imgSrc) {
                         // Naver Blog specific: Try to get original image instead of thumbnail
                         if (imgSrc.includes("mblogthumb-phinf.pstatic.net")) {
-                            // Extract original file path if possible or change type to large
-                            imgSrc = imgSrc.replace("mblogthumb-phinf.pstatic.net", "postfiles.pstatic.net");
-                            imgSrc = imgSrc.split('?')[0]; // Remove type=...
+                            // Transformation to postfiles often fails or is restricted.
+                            // Using type=w800 is safer and high enough quality.
+                            const baseUrl = imgSrc.split('?')[0];
+                            imgSrc = \`\${baseUrl}?type=w800\`;
                         }
                         // Handle relative protocol
                         if (imgSrc.startsWith("//")) imgSrc = "https:" + imgSrc;

@@ -406,9 +406,15 @@ export default function AddBookPage() {
                     {extractedBlog && (
                         <div className="space-y-6">
                             <h2 className="text-xl font-bold">{extractedBlog.title}</h2>
-                            {extractedBlog.thumbnail && <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" />}
+                            {extractedBlog.thumbnail && <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />}
                             <div className="prose dark:prose-invert prose-slate max-w-none">
-                                <ReactMarkdown>{extractedBlog.content}</ReactMarkdown>
+                                <ReactMarkdown
+                                    components={{
+                                        img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
+                                    }}
+                                >
+                                    {extractedBlog.content}
+                                </ReactMarkdown>
                             </div>
                         </div>
                     )}

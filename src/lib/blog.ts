@@ -25,8 +25,8 @@ export async function getBlogPosts(idOrUrl: string) {
     let allPosts: any[] = [];
 
     // RSS approach
-    if (isBrunch || (isTistory && idOrUrl.includes('/category/'))) {
-        // Brunch or Tistory Category: skip to scraping/API
+    if (isTistory && idOrUrl.includes('/category/')) {
+        // Tistory Category: skip to scraping
     } else {
         let rssUrl = isTistory ? `https://${blogId}.tistory.com/rss` : `https://rss.blog.naver.com/${blogId}.xml`;
         if (!isTistory && categoryNo) {
@@ -84,13 +84,40 @@ export async function getBlogPosts(idOrUrl: string) {
     try {
         const response = await fetch(fetchUrl, {
             headers: {
-                "User-Agent": isBrunch ? "facebookexternalhit/1.1" : "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
+                "User-Agent": "facebookexternalhit/1.1", // Works better for most
             },
         });
 
         if (response.ok) {
             const html = await response.text();
             const $ = cheerio.load(html);
+
+            if (isBrunch) {
+                const rssUrl = $("link[type='application/rss+xml']").attr("href");
+                if (rssUrl) {
+                    const rssRes = await fetch(rssUrl);
+                    if (rssRes.ok) {
+                        const xml = await rssRes.text();
+                        const $rss = cheerio.load(xml, { xmlMode: true });
+                        $rss("item").each((_, el) => {
+                            const title = $rss(el).find("title").text().trim();
+                            const link = $rss(el).find("link").text().trim();
+                            const pubDate = $rss(el).find("pubDate").text();
+                            const description = $rss(el).find("description").text();
+                            const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+
+                            allPosts.push({
+                                title,
+                                url: link,
+                                thumbnail: imgMatch ? imgMatch[1] : null,
+                                published_at: pubDate,
+                                blogId
+                            });
+                        });
+                        if (allPosts.length > 0) return allPosts;
+                    }
+                }
+            }
 
             if (isTistory && fetchUrl.includes('/m/category/')) {
                 // Scraping Tistory Category Mobile List from Structured Data or HTML
@@ -123,12 +150,17 @@ export async function getBlogPosts(idOrUrl: string) {
                         const title = $el.find(".tit_blog2").text().trim() || $el.find(".tit_post").text().trim();
                         const thumbnail = $el.find(".img_thumb").attr("src");
 
-                        if (href && (href.includes('/m/entry/') || !isNaN(Number(href.split('/').pop())))) {
+                        if (href && (href.includes('/m/entry/') || href.includes('/m/') || !isNaN(Number(href.split('/').pop())))) {
                             let fullUrl = href;
                             if (href.startsWith('/m/')) {
                                 fullUrl = `https://${blogId}.tistory.com${href}`;
                             } else if (!href.startsWith('http')) {
-                                fullUrl = `https://${blogId}.tistory.com/m/${href}`;
+                                const entryMatch = href.match(/(\d+)$/);
+                                if (entryMatch) {
+                                    fullUrl = `https://${blogId}.tistory.com/m/${entryMatch[1]}`;
+                                } else {
+                                    fullUrl = `https://${blogId}.tistory.com/m/${href}`;
+                                }
                             }
 
                             allPosts.push({
@@ -142,31 +174,37 @@ export async function getBlogPosts(idOrUrl: string) {
                     });
                 }
             } else if (isBrunch) {
-                // Try to find userId and use API
+                // Fallback for Brunch if RSS not found in meta
                 let userId = "";
                 $("script").each((_, el) => {
                     const content = $(el).html() || "";
-                    // Astro/Svelte state usually contains userId
-                    const match = content.match(/"userId":\[0,"(.*?)"\]/);
+                    const match = content.match(/"userId":\[[01],"([^"]+)"\]/);
                     if (match) userId = match[1];
                 });
 
                 if (userId) {
-                    const apiRes = await fetch(`https://brunch.co.kr/api/v1/user/${userId}/articles?offset=0&limit=20`, {
-                        headers: { "User-Agent": "facebookexternalhit/1.1" }
-                    });
-                    if (apiRes.ok) {
-                        const data = await apiRes.json();
-                        const items = data.data?.articleList || [];
-                        items.forEach((item: any) => {
+                    // Try to construct RSS from userId
+                    const rssUrl = `https://brunch.co.kr/rss/@@${userId}`;
+                    const rssRes = await fetch(rssUrl);
+                    if (rssRes.ok) {
+                        const xml = await rssRes.text();
+                        const $rss = cheerio.load(xml, { xmlMode: true });
+                        $rss("item").each((_, el) => {
+                            const title = $rss(el).find("title").text().trim();
+                            const link = $rss(el).find("link").text().trim();
+                            const pubDate = $rss(el).find("pubDate").text();
+                            const description = $rss(el).find("description").text();
+                            const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+
                             allPosts.push({
-                                title: item.title,
-                                url: `https://brunch.co.kr/${blogId}/${item.no}`,
-                                thumbnail: item.titleImage ? "https:" + item.titleImage : null,
-                                published_at: new Date(item.publishTime).toISOString(),
-                                blogId: blogId
+                                title,
+                                url: link,
+                                thumbnail: imgMatch ? imgMatch[1] : null,
+                                published_at: pubDate,
+                                blogId
                             });
                         });
+                        if (allPosts.length > 0) return allPosts;
                     }
                 }
             } else {

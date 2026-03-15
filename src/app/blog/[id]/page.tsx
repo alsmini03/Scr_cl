@@ -51,12 +51,18 @@ export default function BlogDetailPage() {
 
         {blog.thumbnail && (
             <div className="w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-primary/10">
-                <img src={blog.thumbnail} alt="" className="w-full" />
+                <img src={blog.thumbnail} alt="" className="w-full" referrerPolicy="no-referrer" />
             </div>
         )}
 
         <div className="prose dark:prose-invert prose-slate max-w-none pb-20">
-            <ReactMarkdown>{blog.content}</ReactMarkdown>
+            <ReactMarkdown
+                components={{
+                    img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
+                }}
+            >
+                {blog.content}
+            </ReactMarkdown>
         </div>
       </main>
 
