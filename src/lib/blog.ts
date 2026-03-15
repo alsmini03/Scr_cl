@@ -4,12 +4,15 @@ export async function getBlogPosts(idOrUrl: string) {
     let blogId = idOrUrl;
     let categoryNo = "";
     let isTistory = idOrUrl.includes("tistory.com");
+    let isBrunch = idOrUrl.includes("brunch.co.kr");
 
     if (idOrUrl.startsWith('http')) {
         try {
             const parsedUrl = new URL(idOrUrl);
             if (isTistory) {
                 blogId = parsedUrl.hostname.split('.')[0];
+            } else if (isBrunch) {
+                blogId = parsedUrl.pathname.split('/')[1]; // @socandy
             } else {
                 blogId = parsedUrl.searchParams.get('blogId') || parsedUrl.pathname.split('/')[1] || idOrUrl;
                 categoryNo = parsedUrl.searchParams.get('categoryNo') || "";
@@ -22,13 +25,16 @@ export async function getBlogPosts(idOrUrl: string) {
     let allPosts: any[] = [];
 
     // RSS approach
-    let rssUrl = isTistory ? `https://${blogId}.tistory.com/rss` : `https://rss.blog.naver.com/${blogId}.xml`;
-    if (!isTistory && categoryNo) {
-        rssUrl += `?categoryNo=${categoryNo}`;
-    }
+    if (isBrunch) {
+        // Brunch doesn't provide standard RSS easily, skip to scraping or API
+    } else {
+        let rssUrl = isTistory ? `https://${blogId}.tistory.com/rss` : `https://rss.blog.naver.com/${blogId}.xml`;
+        if (!isTistory && categoryNo) {
+            rssUrl += `?categoryNo=${categoryNo}`;
+        }
 
-    try {
-        const response = await fetch(rssUrl);
+        try {
+            const response = await fetch(rssUrl);
         if (response.ok) {
             const xml = await response.text();
             const $ = cheerio.load(xml, { xmlMode: true });
@@ -66,10 +72,11 @@ export async function getBlogPosts(idOrUrl: string) {
                 }
             });
 
-            if (allPosts.length > 0) return allPosts;
+                if (allPosts.length > 0) return allPosts;
+            }
+        } catch (e) {
+            console.error(`RSS failed for ${blogId}`, e);
         }
-    } catch (e) {
-        console.error(`RSS failed for ${blogId}`, e);
     }
 
     // Fallback to scraping
@@ -77,7 +84,7 @@ export async function getBlogPosts(idOrUrl: string) {
     try {
         const response = await fetch(fetchUrl, {
             headers: {
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
+                "User-Agent": isBrunch ? "facebookexternalhit/1.1" : "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
             },
         });
 
@@ -85,24 +92,54 @@ export async function getBlogPosts(idOrUrl: string) {
             const html = await response.text();
             const $ = cheerio.load(html);
 
-            const scripts = $("script").toArray();
-            for (const script of scripts) {
-                const content = $(script).html() || "";
-                if (content.includes("__PRELOADED_STATE__")) {
-                    const jsonStr = content.substring(content.indexOf('{'), content.lastIndexOf('}') + 1);
-                    const state = JSON.parse(jsonStr);
-                    const items = state.postList?.postList?.items || state.categoryPostList?.postList?.items || state.postList?.items || [];
+            if (isBrunch) {
+                // Try to find userId and use API
+                let userId = "";
+                $("script").each((_, el) => {
+                    const content = $(el).html() || "";
+                    // Astro/Svelte state usually contains userId
+                    const match = content.match(/"userId":\[0,"(.*?)"\]/);
+                    if (match) userId = match[1];
+                });
 
-                    items.forEach((item: any) => {
-                        allPosts.push({
-                            title: item.titleWithOutEmoji || item.title,
-                            url: `https://m.blog.naver.com/${item.blogId || blogId}/${item.logNo}`,
-                            thumbnail: item.thumbnailUrl,
-                            published_at: item.addDate,
-                            blogId: item.blogId || blogId
-                        });
+                if (userId) {
+                    const apiRes = await fetch(`https://brunch.co.kr/api/v1/user/${userId}/articles?offset=0&limit=20`, {
+                        headers: { "User-Agent": "facebookexternalhit/1.1" }
                     });
-                    break;
+                    if (apiRes.ok) {
+                        const data = await apiRes.json();
+                        const items = data.data?.articleList || [];
+                        items.forEach((item: any) => {
+                            allPosts.push({
+                                title: item.title,
+                                url: `https://brunch.co.kr/${blogId}/${item.no}`,
+                                thumbnail: item.titleImage ? "https:" + item.titleImage : null,
+                                published_at: new Date(item.publishTime).toISOString(),
+                                blogId: blogId
+                            });
+                        });
+                    }
+                }
+            } else {
+                const scripts = $("script").toArray();
+                for (const script of scripts) {
+                    const content = $(script).html() || "";
+                    if (content.includes("__PRELOADED_STATE__")) {
+                        const jsonStr = content.substring(content.indexOf('{'), content.lastIndexOf('}') + 1);
+                        const state = JSON.parse(jsonStr);
+                        const items = state.postList?.postList?.items || state.categoryPostList?.postList?.items || state.postList?.items || [];
+
+                        items.forEach((item: any) => {
+                            allPosts.push({
+                                title: item.titleWithOutEmoji || item.title,
+                                url: `https://m.blog.naver.com/${item.blogId || blogId}/${item.logNo}`,
+                                thumbnail: item.thumbnailUrl,
+                                published_at: item.addDate,
+                                blogId: item.blogId || blogId
+                            });
+                        });
+                        break;
+                    }
                 }
             }
         }

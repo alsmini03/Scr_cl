@@ -9,9 +9,10 @@ export async function POST(req: NextRequest) {
 
     const isNaver = url.includes("blog.naver.com");
     const isTistory = url.includes("tistory.com");
+    const isBrunch = url.includes("brunch.co.kr");
 
-    if (!url || (!isNaver && !isTistory)) {
-      return NextResponse.json({ error: "Invalid Blog URL (Supports Naver and Tistory)" }, { status: 400 });
+    if (!url || (!isNaver && !isTistory && !isBrunch)) {
+      return NextResponse.json({ error: "Invalid Blog URL (Supports Naver, Tistory, and Brunch)" }, { status: 400 });
     }
 
     // Handle List URL: if user provides a list URL, get the latest post first
@@ -25,11 +26,16 @@ export async function POST(req: NextRequest) {
         if (posts && posts.length > 0) {
             url = posts[0].url;
         }
+    } else if (isBrunch && url.split('/').length <= 5 && url.includes('@') && !url.includes('/', url.indexOf('@') + 1)) {
+        const posts = await getBlogPosts(url);
+        if (posts && posts.length > 0) {
+            url = posts[0].url;
+        }
     }
 
     const response = await fetch(url, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
+        "User-Agent": isBrunch ? "facebookexternalhit/1.1" : "Mozilla/5.0 (iPhone; CPU iPhone OS 14_8 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Mobile/15E148 Safari/604.1",
       },
     });
 
@@ -69,6 +75,8 @@ export async function POST(req: NextRequest) {
                             imgSrc = imgSrc.replace("mblogthumb-phinf.pstatic.net", "postfiles.pstatic.net");
                             imgSrc = imgSrc.split('?')[0]; // Remove type=...
                         }
+                        // Handle relative protocol
+                        if (imgSrc.startsWith("//")) imgSrc = "https:" + imgSrc;
                         content += `![image](${imgSrc})\n`;
                         if (caption) content += `*${caption}*\n`;
                         content += "\n";
@@ -105,6 +113,29 @@ export async function POST(req: NextRequest) {
         }
         if (!content.trim()) content = $(".blogview_content, .article_view").text().trim().replace(/\n+/g, "\n\n");
         date = $(".txt_date, .date").first().text().trim();
+    } else if (isBrunch) {
+        title = $(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        const author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
+        if (author) title = `${title} (${author})`;
+
+        const contentArea = $(".wrap_body");
+        if (contentArea.length > 0) {
+            contentArea.find("p, h4, img").each((_, el) => {
+                const tag = el.tagName.toLowerCase();
+                if (tag === 'img') {
+                    let src = $(el).attr("src");
+                    if (src) {
+                        if (src.startsWith("//")) src = "https:" + src;
+                        content += `![image](${src})\n\n`;
+                    }
+                } else {
+                    const text = $(el).text().trim();
+                    if (text) content += text + "\n\n";
+                }
+            });
+        }
+        if (!content.trim()) content = $(".wrap_body").text().trim().replace(/\n+/g, "\n\n");
+        date = $(".publish_date").text().trim() || $("meta[property='article:published_time']").attr("content") || "";
     }
 
     return NextResponse.json({
