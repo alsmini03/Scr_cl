@@ -79,6 +79,7 @@ async function migrate() {
       CREATE TABLE IF NOT EXISTS naver_blogs (
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
+        author TEXT,
         url TEXT NOT NULL,
         thumbnail TEXT,
         content TEXT,
@@ -95,6 +96,14 @@ async function migrate() {
       console.log("Ensured position column in youtube_tabs table.");
     } catch (e) {
       console.error("Failed to add position column:", e.message);
+    }
+
+    // Migration for author column if table already exists
+    try {
+      await client.query(`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`);
+      console.log("Ensured author column in naver_blogs table.");
+    } catch (e) {
+      console.error("Failed to add author column to naver_blogs:", e.message);
     }
 
     // 2. Add new columns to books table

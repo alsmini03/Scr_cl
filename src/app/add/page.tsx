@@ -129,6 +129,7 @@ export default function AddBookPage() {
       setIsSaving(true);
       const res = await saveBlog({
           title: extractedBlog.title,
+          author: extractedBlog.author,
           url: extractedBlog.url,
           thumbnail: extractedBlog.thumbnail,
           content: extractedBlog.content,
@@ -406,6 +407,7 @@ export default function AddBookPage() {
                     {extractedBlog && (
                         <div className="space-y-6">
                             <h2 className="text-xl font-bold">{extractedBlog.title}</h2>
+                            {extractedBlog.author && <p className="text-sm text-primary font-bold">{extractedBlog.author}</p>}
                             {extractedBlog.thumbnail && <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />}
                             <div className="prose dark:prose-invert prose-slate max-w-none">
                                 <ReactMarkdown

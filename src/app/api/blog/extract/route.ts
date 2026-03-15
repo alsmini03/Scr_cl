@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     let title = "";
     let content = "";
     let date = "";
+    let author = "";
     let thumbnail = $("meta[property='og:image']").attr("content");
 
     if (isNaver) {
@@ -91,8 +92,10 @@ export async function POST(req: NextRequest) {
         }
         if (!content.trim()) content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
         date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
+        author = $(".nick, .writer, .nick_area").first().text().trim();
     } else if (isTistory) {
         title = $(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        author = $(".txt_author, .writer").first().text().trim();
 
         // Tistory Mobile content selector
         const contentArea = $(".blogview_content, .article_view, .view_section, .post-content");
@@ -116,8 +119,7 @@ export async function POST(req: NextRequest) {
         date = $(".txt_date, .date").first().text().trim();
     } else if (isBrunch) {
         title = $(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
-        const author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
-        if (author) title = `${title} (${author})`;
+        author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
 
         const contentArea = $(".wrap_body");
         if (contentArea.length > 0) {
@@ -141,6 +143,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       title,
+      author,
       content,
       thumbnail,
       published_at: date,

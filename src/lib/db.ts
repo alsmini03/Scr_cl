@@ -210,6 +210,7 @@ export async function deleteBlogTab(id: string): Promise<{ success: boolean; err
  */
 export async function saveBlog(blog: {
   title: string;
+  author?: string;
   url: string;
   thumbnail?: string;
   content?: string;
@@ -222,9 +223,9 @@ export async function saveBlog(blog: {
 
     await sql`
       INSERT INTO naver_blogs (
-        id, title, url, thumbnail, content, published_at, user_id, added_at
+        id, title, author, url, thumbnail, content, published_at, user_id, added_at
       ) VALUES (
-        ${id}, ${blog.title}, ${blog.url}, ${blog.thumbnail || null},
+        ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
         ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
       )
     `;

@@ -47,7 +47,10 @@ export default function BlogDetailPage() {
 
       <main className="p-4 space-y-6 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold leading-tight">{blog.title}</h1>
-        <p className="text-sm text-slate-400">{blog.published_at}</p>
+        <div className="flex justify-between items-center text-sm">
+            {blog.author && <p className="text-primary font-bold">{blog.author}</p>}
+            <p className="text-slate-400">{blog.published_at}</p>
+        </div>
 
         {blog.thumbnail && (
             <div className="w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-primary/10">

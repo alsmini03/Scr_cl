@@ -99,6 +99,7 @@ export default function BlogListPage() {
 
       const saveRes = await saveBlog({
         title: data.title || post.title,
+        author: data.author || post.author,
         url: post.url,
         thumbnail: data.thumbnail || post.thumbnail,
         content: data.content,
@@ -340,7 +341,10 @@ export default function BlogListPage() {
                             <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4">
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                                     <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
-                                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{post.published_at}</p>
+                                    <div className="flex justify-between items-center">
+                                        {post.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{post.author}</p>}
+                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{post.published_at}</p>
+                                    </div>
                                 </div>
                             </a>
                             <div className="flex items-center pr-3">
@@ -367,7 +371,10 @@ export default function BlogListPage() {
                         <Link key={blog.id} href={`/blog/${blog.id}`} className="flex bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group">
                             <div className="flex-1 p-4">
                                 <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
-                                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{blog.published_at}</p>
+                                <div className="flex justify-between items-center mt-1">
+                                    {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
+                                </div>
                             </div>
                             <div className="flex items-center pr-3">
                                 <button

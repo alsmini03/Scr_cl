@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS blog_tabs (
 CREATE TABLE IF NOT EXISTS naver_blogs (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
+  author TEXT,
   url TEXT NOT NULL,
   thumbnail TEXT,
   content TEXT,
