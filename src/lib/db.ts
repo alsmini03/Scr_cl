@@ -250,17 +250,23 @@ export async function saveBlog(blog: {
       `;
     } catch (dbError: any) {
       // If column is missing, try to add it and retry once
-      if (dbError.message.includes('column "author" does not exist')) {
-        await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
-        // Retry
-        await sql`
-          INSERT INTO naver_blogs (
-            id, title, author, url, thumbnail, content, published_at, user_id, added_at
-          ) VALUES (
-            ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
-            ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
-          )
-        `;
+      // PostgreSQL error code 42703 is undefined_column
+      if (dbError.code === '42703' || dbError.message.includes('column "author" does not exist')) {
+        try {
+            await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
+            // Retry
+            await sql`
+              INSERT INTO naver_blogs (
+                id, title, author, url, thumbnail, content, published_at, user_id, added_at
+              ) VALUES (
+                ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
+                ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
+              )
+            `;
+        } catch (retryError) {
+            console.error('Retry saveBlog failed:', retryError);
+            throw dbError;
+        }
       } else {
         throw dbError;
       }
@@ -286,14 +292,19 @@ export async function getBlogs(): Promise<any[]> {
         `;
         rows = result.rows;
     } catch (dbError: any) {
-        if (dbError.message.includes('column "author" does not exist')) {
-            await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
-            const result = await sql`
-                SELECT * FROM naver_blogs
-                WHERE user_id = ${user.id}
-                ORDER BY added_at DESC
-            `;
-            rows = result.rows;
+        if (dbError.code === '42703' || dbError.message.includes('column "author" does not exist')) {
+            try {
+                await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
+                const result = await sql`
+                    SELECT * FROM naver_blogs
+                    WHERE user_id = ${user.id}
+                    ORDER BY added_at DESC
+                `;
+                rows = result.rows;
+            } catch (retryError) {
+                console.error('Retry getBlogs failed:', retryError);
+                throw dbError;
+            }
         } else {
             throw dbError;
         }

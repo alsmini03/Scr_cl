@@ -16,9 +16,23 @@ export async function GET(req: NextRequest) {
 
     // Sort by publication date (newest first)
     allPosts.sort((a, b) => {
-        const dateA = new Date(a.published_at).getTime();
-        const dateB = new Date(b.published_at).getTime();
-        return dateB - dateA;
+        const getTime = (dateStr: string) => {
+            if (!dateStr) return 0;
+            // Handle various formats: "2024.03.15.", "2024-03-15T...", "RSS format"
+            let normalized = dateStr;
+            if (/^\d{4}\.\d{2}\.\d{2}\.$/.test(dateStr)) {
+                normalized = dateStr.replace(/\./g, '-').replace(/-$/, '');
+            }
+            const time = new Date(normalized).getTime();
+            return isNaN(time) ? 0 : time;
+        };
+
+        const timeA = getTime(a.published_at);
+        const timeB = getTime(b.published_at);
+
+        // If times are equal or invalid, maintain order or use original index
+        if (timeB === timeA) return 0;
+        return timeB - timeA;
     });
 
     return NextResponse.json({ posts: allPosts });
