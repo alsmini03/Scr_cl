@@ -107,6 +107,24 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
   }
 }
 
+export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userId = await ensureApproved();
+    if (ids.length === 0) return { success: true };
+
+    await sql`
+      DELETE FROM naver_blogs
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+    `;
+
+    safeRevalidate('/blog');
+    return { success: true };
+  } catch (error: any) {
+    console.error('Failed to batch delete blogs:', error);
+    return { success: false, error: error.message || '다중 삭제 중 오류가 발생했습니다.' };
+  }
+}
+
 /**
  * Yes24 Tabs
  */
@@ -259,13 +277,30 @@ export async function saveBlog(blog: {
 export async function getBlogs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM naver_blogs
-      WHERE user_id = ${user.id}
-      ORDER BY added_at DESC
-    `;
-    return rows;
+    let rows;
+    try {
+        const result = await sql`
+            SELECT * FROM naver_blogs
+            WHERE user_id = ${user.id}
+            ORDER BY added_at DESC
+        `;
+        rows = result.rows;
+    } catch (dbError: any) {
+        if (dbError.message.includes('column "author" does not exist')) {
+            await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
+            const result = await sql`
+                SELECT * FROM naver_blogs
+                WHERE user_id = ${user.id}
+                ORDER BY added_at DESC
+            `;
+            rows = result.rows;
+        } else {
+            throw dbError;
+        }
+    }
+    return rows || [];
   } catch (error) {
+    console.error('getBlogs error:', error);
     return [];
   }
 }

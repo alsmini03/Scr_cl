@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
-import { saveBlog, getBlogs, deleteBlog, getBlogTabs, addBlogTab, deleteBlogTab, updateBlogTabOrder } from '@/lib/db';
+import { saveBlog, getBlogs, deleteBlog, getBlogTabs, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogs } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -24,6 +24,9 @@ export default function BlogListPage() {
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [isReordering, setIsReordering] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const loadMyBlogs = async () => {
     const data = await getBlogs();
@@ -129,6 +132,37 @@ export default function BlogListPage() {
       }
   };
 
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    setSelectedIds(prev =>
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleLongPress = (id: string) => {
+    setIsEditMode(true);
+    setSelectedIds([id]);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`선택한 ${selectedIds.length}개의 글을 삭제하시겠습니까?`)) return;
+
+    setIsLoading(true);
+    const res = await batchDeleteBlogs(selectedIds);
+    if (res.success) {
+        setIsEditMode(false);
+        setSelectedIds([]);
+        await loadMyBlogs();
+    } else {
+        alert(res.error);
+    }
+    setIsLoading(false);
+  };
+
   const handleAddTab = async () => {
     if (!newTabName || !newTabUrl) return;
     setIsAddingTab(true);
@@ -184,7 +218,14 @@ export default function BlogListPage() {
         title="블로그"
         rightAction={
             <div className="flex items-center gap-1">
-                {isReordering ? (
+                {isEditMode ? (
+                    <button
+                        onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
+                        className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
+                    >
+                        취소
+                    </button>
+                ) : isReordering ? (
                     <button
                         onClick={saveTabOrder}
                         className="text-primary font-bold px-3 py-1 bg-primary/10 rounded-lg"
@@ -227,6 +268,29 @@ export default function BlogListPage() {
               내 보관함
             </button>
         </div>
+
+        {isEditMode && viewMode === 'my' && (
+            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
+                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
+                    {selectedIds.length}개 선택됨
+                </p>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setSelectedIds(selectedIds.length === blogs.length ? [] : blogs.map(b => b.id))}
+                        className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                    >
+                        {selectedIds.length === blogs.length ? '전체 해제' : '전체 선택'}
+                    </button>
+                    <button
+                        onClick={handleBatchDelete}
+                        disabled={selectedIds.length === 0}
+                        className="px-4 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                        삭제하기
+                    </button>
+                </div>
+            </div>
+        )}
 
         {viewMode === 'recommend' ? (
             <>
@@ -366,26 +430,54 @@ export default function BlogListPage() {
             blogs.length === 0 ? (
                 <div className="py-20 text-center text-slate-400">저장된 글이 없습니다.</div>
             ) : (
-                <div className="space-y-3">
-                    {blogs.map((blog) => (
-                        <Link key={blog.id} href={`/blog/${blog.id}`} className="flex bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group">
-                            <div className="flex-1 p-4">
-                                <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
-                                <div className="flex justify-between items-center mt-1">
-                                    {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
-                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
-                                </div>
-                            </div>
-                            <div className="flex items-center pr-3">
-                                <button
-                                    onClick={(e) => handleDelete(blog.id, e)}
-                                    className="size-10 text-slate-300 hover:text-red-500 transition-colors"
+                <div className="space-y-3 pb-20">
+                    {blogs.map((blog) => {
+                        let timer: any;
+                        const handleTouchStart = () => { timer = setTimeout(() => handleLongPress(blog.id), 500); };
+                        const handleTouchEnd = () => { clearTimeout(timer); };
+
+                        return (
+                            <div key={blog.id} className="relative">
+                                <Link
+                                    href={isEditMode ? '#' : `/blog/${blog.id}`}
+                                    onClick={(e) => isEditMode && toggleSelect(blog.id, e)}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchEnd={handleTouchEnd}
+                                    onMouseDown={handleTouchStart}
+                                    onMouseUp={handleTouchEnd}
+                                    className={cn(
+                                        "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
+                                        isEditMode && selectedIds.includes(blog.id) ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+                                    )}
                                 >
-                                    <span className="material-symbols-outlined">delete</span>
-                                </button>
+                                    <div className="flex-1 p-4">
+                                        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
+                                        <div className="flex justify-between items-center mt-1">
+                                            {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
+                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center pr-3">
+                                        {isEditMode ? (
+                                            <div className={cn(
+                                                "size-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                selectedIds.includes(blog.id) ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
+                                            )}>
+                                                {selectedIds.includes(blog.id) && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => handleDelete(blog.id, e)}
+                                                className="size-10 text-slate-300 hover:text-red-500 transition-colors"
+                                            >
+                                                <span className="material-symbols-outlined">delete</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                </Link>
                             </div>
-                        </Link>
-                    ))}
+                        );
+                    })}
                 </div>
             )
         )}
