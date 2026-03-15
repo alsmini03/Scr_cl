@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
                     });
                     content += "\n";
                 } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
-                    let imgSrc = $comp.find("img").attr("data-lazy-src") || $comp.find("img").attr("src");
+                    let imgSrc = $comp.find("img").attr("data-lazy-src") || $comp.find("img").attr("data-src") || $comp.find("img").attr("src");
                     const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
                     if (imgSrc) {
                         // Naver Blog specific: Try to get original image instead of thumbnail

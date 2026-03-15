@@ -25,8 +25,8 @@ export async function getBlogPosts(idOrUrl: string) {
     let allPosts: any[] = [];
 
     // RSS approach
-    if (isBrunch) {
-        // Brunch doesn't provide standard RSS easily, skip to scraping or API
+    if (isBrunch || (isTistory && idOrUrl.includes('/category/'))) {
+        // Brunch or Tistory Category: skip to scraping/API
     } else {
         let rssUrl = isTistory ? `https://${blogId}.tistory.com/rss` : `https://rss.blog.naver.com/${blogId}.xml`;
         if (!isTistory && categoryNo) {
@@ -92,7 +92,56 @@ export async function getBlogPosts(idOrUrl: string) {
             const html = await response.text();
             const $ = cheerio.load(html);
 
-            if (isBrunch) {
+            if (isTistory && fetchUrl.includes('/m/category/')) {
+                // Scraping Tistory Category Mobile List from Structured Data or HTML
+                const scripts = $("script[type='application/ld+json']").toArray();
+                for (const script of scripts) {
+                    const content = $(script).html() || "";
+                    if (content.includes("BreadcrumbList")) {
+                        try {
+                            const data = JSON.parse(content);
+                            const items = data.itemListElement || [];
+                            items.forEach((item: any) => {
+                                if (item.item && item.item["@id"] && item.item["@id"].includes("/m/entry/")) {
+                                    allPosts.push({
+                                        title: item.item.name,
+                                        url: item.item["@id"],
+                                        thumbnail: null,
+                                        published_at: new Date().toISOString(),
+                                        blogId: blogId
+                                    });
+                                }
+                            });
+                        } catch(e) {}
+                    }
+                }
+
+                if (allPosts.length === 0) {
+                    $("li a").each((_, el) => {
+                        const $el = $(el);
+                        const href = $el.attr('href');
+                        const title = $el.find(".tit_blog2").text().trim() || $el.find(".tit_post").text().trim();
+                        const thumbnail = $el.find(".img_thumb").attr("src");
+
+                        if (href && (href.includes('/m/entry/') || !isNaN(Number(href.split('/').pop())))) {
+                            let fullUrl = href;
+                            if (href.startsWith('/m/')) {
+                                fullUrl = `https://${blogId}.tistory.com${href}`;
+                            } else if (!href.startsWith('http')) {
+                                fullUrl = `https://${blogId}.tistory.com/m/${href}`;
+                            }
+
+                            allPosts.push({
+                                title: title || "Untitled Post",
+                                url: fullUrl,
+                                thumbnail: thumbnail ? (thumbnail.startsWith('//') ? 'https:' + thumbnail : thumbnail) : null,
+                                published_at: new Date().toISOString(),
+                                blogId: blogId
+                            });
+                        }
+                    });
+                }
+            } else if (isBrunch) {
                 // Try to find userId and use API
                 let userId = "";
                 $("script").each((_, el) => {
