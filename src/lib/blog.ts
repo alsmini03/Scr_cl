@@ -38,6 +38,7 @@ export async function getBlogPosts(idOrUrl: string) {
         if (response.ok) {
             const xml = await response.text();
             const $ = cheerio.load(xml, { xmlMode: true });
+            const channelTitle = $("channel > title").first().text().trim();
 
             $("item").each((_, el) => {
                 const title = $(el).find("title").text().trim();
@@ -64,6 +65,7 @@ export async function getBlogPosts(idOrUrl: string) {
                 if (title && link) {
                     allPosts.push({
                         title,
+                        author: channelTitle,
                         url: link,
                         thumbnail,
                         published_at: pubDate,
@@ -99,6 +101,7 @@ export async function getBlogPosts(idOrUrl: string) {
                     if (rssRes.ok) {
                         const xml = await rssRes.text();
                         const $rss = cheerio.load(xml, { xmlMode: true });
+                        const channelTitle = $rss("channel > title").first().text().trim();
                         $rss("item").each((_, el) => {
                             const title = $rss(el).find("title").text().trim();
                             const link = $rss(el).find("link").text().trim();
@@ -108,6 +111,7 @@ export async function getBlogPosts(idOrUrl: string) {
 
                             allPosts.push({
                                 title,
+                                author: channelTitle,
                                 url: link,
                                 thumbnail: imgMatch ? imgMatch[1] : null,
                                 published_at: pubDate,
@@ -189,6 +193,7 @@ export async function getBlogPosts(idOrUrl: string) {
                     if (rssRes.ok) {
                         const xml = await rssRes.text();
                         const $rss = cheerio.load(xml, { xmlMode: true });
+                        const channelTitle = $rss("channel > title").first().text().trim();
                         $rss("item").each((_, el) => {
                             const title = $rss(el).find("title").text().trim();
                             const link = $rss(el).find("link").text().trim();
@@ -198,6 +203,7 @@ export async function getBlogPosts(idOrUrl: string) {
 
                             allPosts.push({
                                 title,
+                                author: channelTitle,
                                 url: link,
                                 thumbnail: imgMatch ? imgMatch[1] : null,
                                 published_at: pubDate,

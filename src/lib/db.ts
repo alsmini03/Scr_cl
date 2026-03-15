@@ -221,14 +221,32 @@ export async function saveBlog(blog: {
     const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
-    await sql`
-      INSERT INTO naver_blogs (
-        id, title, author, url, thumbnail, content, published_at, user_id, added_at
-      ) VALUES (
-        ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
-        ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
-      )
-    `;
+    try {
+      await sql`
+        INSERT INTO naver_blogs (
+          id, title, author, url, thumbnail, content, published_at, user_id, added_at
+        ) VALUES (
+          ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
+          ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
+        )
+      `;
+    } catch (dbError: any) {
+      // If column is missing, try to add it and retry once
+      if (dbError.message.includes('column "author" does not exist')) {
+        await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
+        // Retry
+        await sql`
+          INSERT INTO naver_blogs (
+            id, title, author, url, thumbnail, content, published_at, user_id, added_at
+          ) VALUES (
+            ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
+            ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
+          )
+        `;
+      } else {
+        throw dbError;
+      }
+    }
 
     safeRevalidate('/blog');
     return { success: true };
