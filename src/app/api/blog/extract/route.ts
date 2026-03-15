@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
                             // Transformation to postfiles often fails or is restricted.
                             // Using type=w800 is safer and high enough quality.
                             const baseUrl = imgSrc.split('?')[0];
-                            imgSrc = \`\${baseUrl}?type=w800\`;
+                            imgSrc = `${baseUrl}?type=w800`;
                         }
                         // Handle relative protocol
                         if (imgSrc.startsWith("//")) imgSrc = "https:" + imgSrc;
