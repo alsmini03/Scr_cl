@@ -370,7 +370,7 @@ export default function YouTubeRecommendPage() {
         <>
         {/* Source Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-          <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
+          <div className="flex flex-1 flex-wrap gap-2 py-2">
             {!isReordering && (
               <button
                 onClick={() => setActiveTabId('all')}

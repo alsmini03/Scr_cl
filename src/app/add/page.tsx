@@ -5,7 +5,8 @@ import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { saveBook, saveBlog } from '@/lib/db';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 interface ExtractedBook {
@@ -23,8 +24,9 @@ interface ExtractedBook {
   publisher_review?: string;
 }
 
-export default function AddBookPage() {
+function AddContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [url, setUrl] = useState('');
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -33,6 +35,13 @@ export default function AddBookPage() {
   const [extractedBlog, setExtractedBlog] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'yes24' | 'youtube' | 'blog'>('yes24');
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'blog') setActiveTab('blog');
+    else if (tab === 'yes24') setActiveTab('yes24');
+    else if (tab === 'youtube') router.push('/add/youtube');
+  }, [searchParams, router]);
 
   const handleExtract = async () => {
     if (!url) return;
@@ -443,5 +452,13 @@ export default function AddBookPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AddBookPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background-light dark:bg-background-dark flex items-center justify-center"><div className="animate-spin text-primary"><span className="material-symbols-outlined text-4xl">sync</span></div></div>}>
+      <AddContent />
+    </Suspense>
   );
 }

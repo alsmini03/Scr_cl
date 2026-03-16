@@ -319,13 +319,19 @@ export default function AddYouTubePage() {
         {/* Switch Mode Tab */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
           <button
-            onClick={() => router.push('/add')}
+            onClick={() => router.push('/add?tab=yes24')}
             className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 transition-colors"
           >
             Yes24
           </button>
           <button className="flex-1 py-3 px-4 rounded-lg text-sm font-bold bg-white dark:bg-slate-700 text-primary shadow-sm">
             Youtube
+          </button>
+          <button
+            onClick={() => router.push('/add?tab=blog')}
+            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 transition-colors"
+          >
+            블로그
           </button>
         </div>
 

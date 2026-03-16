@@ -128,7 +128,39 @@ export async function getBlogPosts(idOrUrl: string) {
                 // Optimized: Direct extraction from HTML without per-post fetching
                 const blogTitle = $("meta[property='og:title']").attr("content") || blogId;
 
-                // Try different common Tistory list selectors
+                // Priority 1: application/ld+json (BreadcrumbList)
+                const scripts = $("script[type='application/ld+json']").toArray();
+                for (const script of scripts) {
+                    const content = $(script).html() || "";
+                    if (content.includes("BreadcrumbList")) {
+                        try {
+                            const data = JSON.parse(content);
+                            const items = data.itemListElement || [];
+                            const extracted = items.map((item: any) => {
+                                if (item.item && item.item["@id"] && (item.item["@id"].includes("/entry/") || item.item["@id"].includes("/m/entry/"))) {
+                                    let fullUrl = item.item["@id"];
+                                    if (!fullUrl.includes("/m/")) {
+                                        const urlObj = new URL(fullUrl);
+                                        fullUrl = `${urlObj.origin}/m${urlObj.pathname}`;
+                                    }
+                                    return {
+                                        title: item.item.name,
+                                        author: blogTitle,
+                                        url: fullUrl,
+                                        thumbnail: null,
+                                        published_at: new Date().toISOString(),
+                                        blogId: blogId
+                                    };
+                                }
+                                return null;
+                            }).filter((i: any) => i !== null);
+
+                            if (extracted.length > 0) return extracted;
+                        } catch(e) {}
+                    }
+                }
+
+                // Priority 2: CSS Selectors
                 const listItems = $("ul.list_blog2 li, ul.list_post li, .list_content li, .article_content");
 
                 listItems.each((_, el) => {
