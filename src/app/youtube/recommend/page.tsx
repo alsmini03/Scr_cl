@@ -382,7 +382,7 @@ export default function YouTubeRecommendPage() {
                 onClick={() => setActiveTabId('all')}
                 className={cn(
                   "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                  activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                  activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
                 )}
               >
                 전체
@@ -421,7 +421,7 @@ export default function YouTubeRecommendPage() {
                   onClick={() => !isReordering && setActiveTabId(tab.id)}
                   className={cn(
                     "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400",
+                    !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400",
                     isReordering && "cursor-move ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark pr-10"
                   )}
                 >
@@ -442,7 +442,7 @@ export default function YouTubeRecommendPage() {
           {!isReordering && (
             <button
               onClick={() => setShowTabManager(!showTabManager)}
-              className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center mt-2"
+              className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center mt-2"
             >
               <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
             </button>
@@ -451,7 +451,7 @@ export default function YouTubeRecommendPage() {
             <div className="flex w-full justify-end pb-2">
                 <button
                 onClick={() => setIsReordering(false)}
-                className="flex-shrink-0 size-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center"
+                className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center"
                 >
                 <span className="material-symbols-outlined text-xl">close</span>
                 </button>
