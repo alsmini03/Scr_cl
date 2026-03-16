@@ -132,17 +132,39 @@ export async function getBlogPosts(idOrUrl: string) {
                         try {
                             const data = JSON.parse(content);
                             const items = data.itemListElement || [];
-                            items.forEach((item: any) => {
+                            for (const item of items) {
                                 if (item.item && item.item["@id"] && item.item["@id"].includes("/m/entry/")) {
+                                    const postUrl = item.item["@id"];
+                                    // Fetch post to get real author and date
+                                    const postRes = await fetch(postUrl, {
+                                        headers: { "User-Agent": "facebookexternalhit/1.1" }
+                                    });
+                                    let author = "";
+                                    let date = new Date().toISOString();
+                                    if (postRes.ok) {
+                                        const postHtml = await postRes.text();
+                                        const $post = cheerio.load(postHtml);
+                                        $post("script").each((_, s) => {
+                                            const sc = $(s).html() || "";
+                                            if (sc.includes("authorNickname")) {
+                                                const match = sc.match(/"authorNickname":"(.*?)"/);
+                                                if (match) author = match[1];
+                                            }
+                                        });
+                                        if (!author) author = $post("meta[property='og:article:author']").attr("content") || $post(".txt_author").first().text().trim();
+                                        date = $post("meta[property='article:published_time']").attr("content") || $post("meta[property='og:regDate']").attr("content") || $post(".txt_date").first().text().trim() || date;
+                                    }
+
                                     allPosts.push({
                                         title: item.item.name,
-                                        url: item.item["@id"],
+                                        author: author,
+                                        url: postUrl,
                                         thumbnail: null,
-                                        published_at: new Date().toISOString(),
+                                        published_at: date,
                                         blogId: blogId
                                     });
                                 }
-                            });
+                            }
                         } catch(e) {}
                     }
                 }
