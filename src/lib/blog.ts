@@ -123,8 +123,8 @@ export async function getBlogPosts(idOrUrl: string) {
                 }
             }
 
-            if (isTistory && fetchUrl.includes('/m/category/')) {
-                // Scraping Tistory Category Mobile List from Structured Data or HTML
+            if (isTistory && (fetchUrl.includes('/m/category/') || fetchUrl.includes('/category/'))) {
+                // Scraping Tistory Category List (prefers mobile for consistency)
                 const scripts = $("script[type='application/ld+json']").toArray();
                 for (const script of scripts) {
                     const content = $(script).html() || "";
@@ -132,13 +132,14 @@ export async function getBlogPosts(idOrUrl: string) {
                         try {
                             const data = JSON.parse(content);
                             const items = data.itemListElement || [];
-                            for (const item of items) {
+
+                        const postPromises = items.map(async (item: any) => {
                                 if (item.item && item.item["@id"] && item.item["@id"].includes("/m/entry/")) {
                                     const postUrl = item.item["@id"];
-                                    // Fetch post to get real author and date
+                                try {
                                     const postRes = await fetch(postUrl, {
                                         headers: { "User-Agent": "facebookexternalhit/1.1" }
-                                    });
+                                        });
                                     let author = "";
                                     let date = new Date().toISOString();
                                     if (postRes.ok) {
@@ -155,16 +156,24 @@ export async function getBlogPosts(idOrUrl: string) {
                                         date = $post("meta[property='article:published_time']").attr("content") || $post("meta[property='og:regDate']").attr("content") || $post(".txt_date").first().text().trim() || date;
                                     }
 
-                                    allPosts.push({
+                                    return {
                                         title: item.item.name,
                                         author: author,
                                         url: postUrl,
                                         thumbnail: null,
                                         published_at: date,
                                         blogId: blogId
-                                    });
+                                    };
+                                } catch (e) {
+                                    return null;
                                 }
-                            }
+                                }
+                            return null;
+                        });
+
+                        const results = await Promise.all(postPromises);
+                        const filteredResults = results.filter(r => r !== null) as any[];
+                        if (filteredResults.length > 0) return filteredResults;
                         } catch(e) {}
                     }
                 }

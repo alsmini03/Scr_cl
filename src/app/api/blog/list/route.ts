@@ -7,12 +7,9 @@ export async function GET(req: NextRequest) {
     const blogIdParam = searchParams.get("blogId") || "totcar";
     const blogIds = blogIdParam.split(',');
 
-    let allPosts: any[] = [];
-
-    for (const idOrUrl of blogIds) {
-        const posts = await getBlogPosts(idOrUrl);
-        allPosts = [...allPosts, ...posts];
-    }
+    const blogPromises = blogIds.map(id => getBlogPosts(id));
+    const results = await Promise.all(blogPromises);
+    let allPosts: any[] = results.flat();
 
     // Sort by publication date (newest first)
     allPosts.sort((a, b) => {
