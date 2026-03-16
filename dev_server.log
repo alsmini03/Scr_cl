@@ -1,0 +1,25 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 2.3s
+ GET / 200 in 4.1s (compile: 2.3s, render: 1860ms)
+ GET /api/auth/session 200 in 2.9s (compile: 2.5s, proxy.ts: 312ms, render: 45ms)
+ GET /api/auth/session 200 in 129ms (compile: 102ms, proxy.ts: 11ms, render: 15ms)
+ GET /blog 200 in 3.1s (compile: 2.4s, render: 675ms)
+ GET /api/auth/session 200 in 108ms (compile: 85ms, proxy.ts: 9ms, render: 15ms)
+ GET /api/auth/session 200 in 66ms (compile: 23ms, proxy.ts: 23ms, render: 21ms)
+ POST /blog 200 in 1001ms (compile: 10ms, render: 991ms)
+ POST /blog 200 in 273ms (compile: 8ms, render: 265ms)
+ GET /youtube/recommend 200 in 995ms (compile: 878ms, render: 117ms)
+ GET /api/auth/session 200 in 76ms (compile: 52ms, proxy.ts: 7ms, render: 17ms)
+ GET /api/auth/session 200 in 52ms (compile: 21ms, proxy.ts: 15ms, render: 16ms)
+ POST /youtube/recommend 200 in 332ms (compile: 41ms, render: 290ms)
+ POST /youtube/recommend 200 in 2.5s (compile: 14ms, render: 2.5s)
+ GET /api/youtube/recommend?url=https%3A%2F%2Fm.youtube.com%2F%40%25EA%25B9%2580%25EC%2598%2581%25EC%259D%25B5%2Fvideos%2Chttps%3A%2F%2Fm.youtube.com%2F%403protv%2Fvideos%2Chttps%3A%2F%2Fm.youtube.com%2F%40Btv%25EC%259D%25B4%25EB%258F%2599%25EC%25A7%2584%25EC%259D%2598%25ED%258C%258C%25EC%259D%25B4%25EC%2595%2584%25ED%2582%25A4%25EC%2595%2584%2Fvideos%2Chttps%3A%2F%2Fm.youtube.com%2F%40MK_Invest%2Fvideos 200 in 2.4s (compile: 2.3s, render: 96ms)

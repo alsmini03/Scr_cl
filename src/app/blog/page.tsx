@@ -14,7 +14,7 @@ export default function BlogListPage() {
   const [recommendPosts, setRecommendPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>([]);
   const [activeTabId, setActiveTabId] = useState('all');
@@ -250,15 +250,6 @@ export default function BlogListPage() {
         {/* Toggle View Mode */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
             <button
-              onClick={() => { setViewMode('recommend'); setIsReordering(false); }}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
-                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              추천
-            </button>
-            <button
               onClick={() => { setViewMode('my'); setIsReordering(false); }}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
@@ -266,6 +257,15 @@ export default function BlogListPage() {
               )}
             >
               내 보관함
+            </button>
+            <button
+              onClick={() => { setViewMode('recommend'); setIsReordering(false); }}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
+                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
+              )}
+            >
+              추천
             </button>
         </div>
 

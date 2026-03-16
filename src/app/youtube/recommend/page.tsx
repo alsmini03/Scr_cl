@@ -3,9 +3,10 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { saveYoutubeVideo, getYoutubeVideos, deleteYoutubeVideo, batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface RecommendedVideo {
   videoId: string;
@@ -20,11 +21,17 @@ interface RecommendedVideo {
 export default function YouTubeRecommendPage() {
   const { data: session } = useSession();
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
+  const [myVideos, setMyVideos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [cols, setCols] = useState<1 | 2>(1);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
+
   const [tabs, setTabs] = useState<any[]>([]);
   const [activeTabId, setActiveTabId] = useState('all');
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Tab Management
   const [showTabManager, setShowTabManager] = useState(false);
@@ -59,8 +66,14 @@ export default function YouTubeRecommendPage() {
     setTabs(dbTabs);
   };
 
+  const loadMyVideos = async () => {
+    const data = await getYoutubeVideos();
+    setMyVideos(data);
+  };
+
   useEffect(() => {
     loadTabs();
+    loadMyVideos();
   }, []);
 
   useEffect(() => {
@@ -223,14 +236,62 @@ export default function YouTubeRecommendPage() {
     }
   };
 
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!confirm('정말로 삭제하시겠습니까?')) return;
+      const res = await deleteYoutubeVideo(id);
+      if (res.success) {
+          loadMyVideos();
+      }
+  };
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    setSelectedIds(prev =>
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleLongPress = (id: string) => {
+    setIsEditMode(true);
+    setSelectedIds([id]);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`선택한 ${selectedIds.length}개의 영상을 삭제하시겠습니까?`)) return;
+
+    setIsLoading(true);
+    const res = await batchDeleteYoutubeVideos(selectedIds);
+    if (res.success) {
+        setIsEditMode(false);
+        setSelectedIds([]);
+        await loadMyVideos();
+    } else {
+        alert(res.error);
+    }
+    setIsLoading(false);
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
-        title="유튜브 추천"
+        title="유튜브"
         transparent
         rightAction={
           <div className="flex items-center gap-1">
-            {isReordering ? (
+            {isEditMode ? (
+                <button
+                    onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
+                    className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
+                >
+                    취소
+                </button>
+            ) : isReordering ? (
               <button
                 onClick={saveTabOrder}
                 className="text-primary font-bold px-3 py-1 bg-primary/10 rounded-lg"
@@ -240,10 +301,10 @@ export default function YouTubeRecommendPage() {
             ) : (
               <>
                 <button
-                   onClick={() => window.location.href = '/add/youtube'}
-                   className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
+                    onClick={() => window.location.href = '/add/youtube'}
+                    className="text-primary p-2"
                 >
-                   <span className="material-symbols-outlined">settings</span>
+                    <span className="material-symbols-outlined text-2xl">add_circle</span>
                 </button>
                 <button
                   onClick={() => setCols(cols === 1 ? 2 : 1)}
@@ -260,6 +321,53 @@ export default function YouTubeRecommendPage() {
       />
 
       <main className="mt-4 px-4">
+        {/* Toggle View Mode */}
+        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
+            <button
+              onClick={() => { setViewMode('my'); setIsReordering(false); }}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
+                viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
+              )}
+            >
+              내 보관함
+            </button>
+            <button
+              onClick={() => { setViewMode('recommend'); setIsReordering(false); }}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
+                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
+              )}
+            >
+              추천
+            </button>
+        </div>
+
+        {isEditMode && viewMode === 'my' && (
+            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
+                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
+                    {selectedIds.length}개 선택됨
+                </p>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setSelectedIds(selectedIds.length === myVideos.length ? [] : myVideos.map(v => v.id))}
+                        className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                    >
+                        {selectedIds.length === myVideos.length ? '전체 해제' : '전체 선택'}
+                    </button>
+                    <button
+                        onClick={handleBatchDelete}
+                        disabled={selectedIds.length === 0}
+                        className="px-4 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
+                    >
+                        삭제하기
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {viewMode === 'recommend' ? (
+        <>
         {/* Source Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
@@ -458,6 +566,74 @@ export default function YouTubeRecommendPage() {
               </div>
             );})}
           </div>
+        )}
+        </>
+        ) : (
+            myVideos.length === 0 ? (
+                <div className="py-20 text-center text-slate-400">저장된 영상이 없습니다.</div>
+            ) : (
+                <div className={cn(
+                    "grid gap-4 pb-20",
+                    cols === 1 ? "grid-cols-1" : "grid-cols-2"
+                )}>
+                    {myVideos.map((video) => {
+                        let timer: any;
+                        const handleTouchStart = () => { timer = setTimeout(() => handleLongPress(video.id), 500); };
+                        const handleTouchEnd = () => { clearTimeout(timer); };
+
+                        return (
+                            <div key={video.id} className="relative">
+                                <Link
+                                    href={isEditMode ? '#' : `/youtube/${video.id}`}
+                                    onClick={(e) => isEditMode && toggleSelect(video.id, e)}
+                                    onTouchStart={handleTouchStart}
+                                    onTouchEnd={handleTouchEnd}
+                                    onMouseDown={handleTouchStart}
+                                    onMouseUp={handleTouchEnd}
+                                    className={cn(
+                                        "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
+                                        isEditMode && selectedIds.includes(video.id) ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+                                    )}
+                                >
+                                    <div className="aspect-video relative w-full overflow-hidden">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
+                                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                            {video.duration}
+                                        </div>
+                                        {isEditMode && (
+                                            <div className="absolute top-2 right-2">
+                                                <div className={cn(
+                                                    "size-6 rounded-full border-2 flex items-center justify-center transition-all",
+                                                    selectedIds.includes(video.id) ? "bg-primary border-primary" : "border-white/50 bg-black/20"
+                                                )}>
+                                                    {selectedIds.includes(video.id) && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1 text-sm">{video.title}</h3>
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
+                                        </div>
+                                        {!isEditMode && (
+                                            <div className="flex justify-end mt-2">
+                                                <button
+                                                    onClick={(e) => handleDelete(video.id, e)}
+                                                    className="text-slate-300 hover:text-red-500 transition-colors"
+                                                >
+                                                    <span className="material-symbols-outlined text-xl">delete</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </Link>
+                            </div>
+                        );
+                    })}
+                </div>
+            )
         )}
       </main>
 

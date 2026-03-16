@@ -5,45 +5,26 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import Link from 'next/link';
 import BookGrid from '@/components/BookGrid';
-import YoutubeGrid from '@/components/YoutubeGrid';
 import { Book } from '@/types/book';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
-interface YoutubeVideo {
-  id: string;
-  title: string;
-  url: string;
-  thumbnail: string;
-  duration: string;
-  published_at: string;
-}
-
 interface ClientLibraryProps {
   session: any;
   books: Book[];
-  youtubeVideos: YoutubeVideo[];
-  mode: string;
-  youtubeView: string;
   isDev: boolean;
   actions: {
     batchDeleteBooks: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
-    batchDeleteYoutubeVideos: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
   };
 }
 
 export default function ClientLibrary({
   session,
   books,
-  youtubeVideos,
-  mode: initialMode,
-  youtubeView: initialYoutubeView,
   isDev,
   actions
 }: ClientLibraryProps) {
   const router = useRouter();
-  const [mode, setMode] = useState(initialMode);
-  const [youtubeView, setYoutubeView] = useState(initialYoutubeView);
   const [bookView, setBookView] = useState('3');
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -53,19 +34,7 @@ export default function ClientLibrary({
   useEffect(() => {
     const savedBookView = localStorage.getItem('book-view');
     if (savedBookView) setBookView(savedBookView);
-
-    const savedYoutubeView = localStorage.getItem('youtube-view');
-    if (savedYoutubeView) setYoutubeView(savedYoutubeView);
-
-    const savedMode = localStorage.getItem('library-mode');
-    if (savedMode && (savedMode === 'books' || savedMode === 'youtube')) {
-      setMode(savedMode);
-    }
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('library-mode', mode);
-  }, [mode]);
 
   const updateBookView = (view: string) => {
     setBookView(view);
@@ -77,11 +46,6 @@ export default function ClientLibrary({
       setIsEditMode(true);
       setSelectedIds([id]);
     }
-  };
-
-  const updateYoutubeView = (view: string) => {
-    setYoutubeView(view);
-    localStorage.setItem('youtube-view', view);
   };
 
   const toggleSelection = (id: string) => {
@@ -96,12 +60,7 @@ export default function ClientLibrary({
 
     setIsDeleting(true);
     try {
-      let result;
-      if (mode === 'books') {
-        result = await actions.batchDeleteBooks(selectedIds);
-      } else {
-        result = await actions.batchDeleteYoutubeVideos(selectedIds);
-      }
+      const result = await actions.batchDeleteBooks(selectedIds);
 
       if (result.success) {
         alert('삭제되었습니다.');
@@ -119,7 +78,7 @@ export default function ClientLibrary({
     }
   };
 
-  const hasItems = mode === 'books' ? books.length > 0 : youtubeVideos.length > 0;
+  const hasItems = books.length > 0;
 
   return (
     <div className="font-display min-h-screen pb-32 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
@@ -152,57 +111,20 @@ export default function ClientLibrary({
       />
 
       <main className="mt-6 px-4">
-        {/* Toggle Mode */}
-        {!isEditMode && (
-          <div className="flex gap-2 mb-8 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
-            <button
-              onClick={() => {
-                setMode('books');
-                router.push('/?mode=books', { scroll: false });
-              }}
-              className={cn(
-                "flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all text-center",
-                mode === 'books' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              도서
-            </button>
-            <button
-              onClick={() => {
-                setMode('youtube');
-                router.push('/?mode=youtube', { scroll: false });
-              }}
-              className={cn(
-                "flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all text-center",
-                mode === 'youtube' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              유튜브
-            </button>
-          </div>
-        )}
-
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold tracking-tight">
-            {mode === 'books' ? '내 도서' : '유튜브 보관함'}
+            내 도서
           </h2>
           {!isEditMode && (
             <div className="flex gap-2 text-primary">
               <span className="material-symbols-outlined cursor-pointer">filter_list</span>
               <button
                 onClick={() => {
-                  if (mode === 'books') {
                     updateBookView(bookView === '3' ? '5' : '3');
-                  } else {
-                    updateYoutubeView(youtubeView === '1' ? '2' : '1');
-                  }
                 }}
               >
                 <span className="material-symbols-outlined cursor-pointer">
-                  {mode === 'books'
-                    ? (bookView === '3' ? 'grid_view' : 'view_comfy')
-                    : (youtubeView === '1' ? 'grid_view' : 'view_stream')
-                  }
+                  {bookView === '3' ? 'grid_view' : 'view_comfy'}
                 </span>
               </button>
             </div>
@@ -223,7 +145,7 @@ export default function ClientLibrary({
               로그인하기
             </Link>
           </div>
-        ) : mode === 'books' ? (
+        ) : (
            books.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
               <span className="material-symbols-outlined text-6xl mb-4">library_books</span>
@@ -234,23 +156,6 @@ export default function ClientLibrary({
             <BookGrid
               books={books}
               viewMode={bookView}
-              isSelectionMode={isEditMode}
-              selectedIds={selectedIds}
-              onToggleSelection={toggleSelection}
-              onLongPress={handleLongPress}
-            />
-          )
-        ) : (
-          youtubeVideos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
-              <span className="material-symbols-outlined text-6xl mb-4">video_library</span>
-              <p>저장된 유튜브 영상이 없습니다.</p>
-              <Link href="/add/youtube" className="text-primary text-sm font-bold mt-2">유튜브 정보 가져오기</Link>
-            </div>
-          ) : (
-            <YoutubeGrid
-              videos={youtubeVideos}
-              viewMode={youtubeView}
               isSelectionMode={isEditMode}
               selectedIds={selectedIds}
               onToggleSelection={toggleSelection}
@@ -281,7 +186,7 @@ export default function ClientLibrary({
 
       {!isEditMode && (session?.user || isDev) && (
         <Link
-          href={mode === 'books' ? "/add" : "/add/youtube"}
+          href="/add"
           className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"
         >
           <span className="material-symbols-outlined text-3xl">add</span>

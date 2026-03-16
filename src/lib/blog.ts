@@ -124,90 +124,82 @@ export async function getBlogPosts(idOrUrl: string) {
             }
 
             if (isTistory && (fetchUrl.includes('/m/category/') || fetchUrl.includes('/category/'))) {
-                // Scraping Tistory Category List (prefers mobile for consistency)
-                const scripts = $("script[type='application/ld+json']").toArray();
-                for (const script of scripts) {
-                    const content = $(script).html() || "";
-                    if (content.includes("BreadcrumbList")) {
-                        try {
-                            const data = JSON.parse(content);
-                            const items = data.itemListElement || [];
+                // Scraping Tistory Category List
+                // Optimized: Direct extraction from HTML without per-post fetching
+                const blogTitle = $("meta[property='og:title']").attr("content") || blogId;
 
-                        const postPromises = items.map(async (item: any) => {
-                                if (item.item && item.item["@id"] && item.item["@id"].includes("/m/entry/")) {
-                                    const postUrl = item.item["@id"];
-                                try {
-                                    const postRes = await fetch(postUrl, {
-                                        headers: { "User-Agent": "facebookexternalhit/1.1" }
-                                        });
-                                    let author = "";
-                                    let date = new Date().toISOString();
-                                    if (postRes.ok) {
-                                        const postHtml = await postRes.text();
-                                        const $post = cheerio.load(postHtml);
-                                        $post("script").each((_, s) => {
-                                            const sc = $(s).html() || "";
-                                            if (sc.includes("authorNickname")) {
-                                                const match = sc.match(/"authorNickname":"(.*?)"/);
-                                                if (match) author = match[1];
-                                            }
-                                        });
-                                        if (!author) author = $post("meta[property='og:article:author']").attr("content") || $post(".txt_author").first().text().trim();
-                                        date = $post("meta[property='article:published_time']").attr("content") || $post("meta[property='og:regDate']").attr("content") || $post(".txt_date").first().text().trim() || date;
-                                    }
+                // Try different common Tistory list selectors
+                const listItems = $("ul.list_blog2 li, ul.list_post li, .list_content li, .article_content");
 
-                                    return {
-                                        title: item.item.name,
-                                        author: author,
-                                        url: postUrl,
-                                        thumbnail: null,
-                                        published_at: date,
-                                        blogId: blogId
-                                    };
-                                } catch (e) {
-                                    return null;
-                                }
-                                }
-                            return null;
-                        });
+                listItems.each((_, el) => {
+                    const $el = $(el);
+                    const $link = $el.find("a").first();
+                    const href = $link.attr('href');
+                    if (!href) return;
 
-                        const results = await Promise.all(postPromises);
-                        const filteredResults = results.filter(r => r !== null) as any[];
-                        if (filteredResults.length > 0) return filteredResults;
-                        } catch(e) {}
+                    const title = $el.find(".tit_blog2, .tit_post, .title, strong").first().text().trim();
+                    const date = $el.find(".txt_date, .date, .time").first().text().trim() || new Date().toISOString();
+
+                    // Thumbnail extraction
+                    let thumbnail = $el.find(".img_thumb").attr("src") || $el.find("img").attr("src");
+                    if (!thumbnail) {
+                        const style = $el.find(".img_thumb").attr("style") || "";
+                        const urlMatch = style.match(/url\(['"]?(.*?)['"]?\)/);
+                        if (urlMatch) thumbnail = urlMatch[1];
                     }
-                }
 
-                if (allPosts.length === 0) {
-                    $("li a").each((_, el) => {
-                        const $el = $(el);
-                        const href = $el.attr('href');
-                        const title = $el.find(".tit_blog2").text().trim() || $el.find(".tit_post").text().trim();
-                        const thumbnail = $el.find(".img_thumb").attr("src");
+                    if (href.includes('/entry/') || href.includes('/m/entry/') || !isNaN(Number(href.split('/').pop()))) {
+                        let fullUrl = href;
+                        if (!href.startsWith('http')) {
+                            const cleanPath = href.startsWith('/') ? href : `/${href}`;
+                            fullUrl = `https://${blogId}.tistory.com${cleanPath.includes('/m/') ? cleanPath : '/m' + cleanPath}`;
+                        } else if (!href.includes('/m/')) {
+                            const urlObj = new URL(href);
+                            fullUrl = `${urlObj.origin}/m${urlObj.pathname}`;
+                        }
 
-                        if (href && (href.includes('/m/entry/') || href.includes('/m/') || !isNaN(Number(href.split('/').pop())))) {
+                        allPosts.push({
+                            title: title || "Untitled Post",
+                            author: blogTitle,
+                            url: fullUrl,
+                            thumbnail: thumbnail ? (thumbnail.startsWith('//') ? 'https:' + thumbnail : thumbnail) : null,
+                            published_at: date,
+                            blogId: blogId
+                        });
+                    }
+                });
+
+                if (allPosts.length > 0) return allPosts;
+
+                // Last ditch effort: any entry link
+                $("a").each((_, el) => {
+                    const href = $(el).attr('href');
+                    if (href && (href.includes('/entry/') || href.includes('/m/entry/'))) {
+                        const title = $(el).text().trim();
+                        if (title && title.length > 5) {
                             let fullUrl = href;
-                            if (href.startsWith('/m/')) {
-                                fullUrl = `https://${blogId}.tistory.com${href}`;
-                            } else if (!href.startsWith('http')) {
-                                const entryMatch = href.match(/(\d+)$/);
-                                if (entryMatch) {
-                                    fullUrl = `https://${blogId}.tistory.com/m/${entryMatch[1]}`;
-                                } else {
-                                    fullUrl = `https://${blogId}.tistory.com/m/${href}`;
-                                }
+                            if (!href.startsWith('http')) {
+                                fullUrl = `https://${blogId}.tistory.com${href.startsWith('/') ? '' : '/'}${href}`;
+                            }
+                            if (!fullUrl.includes('/m/')) {
+                                const urlObj = new URL(fullUrl);
+                                fullUrl = `${urlObj.origin}/m${urlObj.pathname}`;
                             }
 
-                            allPosts.push({
-                                title: title || "Untitled Post",
-                                url: fullUrl,
-                                thumbnail: thumbnail ? (thumbnail.startsWith('//') ? 'https:' + thumbnail : thumbnail) : null,
-                                published_at: new Date().toISOString(),
-                                blogId: blogId
-                            });
+                            // Avoid duplicates
+                            if (!allPosts.find(p => p.url === fullUrl)) {
+                                allPosts.push({
+                                    title,
+                                    author: blogTitle,
+                                    url: fullUrl,
+                                    thumbnail: null,
+                                    published_at: new Date().toISOString(),
+                                    blogId: blogId
+                                });
+                            }
                         }
-                    });
-                }
+                    }
+                });
             } else if (isBrunch) {
                 // Fallback for Brunch if RSS not found in meta
                 let userId = "";
