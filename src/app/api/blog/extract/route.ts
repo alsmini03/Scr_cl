@@ -7,9 +7,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let url = body.url;
 
-    const isNaver = url.includes("blog.naver.com");
+    let isNaver = url.includes("blog.naver.com");
     const isTistory = url.includes("tistory.com");
     const isBrunch = url.includes("brunch.co.kr");
+
+    if (isNaver && !url.includes("m.blog.naver.com")) {
+        url = url.replace("blog.naver.com", "m.blog.naver.com");
+    }
 
     if (!url || (!isNaver && !isTistory && !isBrunch)) {
       return NextResponse.json({ error: "Invalid Blog URL (Supports Naver, Tistory, and Brunch)" }, { status: 400 });
@@ -53,27 +57,54 @@ export async function POST(req: NextRequest) {
     let thumbnail = $("meta[property='og:image']").attr("content");
 
     if (isNaver) {
-        title = $(".se-title-text, h2.title").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = $(".se-title-text, h2.title, .htitle, .tit_h3").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
         title = title.replace(/\s*:\s*네이버\s*블로그$/, "");
 
-        const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap");
+        // Mobile Naver blog often has a different title structure
+        if (!title) {
+            title = $(".se_title h3, .tit_h3").text().trim();
+        }
+
+        const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap, #postViewArea, .se_content");
         if (contentArea.length > 0) {
-            contentArea.find(".se-component, .se_component").each((_, el) => {
-                const $comp = $(el);
-                if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea")) {
-                    $comp.find(".se-text-paragraph, .se_textarea").each((_, p) => {
-                        // Replace <br> with newlines before getting text
-                        $(p).find('br').replaceWith('\n');
-                        const text = $(p).text().trim();
-                        if (text) {
-                            content += text + "\n";
-                        } else {
-                            // Keep empty paragraphs as line breaks
-                            content += "\n";
+            // Priority 1: Smart Editor One (Newer)
+            const seComponents = contentArea.find(".se-component, .se_component");
+            if (seComponents.length > 0) {
+                seComponents.each((_, el) => {
+                    const $comp = $(el);
+                    if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea") || $comp.find('.se-text').length > 0) {
+                        $comp.find(".se-text-paragraph, .se_textarea, .se-main-container .se-text p").each((_, p) => {
+                            const $p = $(p);
+                            // Process text attributes (bold, italic, color)
+                            $p.find('b, strong').each((_, b) => { $(b).replaceWith(`**${$(b).text()}**`); });
+                            $p.find('i, em').each((_, i) => { $(i).replaceWith(`*${$(i).text()}*`); });
+
+                            // Color handling
+                            $p.find('span[style*="color"]').each((_, span) => {
+                                const style = $(span).attr('style') || "";
+                                const colorMatch = style.match(/color:\s*([^;]+)/);
+                                if (colorMatch) {
+                                    $(span).replaceWith(`<span style="color: ${colorMatch[1]}">${$(span).text()}</span>`);
+                                }
+                            });
+
+                            $p.find('br').replaceWith('\n');
+                            const html = $p.html() || "";
+                            const text = html.replace(/<br\s*\/?>/gi, '\n').trim();
+
+                            if (text) {
+                                content += text + "\n";
+                            } else {
+                                content += "\n";
+                            }
+                        });
+                        if (!content.endsWith("\n\n")) content += "\n";
+                    } else if ($comp.hasClass("se-quotation") || $comp.hasClass("se_quotation")) {
+                        const quoteText = $comp.find(".se-quotation-text, .se_quotation_text").text().trim();
+                        if (quoteText) {
+                            content += `> ${quoteText}\n\n`;
                         }
-                    });
-                    content += "\n";
-                } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
+                    } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
                     let imgSrc = $comp.find("img").attr("data-lazy-src") || $comp.find("img").attr("data-src") || $comp.find("img").attr("src");
                     const caption = $comp.find(".se-caption, .se_image_caption").text().trim();
                     if (imgSrc) {
@@ -90,6 +121,9 @@ export async function POST(req: NextRequest) {
                         if (caption) content += `*${caption}*\n`;
                         content += "\n";
                     }
+                } else if ($comp.hasClass("se-video") || $comp.hasClass("se_video")) {
+                    const videoTitle = $comp.find(".se-video-title, .se_video_title").text().trim();
+                    if (videoTitle) content += `[Video: ${videoTitle}]\n\n`;
                 } else if ($comp.hasClass("se-oglink") || $comp.hasClass("se_oglink")) {
                     const linkTitle = $comp.find(".se-oglink-title, .se_oglink_title").text().trim();
                     const linkUrl = $comp.find("a").attr("href");
@@ -97,8 +131,27 @@ export async function POST(req: NextRequest) {
                 }
             });
         }
-        if (!content.trim()) content = $("#postViewArea, .post_ct, #post-view").text().trim().replace(/\n+/g, "\n\n");
-        date = $(".se_publishDate, .date, .se-publish-date").first().text().trim();
+        }
+
+        // Priority 2: Older Editors / Fallback
+        if (!content.trim()) {
+            const fallbackArea = $("#postViewArea, .post_ct, #post-view, .se_content");
+            fallbackArea.find('br').replaceWith('\n');
+            fallbackArea.find('b, strong').each((_, b) => { $(b).replaceWith(`**${$(b).text()}**`); });
+            fallbackArea.find('i, em').each((_, i) => { $(i).replaceWith(`*${$(i).text()}*`); });
+
+            // Handle images in older posts
+            fallbackArea.find('img').each((_, img) => {
+                const src = $(img).attr('src');
+                if (src && !src.includes('clear.gif')) {
+                    content += `\n![image](${src})\n`;
+                }
+            });
+
+            content = fallbackArea.text().trim().replace(/\n{3,}/g, "\n\n");
+        }
+
+        date = $(".se_publishDate, .date, .se-publish-date, .publishDate").first().text().trim();
         author = $(".nick, .writer, .nick_area").first().text().trim();
     } else if (isTistory) {
         title = $(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";

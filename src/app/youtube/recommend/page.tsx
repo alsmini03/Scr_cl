@@ -620,9 +620,9 @@ export default function YouTubeRecommendPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-4 flex-1 flex flex-col justify-between">
+                                    <div className="p-3 flex-1 flex flex-col justify-between">
                                         <div>
-                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1 text-sm">{video.title}</h3>
+                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1 text-sm">{video.title}</h3>
                                             <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
                                         </div>
                                     </div>

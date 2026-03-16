@@ -409,9 +409,9 @@ export default function BlogListPage() {
             ) : (
                 <div className="space-y-3">
                     {recommendPosts.map((post, idx) => (
-                        <div key={idx} className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex">
-                            <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4">
-                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                        <div key={idx} className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3">
+                            <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4 min-w-0">
+                                <div className="flex flex-col justify-center">
                                     <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
                                     <div className="flex justify-between items-center">
                                         {post.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{post.author}</p>}
@@ -419,15 +419,13 @@ export default function BlogListPage() {
                                     </div>
                                 </div>
                             </a>
-                            <div className="flex items-center pr-3">
-                                <button
-                                    onClick={() => handleAddBlog(post)}
-                                    disabled={addingUrl === post.url}
-                                    className="size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all disabled:opacity-50"
-                                >
-                                    {addingUrl === post.url ? <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined">library_add</span>}
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => handleAddBlog(post)}
+                                disabled={addingUrl === post.url}
+                                className="size-10 flex-shrink-0 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+                            >
+                                {addingUrl === post.url ? <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined">library_add</span>}
+                            </button>
                         </div>
                     ))}
                 </div>

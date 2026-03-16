@@ -5,6 +5,8 @@ import BottomNav from '@/components/BottomNav';
 import { getBlogById, deleteBlog } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { useEffect, useState } from 'react';
 
 export default function BlogDetailPage() {
@@ -100,6 +102,8 @@ export default function BlogDetailPage() {
 
         <div className="prose dark:prose-invert prose-slate max-w-none pb-20">
             <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                     img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
                 }}
