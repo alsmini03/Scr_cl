@@ -62,8 +62,15 @@ export async function POST(req: NextRequest) {
                 const $comp = $(el);
                 if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea")) {
                     $comp.find(".se-text-paragraph, .se_textarea").each((_, p) => {
+                        // Replace <br> with newlines before getting text
+                        $(p).find('br').replaceWith('\n');
                         const text = $(p).text().trim();
-                        if (text) content += text + "\n";
+                        if (text) {
+                            content += text + "\n";
+                        } else {
+                            // Keep empty paragraphs as line breaks
+                            content += "\n";
+                        }
                     });
                     content += "\n";
                 } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {

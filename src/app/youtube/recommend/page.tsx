@@ -625,16 +625,6 @@ export default function YouTubeRecommendPage() {
                                             <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1 text-sm">{video.title}</h3>
                                             <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
                                         </div>
-                                        {!isEditMode && (
-                                            <div className="flex justify-end mt-2">
-                                                <button
-                                                    onClick={(e) => handleDelete(video.id, e)}
-                                                    className="text-slate-300 hover:text-red-500 transition-colors"
-                                                >
-                                                    <span className="material-symbols-outlined text-xl">delete</span>
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 </Link>
                             </div>
