@@ -75,6 +75,17 @@ export default function BlogListPage() {
   };
 
   useEffect(() => {
+    const savedTab = localStorage.getItem('blog_recommend_tab');
+    if (savedTab) {
+      setActiveTabId(savedTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('blog_recommend_tab', activeTabId);
+  }, [activeTabId]);
+
+  useEffect(() => {
     loadMyBlogs();
     loadTabs();
   }, []);

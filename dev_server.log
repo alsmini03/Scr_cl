@@ -8,14 +8,11 @@
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 2.8s
-○ Compiling / ...
- GET / 200 in 8.1s (compile: 5.4s, render: 2.7s)
- GET /api/auth/session 200 in 2.7s (compile: 2.3s, proxy.ts: 336ms, render: 54ms)
- GET /api/auth/session 200 in 74ms (compile: 51ms, proxy.ts: 10ms, render: 13ms)
- GET /add 200 in 2.5s (compile: 2.2s, proxy.ts: 12ms, render: 330ms)
- GET /api/auth/session 200 in 83ms (compile: 63ms, proxy.ts: 8ms, render: 12ms)
- GET /api/auth/session 200 in 31ms (compile: 6ms, proxy.ts: 19ms, render: 7ms)
- GET /add 200 in 377ms (compile: 133ms, proxy.ts: 11ms, render: 233ms)
- GET /api/auth/session 200 in 79ms (compile: 53ms, proxy.ts: 14ms, render: 11ms)
- GET /api/auth/session 200 in 29ms (compile: 8ms, proxy.ts: 7ms, render: 15ms)
+✓ Ready in 6.2s
+ GET /blog 200 in 2.5s (compile: 1991ms, render: 500ms)
+ GET /blog 200 in 151ms (compile: 26ms, render: 125ms)
+ GET /blog 200 in 100ms (compile: 10ms, render: 90ms)
+ GET /api/auth/session 200 in 2.9s (compile: 2.6s, proxy.ts: 223ms, render: 36ms)
+ GET /api/auth/session 200 in 86ms (compile: 41ms, proxy.ts: 11ms, render: 33ms)
+ POST /blog 200 in 3.6s (compile: 8ms, render: 3.6s)
+ POST /blog 200 in 273ms (compile: 9ms, render: 264ms)
