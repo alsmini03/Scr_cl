@@ -201,7 +201,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
               URL 복사
             </button>
             <a
-              href={`mailto:?subject=${encodeURIComponent(`[유튜브 요약] ${video.title}`)}&body=${encodeURIComponent(`제목: ${video.title}\nURL: ${video.url}\n\n요약:\n${video.summary}`)}`}
+              href={`mailto:?subject=${encodeURIComponent(`${video.title}`)}&body=${encodeURIComponent(`제목: ${video.title}\nURL: ${video.url}\n\n요약:\n${video.summary}`)}`}
               className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-bold transition-colors"
             >
               <span className="material-symbols-outlined text-sm">mail</span>

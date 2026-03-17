@@ -76,45 +76,45 @@ export default function YouTubeRecommendPage() {
     loadMyVideos();
   }, []);
 
-  useEffect(() => {
-    async function fetchVideos() {
-      if (tabs.length === 0 && activeTabId === 'all') {
-        setVideos([]);
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        let fetchUrl = '/api/youtube/recommend';
-        if (activeTabId === 'all') {
-          const allUrls = tabs.map(t => t.url).join(',');
-          if (allUrls) {
-            fetchUrl += `?url=${encodeURIComponent(allUrls)}`;
-          } else {
-            setVideos([]);
-            setIsLoading(false);
-            return;
-          }
-        } else {
-          const activeTab = tabs.find(t => t.id === activeTabId);
-          if (activeTab) {
-            fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
-          }
-        }
-
-        const res = await fetch(fetchUrl);
-        const data = await res.json();
-
-        setVideos(data.videos || []);
-      } catch (err) {
-        console.error(err);
-        setVideos([]);
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchVideos = async () => {
+    if (tabs.length === 0 && activeTabId === 'all') {
+      setVideos([]);
+      setIsLoading(false);
+      return;
     }
 
+    setIsLoading(true);
+    try {
+      let fetchUrl = '/api/youtube/recommend';
+      if (activeTabId === 'all') {
+        const allUrls = tabs.map(t => t.url).join(',');
+        if (allUrls) {
+          fetchUrl += `?url=${encodeURIComponent(allUrls)}`;
+        } else {
+          setVideos([]);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (activeTab) {
+          fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
+        }
+      }
+
+      const res = await fetch(fetchUrl);
+      const data = await res.json();
+
+      setVideos(data.videos || []);
+    } catch (err) {
+      console.error(err);
+      setVideos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     // Only fetch if tabs are loaded or if activeTab is 'all'
     if (activeTabId === 'all' || tabs.length > 0) {
       fetchVideos();
@@ -379,7 +379,13 @@ export default function YouTubeRecommendPage() {
           )}>
             {!isReordering && (
               <button
-                onClick={() => setActiveTabId('all')}
+                onClick={() => {
+                  if (activeTabId === 'all') {
+                    fetchVideos();
+                  } else {
+                    setActiveTabId('all');
+                  }
+                }}
                 className={cn(
                   "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
                   activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
@@ -418,7 +424,15 @@ export default function YouTubeRecommendPage() {
                 onMouseUp={handleTouchEnd}
               >
                 <button
-                  onClick={() => !isReordering && setActiveTabId(tab.id)}
+                  onClick={() => {
+                    if (!isReordering) {
+                      if (activeTabId === tab.id) {
+                        fetchVideos();
+                      } else {
+                        setActiveTabId(tab.id);
+                      }
+                    }
+                  }}
                   className={cn(
                     "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
                     !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400",

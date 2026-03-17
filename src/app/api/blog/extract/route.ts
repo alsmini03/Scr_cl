@@ -93,9 +93,10 @@ export async function POST(req: NextRequest) {
                             const text = html.replace(/<br\s*\/?>/gi, '\n').trim();
 
                             if (text) {
-                                content += text + "\n";
+                                content += text + "\n\n";
                             } else {
-                                content += "\n";
+                                // Add a break for empty paragraphs to ensure visible separation
+                                content += "\n\n";
                             }
                         });
                         if (!content.endsWith("\n\n")) content += "\n";

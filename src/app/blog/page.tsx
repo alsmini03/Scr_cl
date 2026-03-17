@@ -305,7 +305,13 @@ export default function BlogListPage() {
                 )}>
                     {!isReordering && (
                         <button
-                            onClick={() => setActiveTabId('all')}
+                            onClick={() => {
+                                if (activeTabId === 'all') {
+                                    fetchRecommend();
+                                } else {
+                                    setActiveTabId('all');
+                                }
+                            }}
                             className={cn(
                                 "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
                                 activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
@@ -336,7 +342,15 @@ export default function BlogListPage() {
                                 onMouseUp={handleTouchEnd}
                             >
                                 <button
-                                    onClick={() => !isReordering && setActiveTabId(tab.id)}
+                                    onClick={() => {
+                                        if (!isReordering) {
+                                            if (activeTabId === tab.id) {
+                                                fetchRecommend();
+                                            } else {
+                                                setActiveTabId(tab.id);
+                                            }
+                                        }
+                                    }}
                                     className={cn(
                                         "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
                                         !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400",

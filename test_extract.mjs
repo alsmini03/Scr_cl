@@ -8,8 +8,8 @@ async function test() {
         });
         const data = await response.json();
         console.log('Title:', data.title);
-        console.log('Content Length:', data.content?.length);
-        console.log('Content Preview:', data.content?.substring(0, 200));
+        // Show a middle section of content to see paragraph breaks
+        console.log('Content Middle Section:\n', data.content?.substring(500, 1000));
     } catch (e) {
         console.error('Error:', e.message);
     }

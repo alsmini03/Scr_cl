@@ -44,8 +44,8 @@ export default function BlogDetailPage() {
   };
 
   const handleSendEmail = () => {
-    const subject = encodeURIComponent(`[독서 기록] ${blog.title}`);
-    const body = encodeURIComponent(`블로그 글: ${blog.title}\nURL: ${blog.url}\n\n내용:\n${blog.content.substring(0, 500)}...`);
+    const subject = encodeURIComponent(`${blog.title}`);
+    const body = encodeURIComponent(`블로그 글: ${blog.title}\nURL: ${blog.url}\n\n내용:\n${blog.content}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
