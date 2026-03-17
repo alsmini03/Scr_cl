@@ -110,9 +110,9 @@ export default function BookDetailPage() {
 
       <main className="flex-1 pb-24">
         {/* Cover Art Section */}
-        <div className="px-4 py-6">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-full md:w-1/3 aspect-[2/3] bg-primary/10 rounded-xl overflow-hidden shadow-xl">
+        <div className="@container px-4 py-6">
+          <div className="flex flex-col @[480px]:flex-row gap-8 items-start">
+            <div className="w-full @[480px]:w-1/3 aspect-[2/3] bg-primary/10 rounded-xl overflow-hidden shadow-xl">
               <div
                 className="w-full h-full bg-center bg-no-repeat bg-cover"
                 style={{ backgroundImage: `url("${book.coverImage}")` }}
@@ -248,7 +248,7 @@ export default function BookDetailPage() {
               onClick={handleSave}
               className="w-full py-4 bg-primary hover:opacity-90 transition-opacity text-white rounded-xl font-bold text-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined">save</span> 저장하기
+              <span className="material-symbols-outlined">save</span> 기록 저장하기
             </button>
           </div>
         </section>

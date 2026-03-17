@@ -8,6 +8,8 @@ import { saveBook, saveBlog } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface ExtractedBook {
   title: string;
@@ -32,7 +34,14 @@ function AddContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoAdding, setIsAutoAdding] = useState(false);
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
-  const [extractedBlog, setExtractedBlog] = useState<any | null>(null);
+  const [extractedBlog, setExtractedBlog] = useState<{
+    title: string;
+    author: string;
+    url: string;
+    thumbnail?: string;
+    content: string;
+    published_at: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'yes24' | 'youtube' | 'blog'>('yes24');
 
@@ -126,8 +135,8 @@ function AddContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setExtractedBlog(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '블로그 정보를 가져오는 데 실패했습니다.');
     } finally {
       setIsExtracting(false);
     }
@@ -233,12 +242,13 @@ function AddContent() {
         <>
             <section className="mb-10 space-y-4">
                 <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Yes24 상품 URL</label>
                     <div className="flex flex-col gap-3">
                         <input
                             type="text"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}
-                            className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
+                            className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-14 px-4 transition-all outline-none"
                             placeholder="https://www.yes24.com/Product/Goods/..."
                         />
                         <div className="flex gap-2">
@@ -420,6 +430,8 @@ function AddContent() {
                             {extractedBlog.thumbnail && <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />}
                             <div className="prose dark:prose-invert prose-slate max-w-none">
                                 <ReactMarkdown
+                                    remarkPlugins={[remarkGfm]}
+                                    rehypePlugins={[rehypeRaw]}
                                     components={{
                                         img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
                                     }}
@@ -444,10 +456,10 @@ function AddContent() {
           <button
             onClick={() => activeTab === 'yes24' ? handleSave() : handleSaveBlog()}
             disabled={(!extractedBook && !extractedBlog) || isSaving}
-            className="px-12 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-base rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-xl">save</span>
-            {isSaving ? '저장 중...' : '저장하기'}
+            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
           </button>
         </div>
       </div>

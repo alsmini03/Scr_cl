@@ -2,18 +2,30 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface BottomNavProps {
   activeTab: string;
 }
 
 export default function BottomNav({ activeTab }: BottomNavProps) {
+  const router = useRouter();
+
+  const handleTabClick = (e: React.MouseEvent, tab: string) => {
+    if (activeTab === tab) {
+      e.preventDefault();
+      router.refresh();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-6 pt-2">
       <div className="flex gap-2 max-w-lg mx-auto">
         {/* Yes24 */}
         <Link
           href="/best"
+          onClick={(e) => handleTabClick(e, 'yes24')}
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'yes24' ? "text-primary" : "text-slate-400 dark:text-slate-500"
@@ -28,6 +40,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
         {/* Youtube */}
         <Link
           href="/youtube/recommend"
+          onClick={(e) => handleTabClick(e, 'youtube')}
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'youtube' ? "text-primary" : "text-slate-400 dark:text-slate-500"
@@ -42,6 +55,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
         {/* Blog */}
         <Link
           href="/blog"
+          onClick={(e) => handleTabClick(e, 'blog')}
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'blog' ? "text-primary" : "text-slate-400 dark:text-slate-500"
@@ -56,6 +70,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
         {/* Library */}
         <Link
           href="/"
+          onClick={(e) => handleTabClick(e, 'library')}
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'library' ? "text-primary" : "text-slate-400 dark:text-slate-500"
@@ -70,6 +85,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
         {/* Profile */}
         <Link
           href="/profile"
+          onClick={(e) => handleTabClick(e, 'profile')}
           className={cn(
             "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
             activeTab === 'profile' ? "text-primary" : "text-slate-400 dark:text-slate-500"

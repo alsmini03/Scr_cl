@@ -84,19 +84,15 @@ export async function POST(req: NextRequest) {
                                 const style = $(span).attr('style') || "";
                                 const colorMatch = style.match(/color:\s*([^;]+)/);
                                 if (colorMatch) {
-                                    $(span).replaceWith(`<span style="color: ${colorMatch[1]}">${$(span).text()}</span>`);
+                                    // Keep it as HTML span for rehype-raw
                                 }
                             });
 
-                            $p.find('br').replaceWith('\n');
                             const html = $p.html() || "";
-                            const text = html.replace(/<br\s*\/?>/gi, '\n').trim();
+                            const text = html.trim();
 
                             if (text) {
                                 content += text + "\n\n";
-                            } else {
-                                // Add a break for empty paragraphs to ensure visible separation
-                                content += "\n\n";
                             }
                         });
                         if (!content.endsWith("\n\n")) content += "\n";
@@ -137,19 +133,17 @@ export async function POST(req: NextRequest) {
         // Priority 2: Older Editors / Fallback
         if (!content.trim()) {
             const fallbackArea = $("#postViewArea, .post_ct, #post-view, .se_content");
-            fallbackArea.find('br').replaceWith('\n');
-            fallbackArea.find('b, strong').each((_, b) => { $(b).replaceWith(`**${$(b).text()}**`); });
-            fallbackArea.find('i, em').each((_, i) => { $(i).replaceWith(`*${$(i).text()}*`); });
 
             // Handle images in older posts
             fallbackArea.find('img').each((_, img) => {
                 const src = $(img).attr('src');
                 if (src && !src.includes('clear.gif')) {
-                    content += `\n![image](${src})\n`;
+                    $(img).replaceWith(`\n![image](${src})\n`);
                 }
             });
 
-            content = fallbackArea.text().trim().replace(/\n{3,}/g, "\n\n");
+            content = fallbackArea.html() || "";
+            content = content.trim().replace(/\n{3,}/g, "\n\n");
         }
 
         date = $(".se_publishDate, .date, .se-publish-date, .publishDate").first().text().trim();

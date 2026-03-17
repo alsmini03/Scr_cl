@@ -1,0 +1,21 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.local
+
+✓ Starting...
+✓ Ready in 2.8s
+○ Compiling / ...
+ GET / 200 in 8.1s (compile: 5.4s, render: 2.7s)
+ GET /api/auth/session 200 in 2.7s (compile: 2.3s, proxy.ts: 336ms, render: 54ms)
+ GET /api/auth/session 200 in 74ms (compile: 51ms, proxy.ts: 10ms, render: 13ms)
+ GET /add 200 in 2.5s (compile: 2.2s, proxy.ts: 12ms, render: 330ms)
+ GET /api/auth/session 200 in 83ms (compile: 63ms, proxy.ts: 8ms, render: 12ms)
+ GET /api/auth/session 200 in 31ms (compile: 6ms, proxy.ts: 19ms, render: 7ms)
+ GET /add 200 in 377ms (compile: 133ms, proxy.ts: 11ms, render: 233ms)
+ GET /api/auth/session 200 in 79ms (compile: 53ms, proxy.ts: 14ms, render: 11ms)
+ GET /api/auth/session 200 in 29ms (compile: 8ms, proxy.ts: 7ms, render: 15ms)

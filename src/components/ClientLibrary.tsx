@@ -6,11 +6,10 @@ import BottomNav from '@/components/BottomNav';
 import Link from 'next/link';
 import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
-import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 
 interface ClientLibraryProps {
-  session: any;
+  session: { user?: { name?: string | null, email?: string | null, image?: string | null } } | null;
   books: Book[];
   isDev: boolean;
   actions: {
@@ -25,7 +24,7 @@ export default function ClientLibrary({
   actions
 }: ClientLibraryProps) {
   const router = useRouter();
-  const [bookView, setBookView] = useState('3');
+  const [bookView, setBookView] = useState('2');
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,35 +77,23 @@ export default function ClientLibrary({
     }
   };
 
-  const hasItems = books.length > 0;
-
   return (
     <div className="font-display min-h-screen pb-32 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
         title="내 서재"
         transparent
         rightAction={
-          <div className="flex items-center gap-1">
-            {hasItems && (
-              <button
-                onClick={() => {
-                  setIsEditMode(!isEditMode);
-                  setSelectedIds([]);
-                }}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-bold transition-all",
-                  isEditMode ? "bg-primary text-white" : "bg-primary/10 text-primary"
-                )}
-              >
-                {isEditMode ? '취소' : '삭제'}
-              </button>
-            )}
-            {!isEditMode && (
-              <button className="flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-2xl">search</span>
-              </button>
-            )}
-          </div>
+          isEditMode ? (
+            <button
+              onClick={() => {
+                setIsEditMode(false);
+                setSelectedIds([]);
+              }}
+              className="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold"
+            >
+              취소
+            </button>
+          ) : undefined
         }
       />
 
@@ -120,11 +107,13 @@ export default function ClientLibrary({
               <span className="material-symbols-outlined cursor-pointer">filter_list</span>
               <button
                 onClick={() => {
-                    updateBookView(bookView === '3' ? '5' : '3');
+                    if (bookView === '2') updateBookView('3');
+                    else if (bookView === '3') updateBookView('5');
+                    else updateBookView('2');
                 }}
               >
                 <span className="material-symbols-outlined cursor-pointer">
-                  {bookView === '3' ? 'grid_view' : 'view_comfy'}
+                  {bookView === '2' ? 'grid_view' : (bookView === '3' ? 'view_module' : 'view_comfy')}
                 </span>
               </button>
             </div>
