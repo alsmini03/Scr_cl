@@ -7,6 +7,7 @@ import { saveBlog, getBlogs, deleteBlog, getBlogTabs, addBlogTab, deleteBlogTab,
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import TabManagementModal from '@/components/TabManagementModal';
 
 export default function BlogListPage() {
   const { data: session } = useSession();
@@ -22,8 +23,7 @@ export default function BlogListPage() {
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
-  const [isReordering, setIsReordering] = useState(false);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -200,7 +200,7 @@ export default function BlogListPage() {
 
   const handleTabLongPress = (id: string) => {
     if (id === 'all') return;
-    setIsReordering(true);
+    setIsModalOpen(true);
   };
 
   const moveTab = (draggedId: string, hoverId: string) => {
@@ -216,9 +216,7 @@ export default function BlogListPage() {
   const saveTabOrder = async () => {
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateBlogTabOrder(orders);
-    if (res.success) {
-      setIsReordering(false);
-    } else {
+    if (!res.success) {
       alert(res.error);
     }
   };
@@ -235,13 +233,6 @@ export default function BlogListPage() {
                         className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
                     >
                         취소
-                    </button>
-                ) : isReordering ? (
-                    <button
-                        onClick={saveTabOrder}
-                        className="text-primary font-bold px-3 py-1 bg-primary/10 rounded-lg"
-                    >
-                        순서 저장
                     </button>
                 ) : (
                     <>
@@ -261,7 +252,7 @@ export default function BlogListPage() {
         {/* Toggle View Mode */}
         <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
             <button
-              onClick={() => { setViewMode('my'); setIsReordering(false); }}
+              onClick={() => { setViewMode('my'); }}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
                 viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
@@ -270,7 +261,7 @@ export default function BlogListPage() {
               내 보관함
             </button>
             <button
-              onClick={() => { setViewMode('recommend'); setIsReordering(false); }}
+              onClick={() => { setViewMode('recommend'); }}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
                 viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
@@ -307,30 +298,26 @@ export default function BlogListPage() {
             <>
             {/* Blog Source Tabs */}
             <div className={cn(
-                "flex items-start gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20",
-                isReordering && "flex-col"
+                "flex items-start gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20"
             )}>
                 <div className={cn(
-                    "flex flex-1 flex-wrap gap-2 py-2",
-                    isReordering && "max-h-64 overflow-y-auto no-scrollbar w-full"
+                    "flex flex-1 flex-wrap gap-2 py-2"
                 )}>
-                    {!isReordering && (
-                        <button
-                            onClick={() => {
-                                if (activeTabId === 'all') {
-                                    fetchRecommend();
-                                } else {
-                                    setActiveTabId('all');
-                                }
-                            }}
-                            className={cn(
-                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                            )}
-                        >
-                            전체
-                        </button>
-                    )}
+                    <button
+                        onClick={() => {
+                            if (activeTabId === 'all') {
+                                fetchRecommend();
+                            } else {
+                                setActiveTabId('all');
+                            }
+                        }}
+                        className={cn(
+                            "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                            activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                        )}
+                    >
+                        전체
+                    </button>
                     {tabs.map(tab => {
                         let timer: any;
                         const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
@@ -339,14 +326,8 @@ export default function BlogListPage() {
                             <div
                                 key={tab.id}
                                 className={cn(
-                                    "relative flex-shrink-0 group transition-all",
-                                    isReordering && draggedId === tab.id ? "opacity-50 scale-95" : "opacity-100",
-                                    isReordering && "animate-pulse"
+                                    "relative flex-shrink-0 group transition-all"
                                 )}
-                                draggable={isReordering}
-                                onDragStart={() => setDraggedId(tab.id)}
-                                onDragEnd={() => setDraggedId(null)}
-                                onDragOver={(e) => { e.preventDefault(); if (draggedId) moveTab(draggedId, tab.id); }}
                                 onTouchStart={handleTouchStart}
                                 onTouchEnd={handleTouchEnd}
                                 onMouseDown={handleTouchStart}
@@ -354,53 +335,29 @@ export default function BlogListPage() {
                             >
                                 <button
                                     onClick={() => {
-                                        if (!isReordering) {
-                                            if (activeTabId === tab.id) {
-                                                fetchRecommend();
-                                            } else {
-                                                setActiveTabId(tab.id);
-                                            }
+                                        if (activeTabId === tab.id) {
+                                            fetchRecommend();
+                                        } else {
+                                            setActiveTabId(tab.id);
                                         }
                                     }}
                                     className={cn(
                                         "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                        !isReordering && activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400",
-                                        isReordering && "cursor-move ring-2 ring-primary ring-offset-2 dark:ring-offset-background-dark pr-10"
+                                        activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
                                     )}
                                 >
-                                    {isReordering && <span className="material-symbols-outlined text-[14px] mr-1 align-middle">drag_indicator</span>}
                                     {tab.name}
                                 </button>
-                                {isReordering && (
-                                    <button
-                                        onClick={(e) => handleDeleteTab(tab.id, e)}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 size-6 flex items-center justify-center rounded-full bg-red-500 text-white shadow-sm z-10"
-                                    >
-                                        <span className="material-symbols-outlined text-[14px] font-bold">close</span>
-                                    </button>
-                                )}
                             </div>
                         );
                     })}
                 </div>
-                {!isReordering && (
-                    <button
-                        onClick={() => setShowTabManager(!showTabManager)}
-                        className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center mt-2"
-                    >
-                        <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
-                    </button>
-                )}
-                {isReordering && (
-                    <div className="flex w-full justify-end pb-2">
-                        <button
-                            onClick={() => setIsReordering(false)}
-                            className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center"
-                        >
-                            <span className="material-symbols-outlined text-xl">close</span>
-                        </button>
-                    </div>
-                )}
+                <button
+                    onClick={() => setShowTabManager(!showTabManager)}
+                    className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center mt-2"
+                >
+                    <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
+                </button>
             </div>
 
             {showTabManager && (
@@ -515,6 +472,16 @@ export default function BlogListPage() {
       </main>
 
       <BottomNav activeTab="blog" />
+
+      <TabManagementModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        tabs={tabs}
+        onReorder={moveTab}
+        onDelete={handleDeleteTab}
+        onSave={saveTabOrder}
+        title="블로그 탭 관리"
+      />
     </div>
   );
 }
