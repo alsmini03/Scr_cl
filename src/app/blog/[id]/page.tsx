@@ -150,7 +150,7 @@ export default function BlogDetailPage() {
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="example@gmail.com"
-                className="w-full rounded-xl border dark:border-primary/20 bg-slate-50 dark:bg-slate-800 p-3 text-sm"
+                className="w-full rounded-xl border dark:border-primary/20 bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-900 dark:text-slate-100"
               />
             </div>
             <button
