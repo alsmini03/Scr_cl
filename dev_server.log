@@ -5,14 +5,74 @@
 ▲ Next.js 16.1.6 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-- Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 6.2s
- GET /blog 200 in 2.5s (compile: 1991ms, render: 500ms)
- GET /blog 200 in 151ms (compile: 26ms, render: 125ms)
- GET /blog 200 in 100ms (compile: 10ms, render: 90ms)
- GET /api/auth/session 200 in 2.9s (compile: 2.6s, proxy.ts: 223ms, render: 36ms)
- GET /api/auth/session 200 in 86ms (compile: 41ms, proxy.ts: 11ms, render: 33ms)
- POST /blog 200 in 3.6s (compile: 8ms, render: 3.6s)
- POST /blog 200 in 273ms (compile: 9ms, render: 264ms)
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+✓ Ready in 1673ms
+○ Compiling /youtube/recommend ...
+ GET /youtube/recommend 200 in 7.0s (compile: 6.4s, render: 593ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:639:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:5456:202)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:5330:202)
+ POST /youtube/recommend 200 in 190ms (compile: 25ms, render: 165ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:5330:202)
+ POST /youtube/recommend 200 in 34ms (compile: 11ms, render: 23ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:5330:204)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+ GET /api/auth/session 500 in 3.3s (compile: 3.1s, proxy.ts: 175ms, render: 32ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:639:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:5456:202)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:5330:204)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+ GET /api/auth/session 500 in 64ms (compile: 45ms, proxy.ts: 11ms, render: 8ms)
+ GET /blog 200 in 927ms (compile: 848ms, render: 79ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:639:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:5456:202)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:5330:202)
+getBlogs error: Error [VercelPostgresError]: VercelPostgresError - 'missing_connection_string': You did not supply a 'connectionString' and no 'POSTGRES_URL' env var was found.
+    at getBlogs (src/lib/db.ts:288:33)
+  286 |     let rows;
+  287 |     try {
+> 288 |         const result = await sql`
+      |                                 ^
+  289 |             SELECT * FROM naver_blogs
+  290 |             WHERE user_id = ${user.id}
+  291 |             ORDER BY added_at DESC {
+  code: 'missing_connection_string'
+}
+ POST /blog 200 in 589ms (compile: 5ms, render: 585ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:5330:204)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+ GET /api/auth/session 500 in 636ms (compile: 622ms, proxy.ts: 7ms, render: 6ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/ssr/node_modules_@auth_core_d97f100d._.js:5330:202)
+ POST /blog 200 in 38ms (compile: 7ms, render: 31ms)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:639:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_606ed9d9._.js:5456:202)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:513:16)
+    at Auth (/app/.next/dev/server/chunks/node_modules_@auth_core_83efb00c._.js:5330:204)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route-turbo.runtime.dev.js:5:37866)
+ GET /api/auth/session 500 in 20ms (compile: 6ms, proxy.ts: 9ms, render: 5ms)
