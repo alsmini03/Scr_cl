@@ -181,7 +181,7 @@ export async function sendBlogEmailAction(blogId: string, toEmail: string): Prom
     const blog = await getBlogById(blogId);
     if (!blog) throw new Error('Blog post not found');
 
-    const subject = `[독서 기록] ${blog.title}`;
+    const subject = `${blog.title}`;
     const body = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
         <h2 style="color: #1978e5;">${blog.title}</h2>

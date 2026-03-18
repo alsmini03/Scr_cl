@@ -19,7 +19,8 @@ export default {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.email!; // Use email as user ID in JWT
-        token.isApproved = user.is_approved ?? false;
+        // user object might have isApproved or is_approved depending on how it's fetched
+        token.isApproved = (user as any).isApproved || (user as any).is_approved || false;
       }
       return token;
     },
