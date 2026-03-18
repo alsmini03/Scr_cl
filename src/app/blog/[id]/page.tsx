@@ -101,7 +101,7 @@ export default function BlogDetailPage() {
             URL 복사
           </button>
           <button
-            onClick={handleSendEmail}
+            onClick={() => setShowEmailModal(true)}
             className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold active:scale-95 transition-all"
           >
             <span className="material-symbols-outlined text-lg">mail</span>
