@@ -4,6 +4,7 @@ import { sql } from '@vercel/postgres';
 import { Book } from '@/types/book';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
+import { sendGmail } from './gmail';
 
 async function getSessionUser() {
   const session = await auth();
@@ -71,6 +72,106 @@ export async function getBooks(): Promise<Book[]> {
   } catch (error) {
     // If not logged in, return empty list instead of throwing
     return [];
+  }
+}
+
+/**
+ * Gmail Integration Helpers
+ */
+export async function getUserAccount(userId: string) {
+  const { rows } = await sql`
+    SELECT * FROM accounts
+    WHERE "userId" = ${userId} AND provider = 'google'
+    LIMIT 1
+  `;
+  return rows[0];
+}
+
+export async function updateAccountTokens(userId: string, tokens: { access_token: string, expires_at: number, refresh_token?: string }) {
+  if (tokens.refresh_token) {
+    await sql`
+      UPDATE accounts
+      SET access_token = ${tokens.access_token},
+          expires_at = ${tokens.expires_at},
+          refresh_token = ${tokens.refresh_token}
+      WHERE "userId" = ${userId} AND provider = 'google'
+    `;
+  } else {
+    await sql`
+      UPDATE accounts
+      SET access_token = ${tokens.access_token},
+          expires_at = ${tokens.expires_at}
+      WHERE "userId" = ${userId} AND provider = 'google'
+    `;
+  }
+}
+
+export async function getValidAccessToken(userId: string): Promise<string | null> {
+  const account = await getUserAccount(userId);
+  if (!account) return null;
+
+  const now = Math.floor(Date.now() / 1000);
+  if (account.expires_at && account.expires_at > now + 60) {
+    return account.access_token;
+  }
+
+  if (!account.refresh_token) return null;
+
+  try {
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: process.env.AUTH_GOOGLE_ID!,
+        client_secret: process.env.AUTH_GOOGLE_SECRET!,
+        grant_type: "refresh_token",
+        refresh_token: account.refresh_token,
+      }),
+    });
+
+    const tokens = await response.json();
+    if (!response.ok) throw tokens;
+
+    await updateAccountTokens(userId, {
+      access_token: tokens.access_token,
+      expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
+      refresh_token: tokens.refresh_token,
+    });
+
+    return tokens.access_token;
+  } catch (error) {
+    console.error("Error refreshing access token", error);
+    return null;
+  }
+}
+
+export async function sendBlogEmailAction(blogId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getSessionUser();
+    if (!user.id) throw new Error('Unauthorized');
+
+    const accessToken = await getValidAccessToken(user.id);
+    if (!accessToken) throw new Error('Could not get valid Gmail access token. Try logging in again.');
+
+    const blog = await getBlogById(blogId);
+    if (!blog) throw new Error('Blog post not found');
+
+    const subject = `[독서 기록] ${blog.title}`;
+    const body = `
+      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #1978e5;">${blog.title}</h2>
+        <p><b>작성자:</b> ${blog.author || '알 수 없음'}</p>
+        <p><b>원본 URL:</b> <a href="${blog.url}">${blog.url}</a></p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <div style="white-space: pre-wrap;">${blog.content}</div>
+      </div>
+    `;
+
+    await sendGmail(accessToken, toEmail, subject, body);
+    return { success: true };
+  } catch (error: any) {
+    console.error('sendBlogEmailAction error:', error);
+    return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
   }
 }
 

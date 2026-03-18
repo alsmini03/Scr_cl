@@ -2,12 +2,13 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getBlogById, deleteBlog } from '@/lib/db';
+import { getBlogById, deleteBlog, sendBlogEmailAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 export default function BlogDetailPage() {
   const params = useParams();
@@ -15,6 +16,9 @@ export default function BlogDetailPage() {
   const router = useRouter();
   const [blog, setBlog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSending, setIsSending] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -43,10 +47,26 @@ export default function BlogDetailPage() {
     });
   };
 
-  const handleSendEmail = () => {
-    const subject = encodeURIComponent(`${blog.title}`);
-    const body = encodeURIComponent(`블로그 글: ${blog.title}\nURL: ${blog.url}\n\n내용:\n${blog.content}`);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const handleSendEmail = async () => {
+    if (!recipientEmail) {
+      alert('이메일 주소를 입력해 주세요.');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const res = await sendBlogEmailAction(blog.id, recipientEmail);
+      if (res.success) {
+        alert('이메일이 발송되었습니다.');
+        setShowEmailModal(false);
+      } else {
+        alert(res.error);
+      }
+    } catch (err) {
+      alert('이메일 발송에 실패했습니다.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -114,6 +134,45 @@ export default function BlogDetailPage() {
       </main>
 
       <BottomNav activeTab="blog" />
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">메일 송부 (Gmail)</h3>
+              <button onClick={() => setShowEmailModal(false)} className="text-slate-400"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">수신인 이메일</label>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="example@gmail.com"
+                className="w-full rounded-xl border dark:border-primary/20 bg-slate-50 dark:bg-slate-800 p-3 text-sm"
+              />
+            </div>
+            <button
+              onClick={handleSendEmail}
+              disabled={isSending || !recipientEmail}
+              className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSending ? (
+                <>
+                  <span className="material-symbols-outlined animate-spin">sync</span>
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">send</span>
+                  보내기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
