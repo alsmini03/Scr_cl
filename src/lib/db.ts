@@ -81,7 +81,7 @@ export async function getBooks(): Promise<Book[]> {
 export async function getUserAccount(userId: string) {
   const { rows } = await sql`
     SELECT * FROM accounts
-    WHERE "userId" = ${userId} AND provider = 'google'
+    WHERE "userId"::text = ${userId}::text AND provider = 'google'
     LIMIT 1
   `;
   return rows[0];
@@ -95,14 +95,14 @@ export async function updateAccountTokens(userId: string, tokens: { access_token
       SET access_token = ${tokens.access_token},
           expires_at = ${expiresAtStr},
           refresh_token = ${tokens.refresh_token}
-      WHERE "userId" = ${userId} AND provider = 'google'
+      WHERE "userId"::text = ${userId}::text AND provider = 'google'
     `;
   } else {
     await sql`
       UPDATE accounts
       SET access_token = ${tokens.access_token},
           expires_at = ${expiresAtStr}
-      WHERE "userId" = ${userId} AND provider = 'google'
+      WHERE "userId"::text = ${userId}::text AND provider = 'google'
     `;
   }
 }
