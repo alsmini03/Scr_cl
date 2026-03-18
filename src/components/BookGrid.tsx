@@ -99,11 +99,7 @@ export default function BookGrid({
                 </p>
                 <p className="text-xs text-slate-500 truncate">{book.author}</p>
 
-                {book.readingStatus === 'READING' ? (
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-[10px] font-bold text-primary italic">READING...</span>
-                  </div>
-                ) : book.readingStatus === 'FINISHED' ? (
+                {book.readingStatus === 'FINISHED' ? (
                   <div className="flex items-center mt-1 text-primary">
                     <span className="material-symbols-outlined text-[10px] fill-1">star</span>
                     <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
