@@ -151,8 +151,8 @@ export async function sendBlogEmailAction(blogId: string, toEmail: string): Prom
     const user = await getSessionUser();
     if (!user.id) throw new Error('Unauthorized');
 
-    const accessToken = process.env.GEMINI_API_KEY;
-    if (!accessToken) throw new Error('Gmail API Key (GEMINI_API_KEY)가 설정되지 않았습니다.');
+    const accessToken = await getValidAccessToken(user.id);
+    if (!accessToken) throw new Error('Could not get valid Gmail access token. Try logging in again.');
 
     const blog = await getBlogById(blogId);
     if (!blog) throw new Error('Blog post not found');
