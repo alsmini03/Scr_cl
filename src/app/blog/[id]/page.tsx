@@ -21,6 +21,11 @@ export default function BlogDetailPage() {
   const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
 
   useEffect(() => {
+    const lastEmail = localStorage.getItem('last_blog_email');
+    if (lastEmail) setRecipientEmail(lastEmail);
+  }, []);
+
+  useEffect(() => {
     async function load() {
       if (!id) return;
       const data = await getBlogById(id);
@@ -57,6 +62,7 @@ export default function BlogDetailPage() {
     try {
       const res = await sendBlogEmailAction(blog.id, recipientEmail);
       if (res.success) {
+        localStorage.setItem('last_blog_email', recipientEmail);
         alert('이메일이 발송되었습니다.');
         setShowEmailModal(false);
       } else {

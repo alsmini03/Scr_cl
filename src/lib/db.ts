@@ -79,21 +79,10 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  // Try finding by userId directly
-  let res = await sql`
+  // Now that userId is consistently the database ID, we can query directly
+  const res = await sql`
     SELECT * FROM accounts
-    WHERE "userId"::text = ${userId}::text AND provider = 'google'
-    LIMIT 1
-  `;
-
-  if (res.rows.length > 0) return res.rows[0];
-
-  // Fallback: If userId is an email, search in users table first to get UUID if needed,
-  // or search accounts joining with users.
-  res = await sql`
-    SELECT a.* FROM accounts a
-    JOIN users u ON a."userId"::text = u.id::text
-    WHERE u.email = ${userId} AND a.provider = 'google'
+    WHERE "userId" = ${userId} AND provider = 'google'
     LIMIT 1
   `;
 
@@ -200,6 +189,39 @@ export async function sendBlogEmailAction(blogId: string, toEmail: string): Prom
   }
 }
 
+export async function sendYoutubeEmailAction(videoId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await getSessionUser();
+    if (!user.id) throw new Error('Unauthorized');
+
+    const accessToken = await getValidAccessToken(user.id);
+
+    const video = await getYoutubeVideoById(videoId);
+    if (!video) throw new Error('Video not found');
+
+    const subject = `${video.title}`;
+    const body = `
+      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #1978e5;">${video.title}</h2>
+        <p><b>원본 URL:</b> <a href="${video.url}">${video.url}</a></p>
+        <p><b>게시일:</b> ${video.published_at || '-'}</p>
+        <p><b>재생시간:</b> ${video.duration || '-'}</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+        <div style="white-space: pre-wrap; background: #f9f9f9; padding: 20px; border-radius: 10px;">
+          <h3 style="margin-top: 0;">AI 요약 분석</h3>
+          ${video.summary}
+        </div>
+      </div>
+    `;
+
+    await sendGmail(accessToken, toEmail, subject, body);
+    return { success: true };
+  } catch (error: any) {
+    console.error('sendYoutubeEmailAction error:', error);
+    return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
+  }
+}
+
 export async function getBlogTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
@@ -240,7 +262,7 @@ export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolea
 
     await sql`
       DELETE FROM naver_blogs
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE user_id = ${userId} AND id = ANY(${ids})
     `;
 
     safeRevalidate('/blog');
@@ -726,7 +748,7 @@ export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success
     // Use an array of IDs for the query
     await sql`
       DELETE FROM youtube_videos
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE user_id = ${userId} AND id = ANY(${ids})
     `;
 
     safeRevalidate('/');
@@ -869,7 +891,7 @@ export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolea
     const deletedAt = new Date().toISOString();
     await sql`
       UPDATE books SET deleted_at = ${deletedAt}
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE user_id = ${userId} AND id = ANY(${ids})
     `;
 
     safeRevalidate('/');

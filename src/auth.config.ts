@@ -18,9 +18,9 @@ export default {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.email!; // Use email as user ID in JWT
+        token.id = user.id!; // Use actual database ID (UUID)
         // user object might have isApproved or is_approved depending on how it's fetched
-        token.isApproved = (user as any).isApproved || (user as any).is_approved || false;
+        token.isApproved = (user as any).isApproved === true || (user as any).is_approved === true;
       }
       return token;
     },

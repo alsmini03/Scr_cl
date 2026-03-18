@@ -139,14 +139,6 @@ async function migrate() {
       console.error("Failed to update users table:", e.message);
     }
 
-    // 4. Ensure userId columns are not incorrectly typed as integers if they contain emails
-    try {
-      await client.query(`ALTER TABLE accounts ALTER COLUMN "userId" TYPE VARCHAR(255)`);
-      await client.query(`ALTER TABLE users ALTER COLUMN id TYPE VARCHAR(255)`);
-      console.log("Verified string types for user identification columns.");
-    } catch (e) {
-      console.log("User identifier columns are already correct or migration was skipped.");
-    }
 
     // 5. Delete default YouTube tabs as per user request
     try {

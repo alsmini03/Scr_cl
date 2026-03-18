@@ -7,7 +7,8 @@ import {
   deleteYoutubeVideo,
   updateYoutubeVideo,
   getGeminiModels,
-  getGeminiPrompts
+  getGeminiPrompts,
+  sendYoutubeEmailAction
 } from '@/lib/db';
 import { notFound, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -33,6 +34,14 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
+
+  useEffect(() => {
+    const lastEmail = localStorage.getItem('last_blog_email');
+    if (lastEmail) setRecipientEmail(lastEmail);
+  }, []);
 
   useEffect(() => {
     async function loadVideo() {
@@ -84,6 +93,29 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
     navigator.clipboard.writeText(video?.url || '').then(() => {
       alert('URL이 클립보드에 복사되었습니다.');
     });
+  };
+
+  const handleSendEmail = async () => {
+    if (!recipientEmail) {
+      alert('이메일 주소를 입력해 주세요.');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const res = await sendYoutubeEmailAction(video!.id, recipientEmail);
+      if (res.success) {
+        localStorage.setItem('last_blog_email', recipientEmail);
+        alert('이메일이 발송되었습니다.');
+        setShowEmailModal(false);
+      } else {
+        alert(res.error);
+      }
+    } catch (err) {
+      alert('이메일 발송에 실패했습니다.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleRefetch = async () => {
@@ -200,13 +232,13 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
               <span className="material-symbols-outlined text-sm">content_copy</span>
               URL 복사
             </button>
-            <a
-              href={`mailto:?subject=${encodeURIComponent(`${video.title}`)}&body=${encodeURIComponent(`제목: ${video.title}\nURL: ${video.url}\n\n요약:\n${video.summary}`)}`}
+            <button
+              onClick={() => setShowEmailModal(true)}
               className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-primary text-sm font-bold transition-colors"
             >
               <span className="material-symbols-outlined text-sm">mail</span>
               메일 송부
-            </a>
+            </button>
           </div>
         </div>
 
@@ -234,6 +266,45 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
       </main>
 
       <BottomNav activeTab="library" />
+
+      {/* Email Modal */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">메일 송부 (Gmail)</h3>
+              <button onClick={() => setShowEmailModal(false)} className="text-slate-400"><span className="material-symbols-outlined">close</span></button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">수신인 이메일</label>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="example@gmail.com"
+                className="w-full rounded-xl border dark:border-primary/20 bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-900 dark:text-slate-100"
+              />
+            </div>
+            <button
+              onClick={handleSendEmail}
+              disabled={isSending || !recipientEmail}
+              className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSending ? (
+                <>
+                  <span className="material-symbols-outlined animate-spin">sync</span>
+                  발송 중...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined">send</span>
+                  보내기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
