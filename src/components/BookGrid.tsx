@@ -101,13 +101,7 @@ export default function BookGrid({
 
                 {book.readingStatus === 'READING' ? (
                   <div className="flex items-center gap-1 mt-2">
-                    <div className="flex-1 h-1 bg-primary/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary"
-                        style={{ width: `${book.progress || 0}%` }}
-                      ></div>
-                    </div>
-                    <span className="text-[10px] font-bold text-primary">{book.progress || 0}%</span>
+                    <span className="text-[10px] font-bold text-primary italic">READING...</span>
                   </div>
                 ) : book.readingStatus === 'FINISHED' ? (
                   <div className="flex items-center mt-1 text-primary">
