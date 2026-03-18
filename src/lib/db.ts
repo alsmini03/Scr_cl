@@ -88,11 +88,12 @@ export async function getUserAccount(userId: string) {
 }
 
 export async function updateAccountTokens(userId: string, tokens: { access_token: string, expires_at: number, refresh_token?: string }) {
+  const expiresAtStr = tokens.expires_at.toString();
   if (tokens.refresh_token) {
     await sql`
       UPDATE accounts
       SET access_token = ${tokens.access_token},
-          expires_at = ${tokens.expires_at},
+          expires_at = ${expiresAtStr},
           refresh_token = ${tokens.refresh_token}
       WHERE "userId" = ${userId} AND provider = 'google'
     `;
@@ -100,7 +101,7 @@ export async function updateAccountTokens(userId: string, tokens: { access_token
     await sql`
       UPDATE accounts
       SET access_token = ${tokens.access_token},
-          expires_at = ${tokens.expires_at}
+          expires_at = ${expiresAtStr}
       WHERE "userId" = ${userId} AND provider = 'google'
     `;
   }
