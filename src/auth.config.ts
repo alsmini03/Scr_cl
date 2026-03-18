@@ -20,7 +20,10 @@ export default {
       if (user) {
         token.id = user.id!; // Use actual database ID (UUID)
         // user object might have isApproved or is_approved depending on how it's fetched
-        token.isApproved = (user as any).isApproved === true || (user as any).is_approved === true;
+        token.isApproved = (user as any).isApproved === true ||
+                           (user as any).is_approved === true ||
+                           (user as any).isApproved === 'true' ||
+                           (user as any).is_approved === 'true';
       }
       return token;
     },

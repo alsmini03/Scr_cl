@@ -135,6 +135,10 @@ async function migrate() {
 
       const updateRes = await client.query(`UPDATE users SET is_approved = TRUE WHERE is_approved IS FALSE`);
       console.log(`Approved ${updateRes.rowCount} existing users.`);
+
+      // Specifically ensure alsmini03@gmail.com is approved
+      await client.query(`UPDATE users SET is_approved = TRUE WHERE email = 'alsmini03@gmail.com'`);
+      console.log(`Ensured alsmini03@gmail.com is approved.`);
     } catch (e) {
       console.error("Failed to update users table:", e.message);
     }
