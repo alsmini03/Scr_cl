@@ -79,44 +79,66 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  const { rows } = await sql`
+  // Try finding by userId directly
+  let res = await sql`
     SELECT * FROM accounts
     WHERE "userId"::text = ${userId}::text AND provider = 'google'
     LIMIT 1
   `;
-  return rows[0];
+
+  if (res.rows.length > 0) return res.rows[0];
+
+  // Fallback: If userId is an email, search in users table first to get UUID if needed,
+  // or search accounts joining with users.
+  res = await sql`
+    SELECT a.* FROM accounts a
+    JOIN users u ON a."userId"::text = u.id::text
+    WHERE u.email = ${userId} AND a.provider = 'google'
+    LIMIT 1
+  `;
+
+  return res.rows[0];
 }
 
 export async function updateAccountTokens(userId: string, tokens: { access_token: string, expires_at: number, refresh_token?: string }) {
   const expiresAtStr = tokens.expires_at.toString();
+
+  // We search by original identifiers to ensure we update the correct record
+  const account = await getUserAccount(userId);
+  if (!account) throw new Error('Account not found for token update');
+
   if (tokens.refresh_token) {
     await sql`
       UPDATE accounts
       SET access_token = ${tokens.access_token},
           expires_at = ${expiresAtStr},
           refresh_token = ${tokens.refresh_token}
-      WHERE "userId"::text = ${userId}::text AND provider = 'google'
+      WHERE id = ${account.id}
     `;
   } else {
     await sql`
       UPDATE accounts
       SET access_token = ${tokens.access_token},
           expires_at = ${expiresAtStr}
-      WHERE "userId"::text = ${userId}::text AND provider = 'google'
+      WHERE id = ${account.id}
     `;
   }
 }
 
-export async function getValidAccessToken(userId: string): Promise<string | null> {
+export async function getValidAccessToken(userId: string): Promise<string> {
   const account = await getUserAccount(userId);
-  if (!account) return null;
+  if (!account) {
+    throw new Error('Google 계정 연결 정보를 찾을 수 없습니다. 다시 로그인해 주세요.');
+  }
 
   const now = Math.floor(Date.now() / 1000);
   if (account.expires_at && account.expires_at > now + 60) {
     return account.access_token;
   }
 
-  if (!account.refresh_token) return null;
+  if (!account.refresh_token) {
+    throw new Error('재인증이 필요합니다. 로그아웃 후 다시 로그인하여 Gmail 권한을 허용해 주세요.');
+  }
 
   try {
     const response = await fetch("https://oauth2.googleapis.com/token", {
@@ -131,18 +153,21 @@ export async function getValidAccessToken(userId: string): Promise<string | null
     });
 
     const tokens = await response.json();
-    if (!response.ok) throw tokens;
+    if (!response.ok) {
+        console.error("Google Token Refresh Error:", tokens);
+        throw new Error('토큰 갱신에 실패했습니다. 다시 로그인해 주세요.');
+    }
 
     await updateAccountTokens(userId, {
       access_token: tokens.access_token,
-      expires_at: Math.floor(Date.now() / 1000 + tokens.expires_in),
+      expires_at: Math.floor(Date.now() / 1000 + (tokens.expires_in || 3600)),
       refresh_token: tokens.refresh_token,
     });
 
     return tokens.access_token;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error refreshing access token", error);
-    return null;
+    throw error;
   }
 }
 
@@ -152,7 +177,6 @@ export async function sendBlogEmailAction(blogId: string, toEmail: string): Prom
     if (!user.id) throw new Error('Unauthorized');
 
     const accessToken = await getValidAccessToken(user.id);
-    if (!accessToken) throw new Error('Could not get valid Gmail access token. Try logging in again.');
 
     const blog = await getBlogById(blogId);
     if (!blog) throw new Error('Blog post not found');
