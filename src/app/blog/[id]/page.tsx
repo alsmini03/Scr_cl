@@ -18,7 +18,7 @@ export default function BlogDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
-  const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
 
   useEffect(() => {
     async function load() {

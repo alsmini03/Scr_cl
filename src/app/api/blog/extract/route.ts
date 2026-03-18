@@ -75,27 +75,14 @@ export async function POST(req: NextRequest) {
                     if ($comp.hasClass("se-text") || $comp.hasClass("se_textarea") || $comp.find('.se-text').length > 0) {
                         $comp.find(".se-text-paragraph, .se_textarea, .se-main-container .se-text p").each((_, p) => {
                             const $p = $(p);
-                            // Process text attributes (bold, italic, color)
-                            $p.find('b, strong').each((_, b) => { $(b).replaceWith(`**${$(b).text()}**`); });
-                            $p.find('i, em').each((_, i) => { $(i).replaceWith(`*${$(i).text()}*`); });
-
-                            // Color handling
-                            $p.find('span[style*="color"]').each((_, span) => {
-                                const style = $(span).attr('style') || "";
-                                const colorMatch = style.match(/color:\s*([^;]+)/);
-                                if (colorMatch) {
-                                    // Keep it as HTML span for rehype-raw
-                                }
-                            });
-
                             const html = $p.html() || "";
                             const text = html.trim();
 
                             if (text) {
-                                content += text + "\n\n";
+                                content += text + "<br><br>";
                             }
                         });
-                        if (!content.endsWith("\n\n")) content += "\n";
+                        if (!content.endsWith("<br><br>")) content += "<br>";
                     } else if ($comp.hasClass("se-quotation") || $comp.hasClass("se_quotation")) {
                         const quoteText = $comp.find(".se-quotation-text, .se_quotation_text").text().trim();
                         if (quoteText) {
@@ -159,18 +146,18 @@ export async function POST(req: NextRequest) {
                 const tag = el.tagName.toLowerCase();
                 if (tag === 'img') {
                     const src = $(el).attr('src');
-                    if (src) content += `![image](${src})\n\n`;
+                    if (src) content += `<img src="${src}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br><br>`;
                 } else {
                     const $el = $(el);
                     // Only get text from leaf nodes or direct children to avoid duplication
                     if ($el.children().length === 0 || tag === 'p') {
-                        const text = $el.text().trim();
-                        if (text) content += text + "\n\n";
+                        const html = $el.html() || "";
+                        if (html.trim()) content += html.trim() + "<br><br>";
                     }
                 }
             });
         }
-        if (!content.trim()) content = $(".blogview_content, .article_view").text().trim().replace(/\n+/g, "\n\n");
+        if (!content.trim()) content = $(".blogview_content, .article_view").html() || "";
         date = $(".txt_date, .date").first().text().trim();
     } else if (isBrunch) {
         title = $(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
@@ -184,15 +171,15 @@ export async function POST(req: NextRequest) {
                     let src = $(el).attr("src");
                     if (src) {
                         if (src.startsWith("//")) src = "https:" + src;
-                        content += `![image](${src})\n\n`;
+                        content += `<img src="${src}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br><br>`;
                     }
                 } else {
-                    const text = $(el).text().trim();
-                    if (text) content += text + "\n\n";
+                    const html = $(el).html() || "";
+                    if (html.trim()) content += html.trim() + "<br><br>";
                 }
             });
         }
-        if (!content.trim()) content = $(".wrap_body").text().trim().replace(/\n+/g, "\n\n");
+        if (!content.trim()) content = $(".wrap_body").html() || "";
         date = $(".publish_date").text().trim() || $("meta[property='article:published_time']").attr("content") || "";
     }
 
