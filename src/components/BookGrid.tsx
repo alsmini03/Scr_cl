@@ -83,13 +83,9 @@ const BookGrid = memo(({
                 )}
                 style={{ backgroundImage: `url("${book.coverImage}")` }}
               >
-                {book.readingStatus === 'FINISHED' ? (
+                {book.readingStatus === 'FINISHED' && (
                   <div className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
                     FINISHED
-                  </div>
-                ) : (
-                  <div className="absolute top-2 right-2 bg-primary text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                    READING...
                   </div>
                 )}
               </Link>
