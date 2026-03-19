@@ -144,7 +144,27 @@ async function migrate() {
     }
 
 
-    // 5. Delete default YouTube tabs as per user request
+    // 5. Create Performance Indexes
+    try {
+      console.log("Creating performance indexes...");
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_books_user_id_text ON books ((user_id::text))`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_books_added_at ON books (added_at DESC)`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_books_deleted_at ON books (deleted_at)`);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_naver_blogs_user_id_text ON naver_blogs ((user_id::text))`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_naver_blogs_added_at ON naver_blogs (added_at DESC)`);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_youtube_videos_user_id_text ON youtube_videos ((user_id::text))`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_youtube_videos_added_at ON youtube_videos (added_at DESC)`);
+
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_blog_tabs_user_id_text ON blog_tabs ((user_id::text))`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_youtube_tabs_user_id_text ON youtube_tabs ((user_id::text))`);
+      console.log("Performance indexes created successfully.");
+    } catch (e) {
+      console.error("Failed to create indexes:", e.message);
+    }
+
+    // 6. Delete default YouTube tabs as per user request
     try {
       const defaultUrls = [
         'https://m.youtube.com/@understanding./videos',

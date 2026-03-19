@@ -64,7 +64,8 @@ export async function getBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
     const { rows } = await sql`
-      SELECT * FROM books
+      SELECT id, title, author, cover_image, category, published_date, status, rating, progress, added_at
+      FROM books
       WHERE deleted_at IS NULL AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
       ORDER BY added_at DESC
     `;
@@ -444,7 +445,7 @@ export async function getBlogs(): Promise<any[]> {
     let rows;
     try {
         const result = await sql`
-            SELECT * FROM naver_blogs
+            SELECT id, title, author, url, thumbnail, published_at, added_at FROM naver_blogs
             WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
             ORDER BY added_at DESC
         `;
@@ -995,7 +996,7 @@ export async function getYoutubeVideos(): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const { rows } = await sql`
-      SELECT * FROM youtube_videos
+      SELECT id, title, url, thumbnail, duration, published_at, added_at FROM youtube_videos
       WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
       ORDER BY added_at DESC
     `;
