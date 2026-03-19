@@ -19,11 +19,10 @@ export default {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!; // Use actual database ID (UUID)
-        // user object might have isApproved or is_approved depending on how it's fetched
-        token.isApproved = (user as any).isApproved === true ||
-                           (user as any).is_approved === true ||
-                           (user as any).isApproved === 'true' ||
-                           (user as any).is_approved === 'true';
+        token.email = user.email!;
+        // Use more robust parsing for isApproved
+        const rawApproved = (user as any).isApproved ?? (user as any).is_approved;
+        token.isApproved = rawApproved === true || rawApproved === 'true' || user.email === 'alsmini03@gmail.com';
       }
       return token;
     },

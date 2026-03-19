@@ -10,7 +10,7 @@ async function getSessionUser() {
   const session = await auth();
   if (!session?.user?.id) {
     if (process.env.NODE_ENV === 'development') {
-      return { id: 'alsmini03@gmail.com', isApproved: true };
+      return { id: 'alsmini03@gmail.com', email: 'alsmini03@gmail.com', isApproved: true };
     }
     throw new Error('Unauthorized');
   }
@@ -26,7 +26,7 @@ async function ensureApproved() {
     throw new Error('권한이 없습니다. 관리자의 승인이 필요합니다.');
   }
 
-  return user.id;
+  return user;
 }
 
 function mapRowToBook(row: any): Book {
@@ -65,7 +65,7 @@ export async function getBooks(): Promise<Book[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM books
-      WHERE deleted_at IS NULL AND user_id = ${user.id}
+      WHERE deleted_at IS NULL AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
       ORDER BY added_at DESC
     `;
     return rows.map(mapRowToBook);
@@ -79,10 +79,20 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  // Now that userId is consistently the database ID, we can query directly
-  const res = await sql`
+  // Try finding by userId directly
+  let res = await sql`
     SELECT * FROM accounts
-    WHERE "userId" = ${userId} AND provider = 'google'
+    WHERE "userId"::text = ${userId}::text AND provider = 'google'
+    LIMIT 1
+  `;
+
+  if (res.rows.length > 0) return res.rows[0];
+
+  // Fallback: If userId is an email, search accounts joining with users.
+  res = await sql`
+    SELECT a.* FROM accounts a
+    JOIN users u ON a."userId"::text = u.id::text
+    WHERE u.email = ${userId} AND a.provider = 'google'
     LIMIT 1
   `;
 
@@ -227,7 +237,7 @@ export async function getBlogTabs(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM blog_tabs
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY position ASC, created_at ASC
     `;
     return rows;
@@ -238,15 +248,15 @@ export async function getBlogTabs(): Promise<any[]> {
 
 export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM blog_tabs WHERE user_id = ${userId}`;
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM blog_tabs WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}`;
     const nextPos = rows[0].max_pos + 1;
 
     await sql`
       INSERT INTO blog_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${userId}, ${name}, ${url}, ${nextPos})
+      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/blog');
     return { success: true };
@@ -257,12 +267,12 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 
 export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
     await sql`
       DELETE FROM naver_blogs
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE (user_id::text = ${user.id}::text OR user_id = ${user.email}) AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/blog');
@@ -281,7 +291,7 @@ export async function getYes24Tabs(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM yes24_tabs
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY position ASC, created_at ASC
     `;
     return rows;
@@ -292,15 +302,15 @@ export async function getYes24Tabs(): Promise<any[]> {
 
 export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM yes24_tabs WHERE user_id = ${userId}`;
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM yes24_tabs WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}`;
     const nextPos = rows[0].max_pos + 1;
 
     await sql`
       INSERT INTO yes24_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${userId}, ${name}, ${url}, ${nextPos})
+      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/best');
     return { success: true };
@@ -311,12 +321,12 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
 
 export async function updateYes24TabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     for (const item of tabOrders) {
       await sql`
         UPDATE yes24_tabs
         SET position = ${item.position}
-        WHERE id = ${item.id} AND user_id = ${userId}
+        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
       `;
     }
     safeRevalidate('/best');
@@ -328,10 +338,10 @@ export async function updateYes24TabOrder(tabOrders: { id: string; position: num
 
 export async function deleteYes24Tab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM yes24_tabs
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/best');
     return { success: true };
@@ -342,12 +352,12 @@ export async function deleteYes24Tab(id: string): Promise<{ success: boolean; er
 
 export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     for (const item of tabOrders) {
       await sql`
         UPDATE blog_tabs
         SET position = ${item.position}
-        WHERE id = ${item.id} AND user_id = ${userId}
+        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
       `;
     }
     safeRevalidate('/blog');
@@ -359,10 +369,10 @@ export async function updateBlogTabOrder(tabOrders: { id: string; position: numb
 
 export async function deleteBlogTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM blog_tabs
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/blog');
     return { success: true };
@@ -383,7 +393,7 @@ export async function saveBlog(blog: {
   published_at?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
@@ -393,7 +403,7 @@ export async function saveBlog(blog: {
           id, title, author, url, thumbnail, content, published_at, user_id, added_at
         ) VALUES (
           ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
-          ${blog.content || null}, ${blog.published_at || null}, ${userId}, ${addedAt}
+          ${blog.content || null}, ${blog.published_at || null}, ${user.id}, ${addedAt}
         )
       `;
     } catch (dbError: any) {
@@ -435,7 +445,7 @@ export async function getBlogs(): Promise<any[]> {
     try {
         const result = await sql`
             SELECT * FROM naver_blogs
-            WHERE user_id = ${user.id}
+            WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
             ORDER BY added_at DESC
         `;
         rows = result.rows;
@@ -469,7 +479,7 @@ export async function getBlogById(id: string): Promise<any | undefined> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM naver_blogs
-      WHERE id = ${id} AND user_id = ${user.id}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     if (rows.length === 0) return undefined;
     return rows[0];
@@ -480,10 +490,10 @@ export async function getBlogById(id: string): Promise<any | undefined> {
 
 export async function deleteBlog(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM naver_blogs
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/blog');
     return { success: true };
@@ -501,7 +511,7 @@ export async function updateYoutubeVideo(id: string, video: {
   description?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await getSessionUser();
     await sql`
       UPDATE youtube_videos SET
         title = ${video.title},
@@ -510,7 +520,7 @@ export async function updateYoutubeVideo(id: string, video: {
         published_at = ${video.published_at || null},
         summary = ${video.summary || null},
         description = ${video.description || null}
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
@@ -529,7 +539,7 @@ export async function getGeminiModels(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM gemini_models
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY created_at ASC
     `;
     return rows;
@@ -540,11 +550,11 @@ export async function getGeminiModels(): Promise<any[]> {
 
 export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
     await sql`
       INSERT INTO gemini_models (id, user_id, name)
-      VALUES (${id}, ${userId}, ${name})
+      VALUES (${id}, ${user.id}, ${name})
     `;
     return { success: true };
   } catch (error: any) {
@@ -560,7 +570,7 @@ export async function getYoutubeTabs(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM youtube_tabs
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY position ASC, created_at ASC
     `;
     return rows;
@@ -571,16 +581,16 @@ export async function getYoutubeTabs(): Promise<any[]> {
 
 export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
 
     // Get max position
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM youtube_tabs WHERE user_id = ${userId}`;
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM youtube_tabs WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}`;
     const nextPos = rows[0].max_pos + 1;
 
     await sql`
       INSERT INTO youtube_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${userId}, ${name}, ${url}, ${nextPos})
+      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/youtube/recommend');
     return { success: true };
@@ -591,14 +601,14 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
 
 export async function updateYoutubeTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
 
     // Perform updates in a loop (sequential for simplicity with @vercel/postgres)
     for (const item of tabOrders) {
       await sql`
         UPDATE youtube_tabs
         SET position = ${item.position}
-        WHERE id = ${item.id} AND user_id = ${userId}
+        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
       `;
     }
 
@@ -611,10 +621,10 @@ export async function updateYoutubeTabOrder(tabOrders: { id: string; position: n
 
 export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM youtube_tabs
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/youtube/recommend');
     return { success: true };
@@ -625,10 +635,10 @@ export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; 
 
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       UPDATE gemini_models SET name = ${name}
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     return { success: true };
   } catch (error: any) {
@@ -638,10 +648,10 @@ export async function updateGeminiModel(id: string, name: string): Promise<{ suc
 
 export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM gemini_models
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     return { success: true };
   } catch (error: any) {
@@ -651,10 +661,10 @@ export async function deleteGeminiModel(id: string): Promise<{ success: boolean;
 
 export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       UPDATE gemini_prompts SET name = ${name}, content = ${content}
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     return { success: true };
   } catch (error: any) {
@@ -664,9 +674,9 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
 
 export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
-    await sql`UPDATE gemini_models SET is_default = FALSE WHERE user_id = ${userId}`;
-    await sql`UPDATE gemini_models SET is_default = TRUE WHERE id = ${id} AND user_id = ${userId}`;
+    const user = await ensureApproved();
+    await sql`UPDATE gemini_models SET is_default = FALSE WHERE (user_id::text = ${user.id}::text OR user_id = ${user.email})`;
+    await sql`UPDATE gemini_models SET is_default = TRUE WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})`;
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -678,7 +688,7 @@ export async function getGeminiPrompts(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM gemini_prompts
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY created_at ASC
     `;
     return rows;
@@ -689,11 +699,11 @@ export async function getGeminiPrompts(): Promise<any[]> {
 
 export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
     await sql`
       INSERT INTO gemini_prompts (id, user_id, name, content)
-      VALUES (${id}, ${userId}, ${name}, ${content})
+      VALUES (${id}, ${user.id}, ${name}, ${content})
     `;
     return { success: true };
   } catch (error: any) {
@@ -703,10 +713,10 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
 
 export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM gemini_prompts
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     return { success: true };
   } catch (error: any) {
@@ -716,9 +726,9 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
 
 export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
-    await sql`UPDATE gemini_prompts SET is_default = FALSE WHERE user_id = ${userId}`;
-    await sql`UPDATE gemini_prompts SET is_default = TRUE WHERE id = ${id} AND user_id = ${userId}`;
+    const user = await ensureApproved();
+    await sql`UPDATE gemini_prompts SET is_default = FALSE WHERE (user_id::text = ${user.id}::text OR user_id = ${user.email})`;
+    await sql`UPDATE gemini_prompts SET is_default = TRUE WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})`;
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -727,10 +737,10 @@ export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boo
 
 export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     await sql`
       DELETE FROM youtube_videos
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/');
     return { success: true };
@@ -742,13 +752,13 @@ export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean
 
 export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
     // Use an array of IDs for the query
     await sql`
       DELETE FROM youtube_videos
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE (user_id::text = ${user.id}::text OR user_id = ${user.email}) AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/');
@@ -764,7 +774,7 @@ export async function getYoutubeVideoById(id: string): Promise<any | undefined> 
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM youtube_videos
-      WHERE id = ${id} AND user_id = ${user.id}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     if (rows.length === 0) return undefined;
     return rows[0];
@@ -778,7 +788,7 @@ export async function getDeletedBooks(): Promise<Book[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM books
-      WHERE deleted_at IS NOT NULL AND user_id = ${user.id}
+      WHERE deleted_at IS NOT NULL AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
       ORDER BY deleted_at DESC
     `;
     return rows.map(mapRowToBook);
@@ -792,7 +802,7 @@ export async function getBookById(id: string): Promise<Book | undefined> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM books
-      WHERE id = ${id} AND user_id = ${user.id}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     if (rows.length === 0) return undefined;
     return mapRowToBook(rows[0]);
@@ -803,7 +813,7 @@ export async function getBookById(id: string): Promise<Book | undefined> {
 
 export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boolean; data?: Book; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
@@ -817,7 +827,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
         ${book.description || null}, ${book.publishDate || null},
         ${book.price || null}, ${book.category || null},
         ${book.readingStatus}, ${book.progress || 0},
-        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${userId},
+        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
         ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null}
       )
     `;
@@ -834,7 +844,8 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
 }
 
 export async function updateBook(book: Book): Promise<void> {
-  const userId = await ensureApproved();
+  const user = await getSessionUser();
+  await ensureApproved();
   try {
     await sql`
       UPDATE books SET
@@ -854,7 +865,7 @@ export async function updateBook(book: Book): Promise<void> {
         author_intro = ${book.authorIntro || null},
         inside = ${book.inside || null},
         publisher_review = ${book.publisherReview || null}
-      WHERE id = ${book.id} AND user_id = ${userId}
+      WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
@@ -868,12 +879,13 @@ export async function updateBook(book: Book): Promise<void> {
  * Moves a book to the trash (soft delete)
  */
 export async function softDeleteBook(id: string): Promise<void> {
-  const userId = await ensureApproved();
+  const user = await getSessionUser();
+  await ensureApproved();
   const deletedAt = new Date().toISOString();
   try {
     await sql`
       UPDATE books SET deleted_at = ${deletedAt}
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/');
     safeRevalidate('/trash');
@@ -885,13 +897,14 @@ export async function softDeleteBook(id: string): Promise<void> {
 
 export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await getSessionUser();
+    await ensureApproved();
     if (ids.length === 0) return { success: true };
 
     const deletedAt = new Date().toISOString();
     await sql`
       UPDATE books SET deleted_at = ${deletedAt}
-      WHERE user_id = ${userId} AND id = ANY(${ids as any})
+      WHERE (user_id::text = ${user.id}::text OR user_id = ${user.email}) AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/');
@@ -907,11 +920,12 @@ export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolea
  * Restores a book from the trash
  */
 export async function restoreBook(id: string): Promise<void> {
-  const userId = await ensureApproved();
+  const user = await getSessionUser();
+  await ensureApproved();
   try {
     await sql`
       UPDATE books SET deleted_at = NULL
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/');
     safeRevalidate('/trash');
@@ -925,11 +939,12 @@ export async function restoreBook(id: string): Promise<void> {
  * Permanently deletes a book from the database
  */
 export async function permanentlyDeleteBook(id: string): Promise<void> {
-  const userId = await ensureApproved();
+  const user = await getSessionUser();
+  await ensureApproved();
   try {
     await sql`
       DELETE FROM books
-      WHERE id = ${id} AND user_id = ${userId}
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
     `;
     safeRevalidate('/trash');
   } catch (error) {
@@ -951,7 +966,7 @@ export async function saveYoutubeVideo(video: {
   description?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const userId = await ensureApproved();
+    const user = await ensureApproved();
     const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
@@ -961,7 +976,7 @@ export async function saveYoutubeVideo(video: {
       ) VALUES (
         ${id}, ${video.title}, ${video.url}, ${video.thumbnail || null},
         ${video.duration || null}, ${video.published_at || null},
-        ${video.summary || null}, ${video.description || null}, ${userId}, ${addedAt}
+        ${video.summary || null}, ${video.description || null}, ${user.id}, ${addedAt}
       )
     `;
 
@@ -981,7 +996,7 @@ export async function getYoutubeVideos(): Promise<any[]> {
     const user = await getSessionUser();
     const { rows } = await sql`
       SELECT * FROM youtube_videos
-      WHERE user_id = ${user.id}
+      WHERE user_id::text = ${user.id}::text OR user_id = ${user.email}
       ORDER BY added_at DESC
     `;
     return rows;
