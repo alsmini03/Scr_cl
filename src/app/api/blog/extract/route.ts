@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
         // Tistory Mobile content selector
         const contentArea = $(".blogview_content, .article_view, .view_section, .post-content");
         if (contentArea.length > 0) {
-            contentArea.find("p, div, img").each((_, el) => {
+            contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6").each((_, el) => {
                 const tag = el.tagName.toLowerCase();
                 if (tag === 'img') {
                     const src = $(el).attr('src');
@@ -150,9 +150,15 @@ export async function POST(req: NextRequest) {
                 } else {
                     const $el = $(el);
                     // Only get text from leaf nodes or direct children to avoid duplication
-                    if ($el.children().length === 0 || tag === 'p') {
+                    if ($el.children().length === 0 || tag === 'p' || tag.startsWith('h')) {
                         const html = $el.html() || "";
-                        if (html.trim()) content += html.trim() + "<br><br>";
+                        if (html.trim()) {
+                            if (tag.startsWith('h')) {
+                                content += `<${tag}>${html.trim()}</${tag}><br>`;
+                            } else {
+                                content += html.trim() + "<br><br>";
+                            }
+                        }
                     }
                 }
             });
@@ -165,7 +171,7 @@ export async function POST(req: NextRequest) {
 
         const contentArea = $(".wrap_body");
         if (contentArea.length > 0) {
-            contentArea.find("p, h4, img").each((_, el) => {
+            contentArea.find("p, img, h1, h2, h3, h4, h5, h6").each((_, el) => {
                 const tag = el.tagName.toLowerCase();
                 if (tag === 'img') {
                     let src = $(el).attr("src");
@@ -175,7 +181,13 @@ export async function POST(req: NextRequest) {
                     }
                 } else {
                     const html = $(el).html() || "";
-                    if (html.trim()) content += html.trim() + "<br><br>";
+                    if (html.trim()) {
+                        if (tag.startsWith('h')) {
+                            content += `<${tag}>${html.trim()}</${tag}><br>`;
+                        } else {
+                            content += html.trim() + "<br><br>";
+                        }
+                    }
                 }
             });
         }
