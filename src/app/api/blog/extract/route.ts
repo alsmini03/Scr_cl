@@ -84,9 +84,9 @@ export async function POST(req: NextRequest) {
                         });
                         if (!content.endsWith("<br><br>")) content += "<br>";
                     } else if ($comp.hasClass("se-quotation") || $comp.hasClass("se_quotation")) {
-                        const quoteText = $comp.find(".se-quotation-text, .se_quotation_text").text().trim();
-                        if (quoteText) {
-                            content += `> ${quoteText}\n\n`;
+                        const quoteHtml = $comp.find(".se-quotation-text, .se_quotation_text").html();
+                        if (quoteHtml) {
+                            content += `<blockquote>${quoteHtml.trim()}</blockquote><br>`;
                         }
                     } else if ($comp.hasClass("se-image") || $comp.hasClass("se_image")) {
                     let imgSrc = $comp.find("img").attr("data-lazy-src") || $comp.find("img").attr("data-src") || $comp.find("img").attr("src");
@@ -101,17 +101,17 @@ export async function POST(req: NextRequest) {
                         }
                         // Handle relative protocol
                         if (imgSrc.startsWith("//")) imgSrc = "https:" + imgSrc;
-                        content += `![image](${imgSrc})\n`;
-                        if (caption) content += `*${caption}*\n`;
-                        content += "\n";
+                        content += `<img src="${imgSrc}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br>`;
+                        if (caption) content += `<p style="font-size: 0.8em; color: #666; text-align: center;">${caption}</p>`;
+                        content += "<br>";
                     }
                 } else if ($comp.hasClass("se-video") || $comp.hasClass("se_video")) {
                     const videoTitle = $comp.find(".se-video-title, .se_video_title").text().trim();
-                    if (videoTitle) content += `[Video: ${videoTitle}]\n\n`;
+                    if (videoTitle) content += `<p><b>[Video: ${videoTitle}]</b></p><br>`;
                 } else if ($comp.hasClass("se-oglink") || $comp.hasClass("se_oglink")) {
                     const linkTitle = $comp.find(".se-oglink-title, .se_oglink_title").text().trim();
                     const linkUrl = $comp.find("a").attr("href");
-                    if (linkUrl) content += `[${linkTitle || 'Link'}](${linkUrl})\n\n`;
+                    if (linkUrl) content += `<a href="${linkUrl}" target="_blank" style="color: #1978e5;">${linkTitle || 'Link'}</a><br><br>`;
                 }
             });
         }
