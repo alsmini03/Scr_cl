@@ -520,7 +520,7 @@ export async function updateYoutubeVideo(id: string, video: {
         published_at = ${video.published_at || null},
         summary = ${video.summary || null},
         description = ${video.description || null}
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id = ${user.email})
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
     `;
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
