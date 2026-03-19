@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Book } from '@/types/book';
 import { cn } from '@/lib/utils';
-import { useRef } from 'react';
+import { useRef, memo } from 'react';
 
 interface BookGridProps {
   books: Book[];
@@ -14,14 +14,14 @@ interface BookGridProps {
   onLongPress?: (id: string) => void;
 }
 
-export default function BookGrid({
+const BookGrid = memo(({
   books,
   viewMode = '2',
   isSelectionMode = false,
   selectedIds = [],
   onToggleSelection,
   onLongPress
-}: BookGridProps) {
+}: BookGridProps) => {
   const gridCols = parseInt(viewMode) || 2;
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -48,7 +48,7 @@ export default function BookGrid({
           const isSelected = selectedIds.includes(book.id);
 
           return (
-            <div key={book.id} className="relative flex flex-col gap-2 group">
+            <div key={book.id} className="relative flex flex-col gap-2 group animate-fade-in-up">
               {isSelectionMode && (
                 <button
                   onClick={() => onToggleSelection?.(book.id)}
@@ -125,4 +125,6 @@ export default function BookGrid({
       </div>
     </div>
   );
-}
+});
+
+export default BookGrid;

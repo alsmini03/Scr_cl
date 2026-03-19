@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 
-export async function getBlogPosts(idOrUrl: string) {
+export async function getBlogPosts(idOrUrl: string, limit = 0) {
     let blogId = idOrUrl;
     let categoryNo = "";
     let isTistory = idOrUrl.includes("tistory.com");
@@ -34,13 +34,16 @@ export async function getBlogPosts(idOrUrl: string) {
         }
 
         try {
-            const response = await fetch(rssUrl);
+            const response = await fetch(rssUrl, { next: { revalidate: 3600 } });
         if (response.ok) {
             const xml = await response.text();
             const $ = cheerio.load(xml, { xmlMode: true });
             const channelTitle = $("channel > title").first().text().trim();
 
-            $("item").each((_, el) => {
+            const items = $("item").toArray();
+            const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
+
+            itemsToProcess.forEach((el) => {
                 const title = $(el).find("title").text().trim();
                 let link = $(el).find("link").text().trim();
                 const description = $(el).find("description").text();
@@ -97,12 +100,15 @@ export async function getBlogPosts(idOrUrl: string) {
             if (isBrunch) {
                 const rssUrl = $("link[type='application/rss+xml']").attr("href");
                 if (rssUrl) {
-                    const rssRes = await fetch(rssUrl);
+                    const rssRes = await fetch(rssUrl, { next: { revalidate: 3600 } });
                     if (rssRes.ok) {
                         const xml = await rssRes.text();
                         const $rss = cheerio.load(xml, { xmlMode: true });
                         const channelTitle = $rss("channel > title").first().text().trim();
-                        $rss("item").each((_, el) => {
+                        const items = $rss("item").toArray();
+                        const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
+
+                        itemsToProcess.forEach((el) => {
                             const title = $rss(el).find("title").text().trim();
                             const link = $rss(el).find("link").text().trim();
                             const pubDate = $rss(el).find("pubDate").text();
@@ -161,9 +167,10 @@ export async function getBlogPosts(idOrUrl: string) {
                 }
 
                 // Priority 2: CSS Selectors
-                const listItems = $("ul.list_blog2 li, ul.list_post li, .list_content li, .article_content");
+                let listItems = $("ul.list_blog2 li, ul.list_post li, .list_content li, .article_content").toArray();
+                if (limit > 0) listItems = listItems.slice(0, limit);
 
-                listItems.each((_, el) => {
+                listItems.forEach((el) => {
                     const $el = $(el);
                     const $link = $el.find("a").first();
                     const href = $link.attr('href');
@@ -244,12 +251,15 @@ export async function getBlogPosts(idOrUrl: string) {
                 if (userId) {
                     // Try to construct RSS from userId
                     const rssUrl = `https://brunch.co.kr/rss/@@${userId}`;
-                    const rssRes = await fetch(rssUrl);
+                    const rssRes = await fetch(rssUrl, { next: { revalidate: 3600 } });
                     if (rssRes.ok) {
                         const xml = await rssRes.text();
                         const $rss = cheerio.load(xml, { xmlMode: true });
                         const channelTitle = $rss("channel > title").first().text().trim();
-                        $rss("item").each((_, el) => {
+                        const items = $rss("item").toArray();
+                        const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
+
+                        itemsToProcess.forEach((el) => {
                             const title = $rss(el).find("title").text().trim();
                             const link = $rss(el).find("link").text().trim();
                             const pubDate = $rss(el).find("pubDate").text();
@@ -275,7 +285,8 @@ export async function getBlogPosts(idOrUrl: string) {
                     if (content.includes("__PRELOADED_STATE__")) {
                         const jsonStr = content.substring(content.indexOf('{'), content.lastIndexOf('}') + 1);
                         const state = JSON.parse(jsonStr);
-                        const items = state.postList?.postList?.items || state.categoryPostList?.postList?.items || state.postList?.items || [];
+                        let items = state.postList?.postList?.items || state.categoryPostList?.postList?.items || state.postList?.items || [];
+                        if (limit > 0) items = items.slice(0, limit);
 
                         items.forEach((item: any) => {
                             allPosts.push({

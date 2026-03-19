@@ -31,12 +31,13 @@ function parseYouTubeRelativeTime(timeStr: string): number {
   }
 }
 
-async function fetchChannelVideos(channelUrl: string) {
+async function fetchChannelVideos(channelUrl: string, limit = 0) {
   const response = await fetch(channelUrl, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
     },
+    next: { revalidate: 3600 } // Cache for 1 hour
   });
 
   if (!response.ok) {
@@ -70,7 +71,8 @@ async function fetchChannelVideos(channelUrl: string) {
           const gridItems = videoTab.tabRenderer.content?.richGridRenderer?.contents ||
                             videoTab.tabRenderer.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.gridRenderer?.items || [];
 
-          videos = gridItems.map((item: any) => {
+          const itemsToProcess = limit > 0 ? gridItems.slice(0, limit) : gridItems;
+          videos = itemsToProcess.map((item: any) => {
               const video = item.richItemRenderer?.content?.videoRenderer || item.gridVideoRenderer;
               if (!video) return null;
 
@@ -114,7 +116,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ videos });
     }
 
-    const results = await Promise.allSettled(urls.map(url => fetchChannelVideos(url)));
+    // Limit to 10 videos per channel when fetching all to improve performance
+    const results = await Promise.allSettled(urls.map(url => fetchChannelVideos(url, 10)));
 
     const videoGroups = results.map((res) => {
       return res.status === 'fulfilled' ? res.value : [];

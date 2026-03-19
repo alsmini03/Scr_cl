@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { saveBlog, getBlogs, deleteBlog, getBlogTabs, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogs } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -387,28 +387,20 @@ export default function BlogListPage() {
                 </div>
             )}
             {isLoading ? (
-                <div className="flex justify-center py-20"><div className="animate-spin text-primary"><span className="material-symbols-outlined text-4xl">sync</span></div></div>
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl h-24 w-full animate-skeleton" />
+                  ))}
+                </div>
             ) : (
                 <div className="space-y-3">
                     {recommendPosts.map((post, idx) => (
-                        <div key={idx} className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3">
-                            <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4 min-w-0">
-                                <div className="flex flex-col justify-center">
-                                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
-                                    <div className="flex justify-between items-center">
-                                        {post.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{post.author}</p>}
-                                        <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{post.published_at}</p>
-                                    </div>
-                                </div>
-                            </a>
-                            <button
-                                onClick={() => handleAddBlog(post)}
-                                disabled={addingUrl === post.url}
-                                className="size-10 flex-shrink-0 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all disabled:opacity-50"
-                            >
-                                {addingUrl === post.url ? <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined">library_add</span>}
-                            </button>
-                        </div>
+                        <RecommendItem
+                          key={idx}
+                          post={post}
+                          addingUrl={addingUrl}
+                          onAdd={handleAddBlog}
+                        />
                     ))}
                 </div>
             )
@@ -419,53 +411,17 @@ export default function BlogListPage() {
                 <div className="py-20 text-center text-slate-400">저장된 글이 없습니다.</div>
             ) : (
                 <div className="space-y-3 pb-20">
-                    {blogs.map((blog) => {
-                        let timer: any;
-                        const handleTouchStart = () => { timer = setTimeout(() => handleLongPress(blog.id), 500); };
-                        const handleTouchEnd = () => { clearTimeout(timer); };
-
-                        return (
-                            <div key={blog.id} className="relative">
-                                <Link
-                                    href={isEditMode ? '#' : `/blog/${blog.id}`}
-                                    onClick={(e) => isEditMode && toggleSelect(blog.id, e)}
-                                    onTouchStart={handleTouchStart}
-                                    onTouchEnd={handleTouchEnd}
-                                    onMouseDown={handleTouchStart}
-                                    onMouseUp={handleTouchEnd}
-                                    className={cn(
-                                        "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
-                                        isEditMode && selectedIds.includes(blog.id) ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
-                                    )}
-                                >
-                                    <div className="flex-1 p-4">
-                                        <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
-                                        <div className="flex justify-between items-center mt-1">
-                                            {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
-                                            <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center pr-3">
-                                        {isEditMode ? (
-                                            <div className={cn(
-                                                "size-6 rounded-full border-2 flex items-center justify-center transition-all",
-                                                selectedIds.includes(blog.id) ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
-                                            )}>
-                                                {selectedIds.includes(blog.id) && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={(e) => handleDelete(blog.id, e)}
-                                                className="size-10 text-slate-300 hover:text-red-500 transition-colors"
-                                            >
-                                                <span className="material-symbols-outlined">delete</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                </Link>
-                            </div>
-                        );
-                    })}
+                    {blogs.map((blog) => (
+                      <MyBlogItem
+                        key={blog.id}
+                        blog={blog}
+                        isEditMode={isEditMode}
+                        isSelected={selectedIds.includes(blog.id)}
+                        onLongPress={handleLongPress}
+                        onToggleSelect={toggleSelect}
+                        onDelete={handleDelete}
+                      />
+                    ))}
                 </div>
             )
         )}
@@ -485,3 +441,72 @@ export default function BlogListPage() {
     </div>
   );
 }
+
+const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
+  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3 animate-fade-in-up">
+      <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4 min-w-0">
+          <div className="flex flex-col justify-center">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
+              <div className="flex justify-between items-center">
+                  {post.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{post.author}</p>}
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{post.published_at}</p>
+              </div>
+          </div>
+      </a>
+      <button
+          onClick={() => onAdd(post)}
+          disabled={addingUrl === post.url}
+          className="size-10 flex-shrink-0 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+      >
+          {addingUrl === post.url ? <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined">library_add</span>}
+      </button>
+  </div>
+));
+
+const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSelect, onDelete }: any) => {
+  let timer: any;
+  const handleTouchStart = () => { timer = setTimeout(() => onLongPress(blog.id), 500); };
+  const handleTouchEnd = () => { clearTimeout(timer); };
+
+  return (
+      <div className="relative animate-fade-in-up">
+          <Link
+              href={isEditMode ? '#' : `/blog/${blog.id}`}
+              onClick={(e) => isEditMode && onToggleSelect(blog.id, e)}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              onMouseDown={handleTouchStart}
+              onMouseUp={handleTouchEnd}
+              className={cn(
+                  "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
+                  isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+              )}
+          >
+              <div className="flex-1 p-4">
+                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
+                  <div className="flex justify-between items-center mt-1">
+                      {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
+                  </div>
+              </div>
+              <div className="flex items-center pr-3">
+                  {isEditMode ? (
+                      <div className={cn(
+                          "size-6 rounded-full border-2 flex items-center justify-center transition-all",
+                          isSelected ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
+                      )}>
+                          {isSelected && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
+                      </div>
+                  ) : (
+                      <button
+                          onClick={(e) => onDelete(blog.id, e)}
+                          className="size-10 text-slate-300 hover:text-red-500 transition-colors"
+                      >
+                          <span className="material-symbols-outlined">delete</span>
+                      </button>
+                  )}
+              </div>
+          </Link>
+      </div>
+  );
+});

@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { saveYoutubeVideo, getYoutubeVideos, deleteYoutubeVideo, batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, getYoutubeTabs, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
 import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
@@ -455,9 +455,13 @@ export default function YouTubeRecommendPage() {
         )}
 
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="size-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-            <p className="text-slate-500 font-medium">추천 영상을 읽어오는 중...</p>
+          <div className={cn(
+            "grid gap-4",
+            cols === 1 ? "grid-cols-1" : "grid-cols-2"
+          )}>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl aspect-video w-full animate-skeleton" />
+            ))}
           </div>
         ) : videos.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
@@ -468,79 +472,17 @@ export default function YouTubeRecommendPage() {
             "grid gap-4",
             cols === 1 ? "grid-cols-1" : "grid-cols-2"
           )}>
-            {videos.map((video) => {
-              let timer: any;
-              const startPress = () => {
-                timer = setTimeout(() => handleCopyUrl(video.url), 600);
-              };
-              const endPress = () => {
-                clearTimeout(timer);
-              };
-
-              return (
-              <div
+            {videos.map((video) => (
+              <RecommendVideoItem
                 key={video.videoId}
-                className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors"
-                onTouchStart={startPress}
-                onTouchEnd={endPress}
-                onMouseDown={startPress}
-                onMouseUp={endPress}
-                onMouseLeave={endPress}
-              >
-                <a
-                  href={video.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "flex flex-col rounded-2xl",
-                    cols === 1 ? "p-3" : "p-2"
-                  )}
-                >
-                  <div className="relative w-full aspect-video bg-slate-100 rounded-xl overflow-hidden mb-3">
-                    <div
-                      className="w-full h-full bg-center bg-no-repeat bg-cover"
-                      style={{ backgroundImage: `url("${video.thumbnail}")` }}
-                    />
-                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/80 text-white text-[9px] font-bold rounded">
-                      {video.duration}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start gap-2 mb-1">
-                      <p className={cn(
-                        "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug",
-                        cols === 1 ? "text-base" : "text-[13px]"
-                      )}>{video.title}</p>
-
-                      {session && (
-                        <button
-                          onClick={(e) => handleAddVideo(e, video)}
-                          disabled={addingId === video.videoId}
-                          className={cn(
-                            "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
-                            cols === 1 ? "size-9" : "size-7"
-                          )}
-                          title="내 서재에 추가"
-                        >
-                          {addingId === video.videoId ? (
-                            <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <span className={cn("material-symbols-outlined", cols === 1 ? "text-lg" : "text-base")}>library_add</span>
-                          )}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                      <span className="truncate">{video.viewCount}</span>
-                      <span>•</span>
-                      <span className="truncate">{video.publishedTime}</span>
-                    </div>
-                  </div>
-                </a>
-              </div>
-            );})}
+                video={video}
+                cols={cols}
+                isLoggedIn={!!session}
+                addingId={addingId}
+                onCopyUrl={handleCopyUrl}
+                onAdd={handleAddVideo}
+              />
+            ))}
           </div>
         )}
         </>
@@ -552,52 +494,16 @@ export default function YouTubeRecommendPage() {
                     "grid gap-4 pb-20",
                     cols === 1 ? "grid-cols-1" : "grid-cols-2"
                 )}>
-                    {myVideos.map((video) => {
-                        let timer: any;
-                        const handleTouchStart = () => { timer = setTimeout(() => handleLongPress(video.id), 500); };
-                        const handleTouchEnd = () => { clearTimeout(timer); };
-
-                        return (
-                            <div key={video.id} className="relative">
-                                <Link
-                                    href={isEditMode ? '#' : `/youtube/${video.id}`}
-                                    onClick={(e) => isEditMode && toggleSelect(video.id, e)}
-                                    onTouchStart={handleTouchStart}
-                                    onTouchEnd={handleTouchEnd}
-                                    onMouseDown={handleTouchStart}
-                                    onMouseUp={handleTouchEnd}
-                                    className={cn(
-                                        "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
-                                        isEditMode && selectedIds.includes(video.id) ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
-                                    )}
-                                >
-                                    <div className="aspect-video relative w-full overflow-hidden">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
-                                        <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                                            {video.duration}
-                                        </div>
-                                        {isEditMode && (
-                                            <div className="absolute top-2 right-2">
-                                                <div className={cn(
-                                                    "size-6 rounded-full border-2 flex items-center justify-center transition-all",
-                                                    selectedIds.includes(video.id) ? "bg-primary border-primary" : "border-white/50 bg-black/20"
-                                                )}>
-                                                    {selectedIds.includes(video.id) && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="p-3 flex-1 flex flex-col justify-between">
-                                        <div>
-                                            <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1 text-sm">{video.title}</h3>
-                                            <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
-                                        </div>
-                                    </div>
-                                </Link>
-                            </div>
-                        );
-                    })}
+                    {myVideos.map((video) => (
+                      <MyVideoItem
+                        key={video.id}
+                        video={video}
+                        isEditMode={isEditMode}
+                        isSelected={selectedIds.includes(video.id)}
+                        onLongPress={handleLongPress}
+                        onToggleSelect={toggleSelect}
+                      />
+                    ))}
                 </div>
             )
         )}
@@ -617,3 +523,120 @@ export default function YouTubeRecommendPage() {
     </div>
   );
 }
+
+const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
+  let timer: any;
+  const startPress = () => { timer = setTimeout(() => onCopyUrl(video.url), 600); };
+  const endPress = () => { clearTimeout(timer); };
+
+  return (
+    <div
+      className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up"
+      onTouchStart={startPress}
+      onTouchEnd={endPress}
+      onMouseDown={startPress}
+      onMouseUp={endPress}
+      onMouseLeave={endPress}
+    >
+      <a
+        href={video.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={cn(
+          "flex flex-col rounded-2xl",
+          cols === 1 ? "p-3" : "p-2"
+        )}
+      >
+        <div className="relative w-full aspect-video bg-slate-100 rounded-xl overflow-hidden mb-3">
+          <div
+            className="w-full h-full bg-center bg-no-repeat bg-cover"
+            style={{ backgroundImage: `url("${video.thumbnail}")` }}
+          />
+          <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/80 text-white text-[9px] font-bold rounded">
+            {video.duration}
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start gap-2 mb-1">
+            <p className={cn(
+              "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug",
+              cols === 1 ? "text-base" : "text-[13px]"
+            )}>{video.title}</p>
+
+            {isLoggedIn && (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(e, video); }}
+                disabled={addingId === video.videoId}
+                className={cn(
+                  "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
+                  cols === 1 ? "size-9" : "size-7"
+                )}
+                title="내 서재에 추가"
+              >
+                {addingId === video.videoId ? (
+                  <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-lg" : "text-base")}>library_add</span>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+            <span className="truncate">{video.viewCount}</span>
+            <span>•</span>
+            <span className="truncate">{video.publishedTime}</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  );
+});
+
+const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggleSelect }: any) => {
+  let timer: any;
+  const handleTouchStart = () => { timer = setTimeout(() => onLongPress(video.id), 500); };
+  const handleTouchEnd = () => { clearTimeout(timer); };
+
+  return (
+    <div className="relative animate-fade-in-up">
+        <Link
+            href={isEditMode ? '#' : `/youtube/${video.id}`}
+            onClick={(e) => isEditMode && onToggleSelect(video.id, e)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleTouchStart}
+            onMouseUp={handleTouchEnd}
+            className={cn(
+                "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
+                isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+            )}
+        >
+            <div className="aspect-video relative w-full overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
+                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                    {video.duration}
+                </div>
+                {isEditMode && (
+                    <div className="absolute top-2 right-2">
+                        <div className={cn(
+                            "size-6 rounded-full border-2 flex items-center justify-center transition-all",
+                            isSelected ? "bg-primary border-primary" : "border-white/50 bg-black/20"
+                        )}>
+                            {isSelected && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
+                        </div>
+                    </div>
+                )}
+            </div>
+            <div className="p-3 flex-1 flex flex-col justify-between">
+                <div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1 text-sm">{video.title}</h3>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
+                </div>
+            </div>
+        </Link>
+    </div>
+  );
+});

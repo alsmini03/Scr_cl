@@ -7,7 +7,10 @@ export async function GET(req: NextRequest) {
     const blogIdParam = searchParams.get("blogId") || "totcar";
     const blogIds = blogIdParam.split(',');
 
-    const blogPromises = blogIds.map(id => getBlogPosts(id));
+    // Limit to 10 posts per blog when fetching all to improve performance
+    const limit = blogIds.length > 1 ? 10 : 0;
+
+    const blogPromises = blogIds.map(id => getBlogPosts(id, limit));
     const results = await Promise.all(blogPromises);
     let allPosts: any[] = results.flat();
 

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
 import { useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
 
 interface ClientLibraryProps {
   session: { user?: { name?: string | null, email?: string | null, image?: string | null } } | null;
@@ -25,6 +26,7 @@ export default function ClientLibrary({
 }: ClientLibraryProps) {
   const router = useRouter();
   const [bookView, setBookView] = useState('2');
+  const [isLoading, setIsLoadingState] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -33,6 +35,7 @@ export default function ClientLibrary({
   useEffect(() => {
     const savedBookView = localStorage.getItem('book-view');
     if (savedBookView) setBookView(savedBookView);
+    setIsLoadingState(false);
   }, []);
 
   const updateBookView = (view: string) => {
@@ -135,7 +138,16 @@ export default function ClientLibrary({
             </Link>
           </div>
         ) : (
-           books.length === 0 ? (
+          isLoading ? (
+            <div className={cn(
+              "grid gap-4",
+              bookView === '2' ? "grid-cols-2" : (bookView === '3' ? "grid-cols-3" : "grid-cols-5")
+            )}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-xl aspect-[3/4] w-full animate-skeleton" />
+              ))}
+            </div>
+          ) : books.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
               <span className="material-symbols-outlined text-6xl mb-4">library_books</span>
               <p>아직 등록된 책이 없습니다.</p>
