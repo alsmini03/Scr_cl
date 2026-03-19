@@ -108,7 +108,16 @@ export default function BookGrid({
                     <span className="material-symbols-outlined text-[10px] fill-1">star</span>
                     <span className="text-[10px] font-bold ml-0.5">{book.rating?.toFixed(1) || '0.0'}</span>
                   </div>
-                ) : null}
+                ) : (
+                  (book.progress || 0) > 0 && (
+                    <div className="mt-1 h-1 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${book.progress}%` }}
+                      />
+                    </div>
+                  )
+                )}
               </div>
             </div>
           );

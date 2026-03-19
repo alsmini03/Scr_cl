@@ -262,7 +262,7 @@ export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolea
 
     await sql`
       DELETE FROM naver_blogs
-      WHERE user_id = ${userId} AND id = ANY(${ids})
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/blog');
@@ -748,7 +748,7 @@ export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success
     // Use an array of IDs for the query
     await sql`
       DELETE FROM youtube_videos
-      WHERE user_id = ${userId} AND id = ANY(${ids})
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/');
@@ -891,7 +891,7 @@ export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolea
     const deletedAt = new Date().toISOString();
     await sql`
       UPDATE books SET deleted_at = ${deletedAt}
-      WHERE user_id = ${userId} AND id = ANY(${ids})
+      WHERE user_id = ${userId} AND id = ANY(${ids as any})
     `;
 
     safeRevalidate('/');
