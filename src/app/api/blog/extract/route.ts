@@ -83,8 +83,8 @@ export async function POST(req: NextRequest) {
                             }
                         });
                         if (!content.endsWith("<br><br>")) content += "<br>";
-                    } else if ($comp.hasClass("se-quotation") || $comp.hasClass("se_quotation")) {
-                        const quoteHtml = $comp.find(".se-quotation-text, .se_quotation_text").html();
+                    } else if ($comp.hasClass("se-quotation") || $comp.hasClass("se_quotation") || $comp.find('.se-quotation-container').length > 0) {
+                        const quoteHtml = $comp.find(".se-quotation-text, .se_quotation_text, .se-quotation-container").html();
                         if (quoteHtml) {
                             content += `<blockquote>${quoteHtml.trim()}</blockquote><br>`;
                         }
