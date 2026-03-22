@@ -249,7 +249,7 @@ export async function getBlogTabs(): Promise<any[]> {
   }
 }
 
-export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = crypto.randomUUID();
@@ -262,7 +262,7 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
       VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/blog');
-    return { success: true };
+    return { success: true, id };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -303,7 +303,7 @@ export async function getYes24Tabs(): Promise<any[]> {
   }
 }
 
-export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = crypto.randomUUID();
@@ -316,7 +316,7 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
       VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/best');
-    return { success: true };
+    return { success: true, id };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -582,7 +582,7 @@ export async function getYoutubeTabs(): Promise<any[]> {
   }
 }
 
-export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; error?: string }> {
+export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = crypto.randomUUID();
@@ -596,7 +596,7 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
       VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
     `;
     safeRevalidate('/youtube/recommend');
-    return { success: true };
+    return { success: true, id };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

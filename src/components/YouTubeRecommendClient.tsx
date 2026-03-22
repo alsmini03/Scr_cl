@@ -35,7 +35,7 @@ export default function YouTubeRecommendClient({
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
-  const [activeTabId, setActiveTabId] = useState('all');
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -49,8 +49,15 @@ export default function YouTubeRecommendClient({
 
   useEffect(() => {
     const savedTab = localStorage.getItem('youtube_recommend_tab_v2');
-    if (savedTab) {
+    if (savedTab && tabs.some(t => t.id === savedTab)) {
       setActiveTabId(savedTab);
+    } else {
+      setActiveTabId('all');
+    }
+
+    const savedViewMode = localStorage.getItem('youtube_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
     }
 
     const savedCols = localStorage.getItem('youtube_recommend_cols');
@@ -64,8 +71,14 @@ export default function YouTubeRecommendClient({
   }, [cols]);
 
   useEffect(() => {
-    localStorage.setItem('youtube_recommend_tab_v2', activeTabId);
+    if (activeTabId) {
+      localStorage.setItem('youtube_recommend_tab_v2', activeTabId);
+    }
   }, [activeTabId]);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_view_mode', viewMode);
+  }, [viewMode]);
 
   const fetchVideos = async () => {
     if (tabs.length === 0 && activeTabId === 'all') {
@@ -105,7 +118,7 @@ export default function YouTubeRecommendClient({
   };
 
   useEffect(() => {
-    if (viewMode === 'recommend') {
+    if (viewMode === 'recommend' && activeTabId) {
         fetchVideos();
     }
   }, [activeTabId, tabs, viewMode]);
@@ -186,9 +199,10 @@ export default function YouTubeRecommendClient({
     if (!newTabName || !newTabUrl) return;
     setIsAddingTab(true);
     const res = await addYoutubeTab(newTabName, newTabUrl);
-    if (res.success) {
+    if (res.success && res.id) {
       setNewTabName('');
       setNewTabUrl('');
+      localStorage.setItem('youtube_recommend_tab_v2', res.id);
       window.location.reload();
     } else {
       alert(res.error);

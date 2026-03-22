@@ -29,8 +29,23 @@ export default function BestClient({
   const [addingId, setAddingId] = useState<number | null>(null);
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
-  const [activeTabId, setActiveTabId] = useState<string | null>(initialTabs[0]?.id || null);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showTabManager, setShowTabManager] = useState(false);
+
+  useEffect(() => {
+    const savedTab = localStorage.getItem('yes24_active_tab');
+    if (savedTab && tabs.some(t => t.id === savedTab)) {
+        setActiveTabId(savedTab);
+    } else if (tabs.length > 0) {
+        setActiveTabId(tabs[0].id);
+    }
+  }, [tabs]);
+
+  useEffect(() => {
+    if (activeTabId) {
+        localStorage.setItem('yes24_active_tab', activeTabId);
+    }
+  }, [activeTabId]);
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
@@ -115,9 +130,10 @@ export default function BestClient({
     if (!newTabName || !newTabUrl) return;
     setIsAddingTab(true);
     const res = await addYes24Tab(newTabName, newTabUrl);
-    if (res.success) {
+    if (res.success && res.id) {
       setNewTabName('');
       setNewTabUrl('');
+      localStorage.setItem('yes24_active_tab', res.id);
       window.location.reload();
     } else {
       alert(res.error);

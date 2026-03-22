@@ -24,7 +24,7 @@ export default function BlogClient({
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
-  const [activeTabId, setActiveTabId] = useState('all');
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showTabManager, setShowTabManager] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
@@ -71,17 +71,30 @@ export default function BlogClient({
 
   useEffect(() => {
     const savedTab = localStorage.getItem('blog_recommend_tab');
-    if (savedTab) {
+    if (savedTab && tabs.some(t => t.id === savedTab)) {
       setActiveTabId(savedTab);
+    } else {
+      setActiveTabId('all');
     }
-  }, []);
+
+    const savedViewMode = localStorage.getItem('blog_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
+  }, [tabs]);
 
   useEffect(() => {
-    localStorage.setItem('blog_recommend_tab', activeTabId);
+    if (activeTabId) {
+      localStorage.setItem('blog_recommend_tab', activeTabId);
+    }
   }, [activeTabId]);
 
   useEffect(() => {
-    if (viewMode === 'recommend') {
+    localStorage.setItem('blog_view_mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'recommend' && activeTabId) {
         fetchRecommend();
     }
   }, [activeTabId, tabs, viewMode]);
@@ -177,10 +190,10 @@ export default function BlogClient({
     if (!newTabName || !newTabUrl) return;
     setIsAddingTab(true);
     const res = await addBlogTab(newTabName, newTabUrl);
-    if (res.success) {
+    if (res.success && res.id) {
       setNewTabName('');
       setNewTabUrl('');
-      // In a real app we'd refresh from server, but for speed we can wait or refresh
+      localStorage.setItem('blog_recommend_tab', res.id);
       window.location.reload();
     } else {
       alert(res.error);
