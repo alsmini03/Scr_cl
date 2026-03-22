@@ -5,6 +5,7 @@ import { Book } from '@/types/book';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { sendGmail } from './gmail';
+import { marked } from 'marked';
 
 async function getSessionUser() {
   const session = await auth();
@@ -211,6 +212,7 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
     if (!video) throw new Error('Video not found');
 
     const subject = `${video.title}`;
+    const summaryHtml = await marked.parse(video.summary || '');
     const body = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
         <h2 style="color: #1978e5;">${video.title}</h2>
@@ -218,9 +220,9 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
         <p><b>게시일:</b> ${video.published_at || '-'}</p>
         <p><b>재생시간:</b> ${video.duration || '-'}</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="white-space: pre-wrap; background: #f9f9f9; padding: 20px; border-radius: 10px;">
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 10px;">
           <h3 style="margin-top: 0;">AI 요약 분석</h3>
-          ${video.summary}
+          ${summaryHtml}
         </div>
       </div>
     `;

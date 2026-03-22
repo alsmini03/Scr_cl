@@ -176,7 +176,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
   };
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
         title="유튜브 기록"
         showBack
@@ -258,7 +258,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
                <span className="material-symbols-outlined text-slate-400">description</span>
                상세 설명
             </h2>
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed shadow-inner">
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed shadow-inner break-words overflow-hidden">
                {video.description || "설명이 없습니다."}
             </div>
           </div>

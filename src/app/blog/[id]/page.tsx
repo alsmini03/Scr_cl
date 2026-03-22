@@ -4,9 +4,6 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { getBlogById, deleteBlog, sendBlogEmailAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -126,17 +123,10 @@ export default function BlogDetailPage() {
             </div>
         )}
 
-        <div className="prose dark:prose-invert prose-slate max-w-none pb-20">
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                    img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
-                }}
-            >
-                {blog.content}
-            </ReactMarkdown>
-        </div>
+        <div
+          className="prose dark:prose-invert prose-slate max-w-none pb-20"
+          dangerouslySetInnerHTML={{ __html: blog.content || '' }}
+        />
       </main>
 
       <BottomNav activeTab="blog" />
