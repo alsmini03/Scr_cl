@@ -114,7 +114,7 @@ function fetchLatestVideos(channelUrl, limit) {
         videos.push({
           videoId: videoId,
           title: videoRenderer.title.runs[0].text,
-          url: 'https://www.youtube.com/watch?v= ' + videoId,
+          url: 'https://www.youtube.com/watch?v=' + videoId,
           thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
           publishedTime: videoRenderer.publishedTimeText?.simpleText || ''
         });

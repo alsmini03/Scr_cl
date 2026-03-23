@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
+import { cn, isThumbnailInContent } from '@/lib/utils';
 import { saveBook, saveBlog } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
@@ -430,7 +430,7 @@ function AddContent() {
                                 {extractedBlog.author && <p className="text-primary font-bold">{extractedBlog.author}</p>}
                                 <p className="text-slate-400">{extractedBlog.published_at}</p>
                             </div>
-                            {extractedBlog.thumbnail && !extractedBlog.content?.includes(extractedBlog.thumbnail) && (
+                            {extractedBlog.thumbnail && !isThumbnailInContent(extractedBlog.thumbnail, extractedBlog.content) && (
                                 <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />
                             )}
                             <div
