@@ -117,7 +117,7 @@ export default function BlogDetailPage() {
             <p className="text-slate-400">{blog.published_at}</p>
         </div>
 
-        {blog.thumbnail && (
+        {blog.thumbnail && !blog.content?.includes(blog.thumbnail) && (
             <div className="w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-primary/10">
                 <img src={blog.thumbnail} alt="" className="w-full" referrerPolicy="no-referrer" />
             </div>

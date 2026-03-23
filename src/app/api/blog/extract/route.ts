@@ -199,12 +199,37 @@ export async function POST(req: NextRequest) {
         date = $(".publish_date").text().trim() || $("meta[property='article:published_time']").attr("content") || "";
     }
 
+    // Requirement: Format date for title (YYYY년 M월 D일(요일))
+    let formattedDateForTitle = date;
+    if (date) {
+      try {
+        const d = new Date(date);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = d.getMonth() + 1;
+          const day = d.getDate();
+          const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
+          const weekDay = weekDays[d.getDay()];
+          formattedDateForTitle = `${year}년 ${month}월 ${day}일(${weekDay})`;
+
+          // Requirement: Prepend original date (with time) to content
+          const timeStr = d.toLocaleTimeString('ko-KR', { hour12: false });
+          const fullDateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')} ${timeStr}`;
+          content = `<p style="font-size: 0.85em; color: #888; margin-bottom: 20px;">작성일: ${fullDateStr}</p>` + content;
+        }
+      } catch (e) {
+        console.warn("Date formatting failed:", e);
+      }
+    }
+
+
     return NextResponse.json({
       title,
       author,
       content,
       thumbnail,
-      published_at: date,
+      published_at: formattedDateForTitle, // Title date (YYYY년 M월 D일)
+      original_published_at: date, // Keep original for body if needed
       url
     });
   } catch (error: any) {

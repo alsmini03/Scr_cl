@@ -629,7 +629,7 @@ export default function AddYouTubePage() {
       <BottomNav activeTab="youtube" />
 
       {/* Fixed Bottom Action Bar - above BottomNav */}
-      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
+      <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
         <div className="max-w-2xl mx-auto flex justify-center">
           <button
             onClick={() => handleSave()}

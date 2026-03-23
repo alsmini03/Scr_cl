@@ -426,19 +426,17 @@ function AddContent() {
                     {extractedBlog && (
                         <div className="space-y-6">
                             <h2 className="text-xl font-bold">{extractedBlog.title}</h2>
-                            {extractedBlog.author && <p className="text-sm text-primary font-bold">{extractedBlog.author}</p>}
-                            {extractedBlog.thumbnail && <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />}
-                            <div className="prose dark:prose-invert prose-slate max-w-none">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                    rehypePlugins={[rehypeRaw]}
-                                    components={{
-                                        img: ({ node, ...props }) => <img {...props} referrerPolicy="no-referrer" className="w-full rounded-2xl" />
-                                    }}
-                                >
-                                    {extractedBlog.content}
-                                </ReactMarkdown>
+                            <div className="flex justify-between items-center text-sm">
+                                {extractedBlog.author && <p className="text-primary font-bold">{extractedBlog.author}</p>}
+                                <p className="text-slate-400">{extractedBlog.published_at}</p>
                             </div>
+                            {extractedBlog.thumbnail && !extractedBlog.content?.includes(extractedBlog.thumbnail) && (
+                                <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />
+                            )}
+                            <div
+                              className="prose dark:prose-invert prose-slate max-w-none"
+                              dangerouslySetInnerHTML={{ __html: extractedBlog.content || '' }}
+                            />
                         </div>
                     )}
                     {isExtracting && <div className="py-20 text-center animate-pulse">정보를 가져오는 중입니다...</div>}
@@ -451,7 +449,7 @@ function AddContent() {
       <BottomNav activeTab="library" />
 
       {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
+      <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
         <div className="max-w-2xl mx-auto flex justify-center">
           <button
             onClick={() => activeTab === 'yes24' ? handleSave() : handleSaveBlog()}
@@ -459,7 +457,7 @@ function AddContent() {
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-xl">save</span>
-            {isSaving ? '저장 중...' : '내 서재에 저장하기'}
+            {isSaving ? '저장 중...' : '저장하기'}
           </button>
         </div>
       </div>
