@@ -499,7 +499,11 @@ const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSe
                   <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
                   <div className="flex justify-between items-center mt-1">
                       {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{blog.published_at}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                          {blog.published_at?.includes(':') && blog.published_at?.split(' ').length > 4
+                            ? blog.published_at.split(' ').slice(0, 4).join(' ')
+                            : blog.published_at}
+                      </p>
                   </div>
               </div>
               <div className="flex items-center pr-3">

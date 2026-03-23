@@ -114,7 +114,11 @@ export default function BlogDetailPage() {
 
         <div className="flex justify-between items-center text-sm">
             {blog.author && <p className="text-primary font-bold">{blog.author}</p>}
-            <p className="text-slate-400">{blog.published_at}</p>
+            <p className="text-slate-400">
+                {blog.published_at?.includes(':') && blog.published_at?.split(' ').length > 4
+                  ? blog.published_at.split(' ').slice(0, 4).join(' ')
+                  : blog.published_at}
+            </p>
         </div>
 
         {blog.thumbnail && !isThumbnailInContent(blog.thumbnail, blog.content) && (
