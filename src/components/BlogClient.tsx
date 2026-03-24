@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
 import { saveBlog, deleteBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogs } from '@/lib/db';
-import { cn } from '@/lib/utils';
+import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
 
@@ -462,7 +462,9 @@ const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
               <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1.5">{post.title}</h3>
               <div className="flex justify-between items-center">
                   {post.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{post.author}</p>}
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{post.published_at}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
+                    {formatDateToYMD(post.published_at)}
+                  </p>
               </div>
           </div>
       </a>
@@ -500,20 +502,7 @@ const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSe
                   <div className="flex justify-between items-center mt-1">
                       {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                          {(() => {
-                            if (!blog.published_at) return '';
-                            let cleanDate = blog.published_at.trim();
-                            // Support "YYYY. MM. DD."
-                            if (/^\d{4}\.\s?\d{1,2}\.\s?\d{1,2}/.test(cleanDate)) {
-                              cleanDate = cleanDate.replace(/\.\s?/g, '-').replace(/-$/, '');
-                            }
-                            const d = new Date(cleanDate);
-                            if (isNaN(d.getTime())) {
-                              // Fallback: strip time if possible
-                              return blog.published_at.split(/\s\d{1,2}:\d{2}/)[0].trim();
-                            }
-                            return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-                          })()}
+                        {formatDateToYMD(blog.published_at)}
                       </p>
                   </div>
               </div>
