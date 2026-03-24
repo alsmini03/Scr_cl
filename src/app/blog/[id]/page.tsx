@@ -115,9 +115,18 @@ export default function BlogDetailPage() {
         <div className="flex justify-between items-center text-sm">
             {blog.author && <p className="text-primary font-bold">{blog.author}</p>}
             <p className="text-slate-400">
-                {blog.published_at?.includes(':')
-                  ? blog.published_at.split(/\s\d{1,2}:\d{2}/)[0].trim()
-                  : blog.published_at}
+                {(() => {
+                  if (!blog.published_at) return '';
+                  let cleanDate = blog.published_at.trim();
+                  if (/^\d{4}\.\s?\d{1,2}\.\s?\d{1,2}/.test(cleanDate)) {
+                    cleanDate = cleanDate.replace(/\.\s?/g, '-').replace(/-$/, '');
+                  }
+                  const d = new Date(cleanDate);
+                  if (isNaN(d.getTime())) {
+                    return blog.published_at.split(/\s\d{1,2}:\d{2}/)[0].trim();
+                  }
+                  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+                })()}
             </p>
         </div>
 

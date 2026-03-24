@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
         date = $(".publish_date").text().trim() || $("meta[property='article:published_time']").attr("content") || "";
     }
 
-    // Requirement: Format date for title (YYYY년 M월 D일(요일))
+    // Requirement: Format date for title (YYYY-MM-DD)
     let formattedDateForTitle = date;
     if (date) {
       try {
@@ -212,11 +212,9 @@ export async function POST(req: NextRequest) {
         const d = new Date(cleanDate);
         if (!isNaN(d.getTime())) {
           const year = d.getFullYear();
-          const month = d.getMonth() + 1;
-          const day = d.getDate();
-          const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-          const weekDay = weekDays[d.getDay()];
-          formattedDateForTitle = `${year}년 ${month}월 ${day}일(${weekDay})`;
+          const month = (d.getMonth() + 1).toString().padStart(2, '0');
+          const day = d.getDate().toString().padStart(2, '0');
+          formattedDateForTitle = `${year}-${month}-${day}`;
 
           // Requirement: Prepend original date (with time) to content
           const timeStr = d.toLocaleTimeString('ko-KR', { hour12: false });
