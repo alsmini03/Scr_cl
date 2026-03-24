@@ -209,7 +209,7 @@ export default function BestClient({
                             onClick={() => setActiveTabId(tab.id)}
                             className={cn(
                                 "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                                activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
                             )}
                         >
                             {tab.name}
