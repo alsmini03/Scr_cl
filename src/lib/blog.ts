@@ -131,7 +131,6 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
 
             if (isTistory && (fetchUrl.includes('/m/category/') || fetchUrl.includes('/category/'))) {
                 // Scraping Tistory Category List
-                // Optimized: Direct extraction from HTML without per-post fetching
                 const blogTitle = $("meta[property='og:title']").attr("content") || blogId;
 
                 // Priority 1: application/ld+json (BreadcrumbList)
@@ -142,26 +141,40 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                         try {
                             const data = JSON.parse(content);
                             const items = data.itemListElement || [];
-                            const extracted = items.map((item: any) => {
+                            const extracted = await Promise.all(items.map(async (item: any) => {
                                 if (item.item && item.item["@id"] && (item.item["@id"].includes("/entry/") || item.item["@id"].includes("/m/entry/"))) {
                                     let fullUrl = item.item["@id"];
                                     if (!fullUrl.includes("/m/")) {
                                         const urlObj = new URL(fullUrl);
                                         fullUrl = `${urlObj.origin}/m${urlObj.pathname}`;
                                     }
+
+                                    // Optimization: Real date fetch for list view
+                                    let actualDate = new Date().toISOString();
+                                    try {
+                                        const res = await fetch(fullUrl, { headers: { "User-Agent": "facebookexternalhit/1.1" } });
+                                        if (res.ok) {
+                                            const postHtml = await res.text();
+                                            const $post = cheerio.load(postHtml);
+                                            actualDate = $post("meta[property='article:published_time']").attr("content") ||
+                                                         $post(".txt_date, .date").first().text().trim() || actualDate;
+                                        }
+                                    } catch(e) {}
+
                                     return {
                                         title: item.item.name,
                                         author: blogTitle,
                                         url: fullUrl,
                                         thumbnail: null,
-                                        published_at: new Date().toISOString(),
+                                        published_at: actualDate,
                                         blogId: blogId
                                     };
                                 }
                                 return null;
-                            }).filter((i: any) => i !== null);
+                            }));
 
-                            if (extracted.length > 0) return extracted;
+                            const filtered = extracted.filter((i: any) => i !== null);
+                            if (filtered.length > 0) return filtered;
                         } catch(e) {}
                     }
                 }
@@ -227,12 +240,24 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
 
                             // Avoid duplicates
                             if (!allPosts.find(p => p.url === fullUrl)) {
+                                // Last resort: Fetch actual date for the post
+                                let actualDate = new Date().toISOString();
+                                try {
+                                    const res = await fetch(fullUrl, { headers: { "User-Agent": "facebookexternalhit/1.1" } });
+                                    if (res.ok) {
+                                        const postHtml = await res.text();
+                                        const $post = cheerio.load(postHtml);
+                                        actualDate = $post("meta[property='article:published_time']").attr("content") ||
+                                                     $post(".txt_date, .date").first().text().trim() || actualDate;
+                                    }
+                                } catch(e) {}
+
                                 allPosts.push({
                                     title,
                                     author: blogTitle,
                                     url: fullUrl,
                                     thumbnail: null,
-                                    published_at: new Date().toISOString(),
+                                    published_at: actualDate,
                                     blogId: blogId
                                 });
                             }
