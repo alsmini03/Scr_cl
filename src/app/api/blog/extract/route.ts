@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
             });
         }
         if (!content.trim()) content = $(".blogview_content, .article_view").html() || "";
-        date = $(".txt_date, .date").first().text().trim();
+        date = $("meta[property='article:published_time']").attr("content") || $(".txt_date, .date").first().text().trim();
     } else if (isBrunch) {
         title = $(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
         author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
@@ -203,7 +203,13 @@ export async function POST(req: NextRequest) {
     let formattedDateForTitle = date;
     if (date) {
       try {
-        const d = new Date(date);
+        let cleanDate = date.trim();
+        // Handle "2025. 3. 31. 23:25" format
+        if (/^\d{4}\.\s?\d{1,2}\.\s?\d{1,2}/.test(cleanDate)) {
+           cleanDate = cleanDate.replace(/\.\s?/g, '-').replace(/-$/, '');
+        }
+
+        const d = new Date(cleanDate);
         if (!isNaN(d.getTime())) {
           const year = d.getFullYear();
           const month = d.getMonth() + 1;

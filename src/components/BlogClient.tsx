@@ -500,8 +500,8 @@ const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSe
                   <div className="flex justify-between items-center mt-1">
                       {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                          {blog.published_at?.includes(':') && blog.published_at?.split(' ').length > 4
-                            ? blog.published_at.split(' ').slice(0, 4).join(' ')
+                          {blog.published_at?.includes(':')
+                            ? blog.published_at.split(/\s\d{1,2}:\d{2}/)[0].trim()
                             : blog.published_at}
                       </p>
                   </div>
