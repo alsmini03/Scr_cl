@@ -5,7 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { getBlogById, deleteBlog, sendBlogEmailAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { cn, formatDateToYMD } from '@/lib/utils';
+import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
 
 export default function BlogDetailPage() {
   const params = useParams();
