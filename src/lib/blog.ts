@@ -224,7 +224,8 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                 if (allPosts.length > 0) return allPosts;
 
                 // Last ditch effort: any entry link
-                $("a").each((_, el) => {
+                const links = $("a").toArray();
+                for (const el of links) {
                     const href = $(el).attr('href');
                     if (href && (href.includes('/entry/') || href.includes('/m/entry/'))) {
                         const title = $(el).text().trim();
@@ -263,7 +264,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                             }
                         }
                     }
-                });
+                }
             } else if (isBrunch) {
                 // Fallback for Brunch if RSS not found in meta
                 let userId = "";
