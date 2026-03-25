@@ -370,7 +370,7 @@ export default function ReportClient({
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all active:scale-95"
                     >
                       <span className="material-symbols-outlined text-lg">download</span>
-                      다운로드 {report.fileSize && <span className="text-[10px] opacity-60 ml-0.5">({report.fileSize})</span>}
+                      {report.fileSize ? report.fileSize : '다운로드'}
                     </button>
                   )}
                 </div>
