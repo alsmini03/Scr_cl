@@ -54,6 +54,9 @@ export async function POST(req: NextRequest) {
     const ajaxUrl = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListHotClickSub.asp';
     const { selMnuT, selMnuB } = await getTabParams(url);
 
+    const mnuMatch = /SubDiv=Sub(\d)/.exec(url);
+    const nwMnu = mnuMatch ? mnuMatch[1].padStart(2, '0') : '04';
+
     const params = new URLSearchParams();
     params.append('selMnuT', selMnuT);
     params.append('selMnuB', selMnuB);
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
     params.append('srhItem', srhItem);
     params.append('srhWord', srhWord);
     params.append('BoardLink', '');
-    params.append('NWMnu', '04');
+    params.append('NWMnu', nwMnu);
     params.append('HotClick', '1');
     params.append('HotClickSearchDate', '0');
     params.append('DATA_CYCLE', '');
@@ -95,6 +98,7 @@ export async function POST(req: NextRequest) {
       const institutionMatch = /fnMenuSearch\('nIdSrc','([^']*)'\);/;
       const fileMatch = /getFileDown\((\d+), (\d+)\)/;
       const fileDownMatch = /getFileDown_\('(\d+)', (\d+)\)/;
+      const scrapMatch = /winScrapPop\('([^']*)'\)/;
       const indexMatch = /name="nTr"[^>]*value="(\d+)"/;
 
       const date = content.match(dateMatch)?.[1]?.trim() || '';
@@ -105,6 +109,7 @@ export async function POST(req: NextRequest) {
 
       const fileInfo = content.match(fileMatch) || content.match(fileDownMatch);
       const isAltFile = content.includes('getFileDown_');
+      const scrapInfo = content.match(scrapMatch);
 
       rawReports.push({
         id,
@@ -117,47 +122,84 @@ export async function POST(req: NextRequest) {
         fileNum: fileInfo?.[2],
         isAltFile,
         hasFile: !!fileInfo,
+        scrapPath: scrapInfo?.[1]
       });
     }
 
     const reports = await Promise.all(rawReports.map(async (report) => {
       let fileSize = '';
       if (report.hasFile) {
-          try {
-              const downloadUrl = report.isAltFile
-                ? 'https://www.bondweb.co.kr/prime_web/menu01/research/DownloadPage.asp'
-                : 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp';
+          const endpoints = [
+              'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp',
+              'https://www.bondweb.co.kr/prime_web/menu01/research/DownloadPage.asp'
+          ];
 
-              const downloadRes = await fetch(downloadUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'User-Agent': 'Mozilla/5.0',
-                },
-                body: `number=${report.fileId}&gn=${report.fileNum}`,
-                redirect: 'manual',
-                signal: AbortSignal.timeout(5000)
-              });
+          // Reorder if isAltFile is true
+          if (report.isAltFile) endpoints.reverse();
 
-              const cd = downloadRes.headers.get('content-disposition');
-              if (cd && cd.includes('filename=')) {
-                  const filename = cd.split('filename=')[1].trim();
-                  if (filename.startsWith('/Data/')) {
-                      const headRes = await fetch('https://www.bondweb.co.kr' + filename, {
-                          method: 'HEAD',
-                          headers: { 'User-Agent': 'Mozilla/5.0' },
-                          signal: AbortSignal.timeout(3000)
-                      });
-                      const size = headRes.headers.get('content-length');
-                      if (size) {
-                          const s = parseInt(size, 10);
-                          if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
-                          else fileSize = (s / 1024).toFixed(0) + 'KB';
+          for (const downloadUrl of endpoints) {
+              try {
+                  const downloadRes = await fetch(downloadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    },
+                    body: `number=${report.fileId}&gn=${report.fileNum}`,
+                    redirect: 'manual',
+                    signal: AbortSignal.timeout(4000)
+                  });
+
+                  let fileLocation = '';
+                  if (downloadRes.status === 302 || downloadRes.status === 301) {
+                      fileLocation = downloadRes.headers.get('location') || '';
+                  } else {
+                      const cd = downloadRes.headers.get('content-disposition');
+                      if (cd) {
+                          const filenameMatch = cd.match(/filename=([^;]*)/i);
+                          if (filenameMatch) {
+                              const filename = filenameMatch[1].trim().replace(/['"]/g, '');
+                              if (filename.startsWith('/Data/')) {
+                                  fileLocation = filename;
+                              }
+                          }
                       }
                   }
+
+                  if (fileLocation) {
+                      const finalUrl = fileLocation.startsWith('http') ? fileLocation : 'https://www.bondweb.co.kr' + fileLocation;
+
+                      const fetchOptions = {
+                          headers: {
+                              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                          },
+                          signal: AbortSignal.timeout(3000)
+                      };
+
+                      const headRes = await fetch(finalUrl, { ...fetchOptions, method: 'HEAD' });
+
+                      let size = headRes.headers.get('content-length');
+                      if (!size || size === '0') {
+                          const getRes = await fetch(finalUrl, {
+                              ...fetchOptions,
+                              method: 'GET',
+                              headers: { ...fetchOptions.headers, 'Range': 'bytes=0-1' }
+                          });
+                          size = getRes.headers.get('content-range')?.split('/')?.[1] || getRes.headers.get('content-length');
+                      }
+
+                      if (size) {
+                          const s = parseInt(size, 10);
+                          if (s > 1024) { // Ignore very small sizes which are likely error pages
+                            if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
+                            else fileSize = (s / 1024).toFixed(0) + 'KB';
+                            break; // Success, stop trying endpoints
+                          }
+                      }
+                  }
+              } catch (e) {
+                  // try next endpoint
               }
-          } catch (e) {
-              // ignore
           }
       }
       return { ...report, fileSize };
