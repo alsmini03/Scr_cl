@@ -269,6 +269,73 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
   }
 }
 
+/**
+ * Report Tabs
+ */
+export async function getReportTabs(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const { rows } = await sql`
+      SELECT * FROM report_tabs
+      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
+      ORDER BY position ASC, created_at ASC
+    `;
+    return rows;
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function addReportTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const id = crypto.randomUUID();
+
+    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM report_tabs WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text`;
+    const nextPos = rows[0].max_pos + 1;
+
+    await sql`
+      INSERT INTO report_tabs (id, user_id, name, url, position)
+      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
+    `;
+    safeRevalidate('/report');
+    return { success: true, id };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateReportTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    for (const item of tabOrders) {
+      await sql`
+        UPDATE report_tabs
+        SET position = ${item.position}
+        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
+      `;
+    }
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteReportTab(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await sql`
+      DELETE FROM report_tabs
+      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
+    `;
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();

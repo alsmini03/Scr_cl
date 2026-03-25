@@ -8,14 +8,44 @@
 - Environments: .env.local
 
 ✓ Starting...
-✓ Ready in 1246ms
- GET /best 200 in 1145ms (compile: 529ms, render: 616ms)
- GET /api/auth/session 200 in 2.9s (compile: 2.8s, proxy.ts: 134ms, render: 47ms)
- GET /api/auth/session 200 in 96ms (compile: 57ms, proxy.ts: 25ms, render: 14ms)
- GET /best 200 in 127ms (compile: 12ms, render: 116ms)
- GET /api/auth/session 200 in 59ms (compile: 38ms, proxy.ts: 9ms, render: 11ms)
- GET /api/auth/session 200 in 27ms (compile: 7ms, proxy.ts: 11ms, render: 9ms)
- GET /best 200 in 112ms (compile: 8ms, render: 104ms)
- GET /api/auth/session 200 in 56ms (compile: 27ms, proxy.ts: 20ms, render: 9ms)
- GET /api/auth/session 200 in 54ms (compile: 26ms, proxy.ts: 14ms, render: 14ms)
- POST /best 200 in 30ms (compile: 6ms, render: 24ms)
+✓ Ready in 2.5s
+ GET /login 200 in 3.2s (compile: 2.8s, render: 442ms)
+ GET /api/auth/session 200 in 1833ms (compile: 1770ms, proxy.ts: 27ms, render: 37ms)
+ GET /api/auth/session 200 in 99ms (compile: 60ms, proxy.ts: 15ms, render: 24ms)
+ GET /login 200 in 85ms (compile: 5ms, render: 79ms)
+ GET /api/auth/session 200 in 52ms (compile: 30ms, proxy.ts: 11ms, render: 10ms)
+ GET /api/auth/session 200 in 22ms (compile: 7ms, proxy.ts: 7ms, render: 8ms)
+ GET /login 200 in 64ms (compile: 3ms, render: 61ms)
+ GET /api/auth/session 200 in 50ms (compile: 30ms, proxy.ts: 11ms, render: 9ms)
+✓ Compiled in 1284ms
+ GET /report 200 in 1249ms (compile: 930ms, render: 319ms)
+ GET /api/auth/session 200 in 158ms (compile: 36ms, proxy.ts: 113ms, render: 9ms)
+ GET /api/auth/session 200 in 51ms (compile: 22ms, proxy.ts: 19ms, render: 10ms)
+ POST /api/report 200 in 6.5s (compile: 474ms, render: 6.0s)
+Head request failed: TypeError: fetch failed
+    at async POST (src/app/api/report/route.ts:69:31)
+  67 |       if (fileInfo) {
+  68 |           try {
+> 69 |               const headRes = await fetch('https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp', {
+     |                               ^
+  70 |                 method: 'POST',
+  71 |                 headers: {
+  72 |                     'Content-Type': 'application/x-www-form-urlencoded', {
+  [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: www.bondweb.co.kr:443, timeout: 10000ms)
+      at ignore-listed frames {
+    code: 'UND_ERR_CONNECT_TIMEOUT'
+  }
+}
+ POST /api/report 200 in 20.1s (compile: 10ms, render: 20.1s)
+ GET /report 200 in 130ms (compile: 10ms, render: 120ms)
+ GET /api/auth/session 200 in 199ms (compile: 46ms, proxy.ts: 27ms, render: 127ms)
+ GET /api/auth/session 200 in 25ms (compile: 9ms, proxy.ts: 11ms, render: 6ms)
+ POST /api/report 200 in 1824ms (compile: 151ms, render: 1673ms)
+ GET /report 200 in 102ms (compile: 11ms, render: 91ms)
+ GET /api/auth/session 200 in 58ms (compile: 34ms, proxy.ts: 9ms, render: 15ms)
+ GET /api/auth/session 200 in 29ms (compile: 13ms, proxy.ts: 8ms, render: 8ms)
+ POST /api/report 200 in 6.0s (compile: 5ms, render: 6.0s)
+ GET /report 200 in 591ms (compile: 246ms, render: 345ms)
+ GET /api/auth/session 200 in 52ms (compile: 34ms, proxy.ts: 10ms, render: 8ms)
+ GET /api/auth/session 200 in 110ms (compile: 6ms, proxy.ts: 98ms, render: 6ms)
+ POST /api/report 200 in 2.5s (compile: 90ms, render: 2.5s)

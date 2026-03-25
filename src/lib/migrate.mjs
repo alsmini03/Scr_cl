@@ -74,6 +74,19 @@ async function migrate() {
     `);
     console.log("Created yes24_tabs table.");
 
+    // Create report_tabs table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS report_tabs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        url TEXT NOT NULL,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log("Created report_tabs table.");
+
     // Create naver_blogs table
     await client.query(`
       CREATE TABLE IF NOT EXISTS naver_blogs (
@@ -160,6 +173,7 @@ async function migrate() {
 
       await client.query(`CREATE INDEX IF NOT EXISTS idx_blog_tabs_user_id_text ON blog_tabs ((user_id::text))`);
       await client.query(`CREATE INDEX IF NOT EXISTS idx_youtube_tabs_user_id_text ON youtube_tabs ((user_id::text))`);
+      await client.query(`CREATE INDEX IF NOT EXISTS idx_report_tabs_user_id_text ON report_tabs ((user_id::text))`);
       console.log("Performance indexes created successfully.");
     } catch (e) {
       console.error("Failed to create indexes:", e.message);
