@@ -49,3 +49,30 @@ Head request failed: TypeError: fetch failed
  GET /api/auth/session 200 in 52ms (compile: 34ms, proxy.ts: 10ms, render: 8ms)
  GET /api/auth/session 200 in 110ms (compile: 6ms, proxy.ts: 98ms, render: 6ms)
  POST /api/report 200 in 2.5s (compile: 90ms, render: 2.5s)
+✓ Compiled in 1650ms
+✓ Compiled in 187ms
+ GET /report 200 in 4.1s (compile: 1132ms, render: 3.0s)
+ GET /api/auth/session 200 in 680ms (compile: 305ms, proxy.ts: 345ms, render: 30ms)
+ GET /api/auth/session 200 in 25ms (compile: 9ms, proxy.ts: 8ms, render: 8ms)
+ POST /api/report 200 in 4.3s (compile: 68ms, render: 4.2s)
+ POST /api/report/content 200 in 5.2s (compile: 924ms, render: 4.3s)
+Content fetch error: TypeError: fetch failed
+    at async POST (src/app/api/report/content/route.ts:16:22)
+  14 |     params.append('SetSelMntTName', '리서치센터^');
+  15 |
+> 16 |     const response = await fetch('https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/FrameContent.asp', {
+     |                      ^
+  17 |       method: 'POST',
+  18 |       headers: {
+  19 |         'Content-Type': 'application/x-www-form-urlencoded', {
+  [cause]: Error [ConnectTimeoutError]: Connect Timeout Error (attempted address: www.bondweb.co.kr:443, timeout: 10000ms)
+      at ignore-listed frames {
+    code: 'UND_ERR_CONNECT_TIMEOUT'
+  }
+}
+ POST /api/report/content 200 in 935ms (compile: 4ms, render: 930ms)
+ GET /report 200 in 622ms (compile: 224ms, render: 398ms)
+ GET /api/auth/session 200 in 67ms (compile: 47ms, proxy.ts: 11ms, render: 9ms)
+ GET /api/auth/session 200 in 30ms (compile: 11ms, proxy.ts: 11ms, render: 8ms)
+ POST /api/report 200 in 4.0s (compile: 5ms, render: 4.0s)
+ POST /api/report/content 200 in 758ms (compile: 14ms, render: 745ms)

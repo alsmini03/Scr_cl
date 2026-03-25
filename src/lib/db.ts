@@ -275,12 +275,38 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM report_tabs
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY position ASC, created_at ASC
-    `;
-    return rows;
+    let rows;
+    try {
+        const result = await sql`
+          SELECT * FROM report_tabs
+          WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
+          ORDER BY position ASC, created_at ASC
+        `;
+        rows = result.rows;
+    } catch (dbError: any) {
+        if (dbError.message.includes('does not exist')) {
+            await sql`
+              CREATE TABLE IF NOT EXISTS report_tabs (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                position INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+              )
+            `;
+            await sql`CREATE INDEX IF NOT EXISTS idx_report_tabs_user_id_text ON report_tabs ((user_id::text))`;
+            const result = await sql`
+              SELECT * FROM report_tabs
+              WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
+              ORDER BY position ASC, created_at ASC
+            `;
+            rows = result.rows;
+        } else {
+            throw dbError;
+        }
+    }
+    return rows || [];
   } catch (error) {
     return [];
   }

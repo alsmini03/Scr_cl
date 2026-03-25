@@ -20,6 +20,11 @@ interface Report {
   fileSize?: string;
 }
 
+interface ReportContent {
+  id: string;
+  content: string;
+}
+
 export default function ReportClient({
   session,
   initialTabs,
@@ -39,6 +44,8 @@ export default function ReportClient({
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [lastId, setLastId] = useState('0');
   const [hasMore, setHasMore] = useState(true);
+  const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
+  const [isContentLoading, setIsContentLoading] = useState(false);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
@@ -124,6 +131,29 @@ export default function ReportClient({
       observer.current.observe(lastElementRef.current);
     }
   }, [reports, isLoading, isMoreLoading, hasMore]);
+
+  const fetchContent = async (report: Report) => {
+    if (viewingContent?.id === report.id) {
+        setViewingContent(null);
+        return;
+    }
+
+    setIsContentLoading(true);
+    try {
+        const res = await fetch('/api/report/content', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ num: report.id, code: '01' })
+        });
+        const html = await res.text();
+        setViewingContent({ id: report.id, content: html });
+    } catch (err) {
+        console.error(err);
+        alert('내용을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+        setIsContentLoading(false);
+    }
+  };
 
   const handleDownload = async (report: Report) => {
     if (!report.fileId || !report.fileNum) return;
@@ -317,9 +347,21 @@ export default function ReportClient({
                   <span className="text-xs font-bold text-primary">{report.institution}</span>
                   <span className="text-xs text-slate-400">{report.date}</span>
                 </div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 leading-snug line-clamp-2">
+                <h3
+                  onClick={() => fetchContent(report)}
+                  className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 leading-snug line-clamp-2 cursor-pointer hover:text-primary transition-colors"
+                >
                   {report.title}
                 </h3>
+
+                {viewingContent?.id === report.id && (
+                    <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl overflow-hidden">
+                        <div
+                            className="prose prose-sm dark:prose-invert max-w-none break-words bg-white p-4"
+                            dangerouslySetInnerHTML={{ __html: viewingContent.content }}
+                        />
+                    </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-slate-500 dark:text-slate-400">{report.author}</span>
                   {report.hasFile && (
