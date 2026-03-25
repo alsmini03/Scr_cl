@@ -7,9 +7,6 @@ import { cn, isThumbnailInContent } from '@/lib/utils';
 import { saveBook, saveBlog } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
 
 interface ExtractedBook {
   title: string;

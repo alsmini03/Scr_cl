@@ -8,9 +8,10 @@ interface HeaderProps {
   showBack?: boolean;
   rightAction?: React.ReactNode;
   transparent?: boolean;
+  children?: React.ReactNode;
 }
 
-export default function Header({ title, showBack, rightAction, transparent }: HeaderProps) {
+export default function Header({ title, showBack, rightAction, transparent, children }: HeaderProps) {
   const router = useRouter();
 
   return (
@@ -35,9 +36,13 @@ export default function Header({ title, showBack, rightAction, transparent }: He
         )}
       </div>
 
-      <h1 className="text-xl font-bold leading-tight tracking-tight flex-1 text-center truncate px-2 text-slate-900 dark:text-slate-100">
-        {title}
-      </h1>
+      <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+        {children ? children : (
+            <h1 className="text-xl font-bold leading-tight tracking-tight text-center truncate text-slate-900 dark:text-slate-100 px-2">
+                {title}
+            </h1>
+        )}
+      </div>
 
       <div className="flex items-center justify-end min-w-10">
         {rightAction || (

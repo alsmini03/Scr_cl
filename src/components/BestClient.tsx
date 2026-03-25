@@ -10,6 +10,7 @@ import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import ViewModeToggle from '@/components/ViewModeToggle';
 
 interface BestBook {
   title: string;
@@ -290,30 +291,15 @@ export default function BestClient({
                 )}
             </div>
         }
-      />
+      >
+          <ViewModeToggle
+            title="Yes24"
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
+      </Header>
 
       <main className="mt-4 px-4">
-        {/* Toggle View Mode */}
-        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
-            <button
-              onClick={() => { setViewMode('my'); }}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
-                viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              내 보관함
-            </button>
-            <button
-              onClick={() => { setViewMode('recommend'); }}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
-                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              추천
-            </button>
-        </div>
 
         {viewMode === 'recommend' ? (
         <>

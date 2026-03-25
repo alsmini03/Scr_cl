@@ -215,16 +215,21 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
     const subject = `${video.title}`;
     const summaryHtml = await marked.parse(video.summary || '');
     const body = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #1978e5;">${video.title}</h2>
-        <p><b>원본 URL:</b> <a href="${video.url}">${video.url}</a></p>
-        <p><b>게시일:</b> ${video.published_at || '-'}</p>
-        <p><b>재생시간:</b> ${video.duration || '-'}</p>
+      <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1978e5; font-size: 20px; margin-bottom: 15px;">${video.title}</h2>
+        <p style="margin: 5px 0;"><b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a></p>
+        <p style="margin: 5px 0;"><b>게시일:</b> ${video.published_at || '-'}</p>
+        <p style="margin: 5px 0;"><b>재생시간:</b> ${video.duration || '-'}</p>
         <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="background: #f9f9f9; padding: 20px; border-radius: 10px;">
-          <h3 style="margin-top: 0;">AI 요약 분석</h3>
-          ${summaryHtml}
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
+          <h3 style="margin-top: 0; color: #444; font-size: 18px; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 5px; margin-bottom: 15px;">AI 요약 분석</h3>
+          <div style="word-break: break-word; color: #444;">
+            ${summaryHtml}
+          </div>
         </div>
+        <footer style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
+          본 메일은 Book Journal 앱에서 발송되었습니다.
+        </footer>
       </div>
     `;
 

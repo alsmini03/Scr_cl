@@ -590,7 +590,7 @@ export default function AddYouTubePage() {
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">설명</label>
                   <div className={cn(
-                    "min-h-32 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner whitespace-pre-wrap overflow-hidden",
+                    "min-h-32 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner whitespace-pre-wrap overflow-hidden break-words",
                     (isExtracting || isAutoAdding) && "animate-pulse"
                   )}>
                     {(isExtracting || isAutoAdding) ? "유튜브 설명을 가져오는 중입니다..." : (summary || "동영상에 대한 설명이 여기에 표시됩니다.")}
@@ -613,7 +613,7 @@ export default function AddYouTubePage() {
                  <div className="mt-4 text-slate-400 dark:text-slate-500 text-sm italic">AI가 영상을 분석하여 요약 중입니다. 잠시만 기다려 주세요...</div>
               </div>
             ) : transcript ? (
-              <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner">
+              <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
                 <ReactMarkdown>{transcript}</ReactMarkdown>
               </div>
             ) : (

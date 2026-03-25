@@ -7,6 +7,7 @@ import { saveBlog, deleteBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, ba
 import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
+import ViewModeToggle from '@/components/ViewModeToggle';
 
 export default function BlogClient({
   session,
@@ -259,30 +260,15 @@ export default function BlogClient({
                 )}
             </div>
         }
-      />
+      >
+          <ViewModeToggle
+            title="블로그"
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
+      </Header>
 
       <main className="mt-4 px-4">
-        {/* Toggle View Mode */}
-        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
-            <button
-              onClick={() => { setViewMode('my'); }}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
-                viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              내 보관함
-            </button>
-            <button
-              onClick={() => { setViewMode('recommend'); }}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
-                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
-              )}
-            >
-              추천
-            </button>
-        </div>
 
         {isEditMode && viewMode === 'my' && (
             <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">

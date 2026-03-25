@@ -248,7 +248,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
                <span className="material-symbols-outlined text-primary">auto_awesome</span>
                AI 요약 분석
             </h2>
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner">
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
                <ReactMarkdown>{video.summary}</ReactMarkdown>
             </div>
           </div>
