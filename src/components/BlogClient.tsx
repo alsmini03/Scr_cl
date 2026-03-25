@@ -297,10 +297,10 @@ export default function BlogClient({
             <>
             {/* Blog Source Tabs */}
             <div className={cn(
-                "flex items-start gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20"
+                "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20"
             )}>
                 <div className={cn(
-                    "flex flex-1 flex-wrap gap-2 py-2"
+                    "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
                 )}>
                     <button
                         onClick={() => {
@@ -353,7 +353,7 @@ export default function BlogClient({
                 </div>
                 <button
                     onClick={() => setShowTabManager(!showTabManager)}
-                    className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center mt-2"
+                    className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center"
                 >
                     <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
                 </button>

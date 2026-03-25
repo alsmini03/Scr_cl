@@ -273,7 +273,7 @@ export default function ReportClient({
       <main className="mt-4 px-4">
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-          <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
+          <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
             {tabs.map(tab => {
                 let timer: any;
                 const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };

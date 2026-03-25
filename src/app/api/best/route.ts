@@ -45,7 +45,14 @@ export async function GET(req: NextRequest) {
 
       const coverImage = $el.find('img.lazy').attr('data-original') || $el.find('img').attr('src');
 
-      const author = $el.find('.info_auth .auth').text().trim();
+      // Iterate through author elements and join with comma to prevent sticking names
+      const authorArr: string[] = [];
+      $el.find('.info_auth .auth').each((_, authEl) => {
+          const a = $(authEl).text().trim();
+          if (a) authorArr.push(a);
+      });
+      const author = authorArr.join(', ');
+
       const publisher = $el.find('.info_pub').text().trim();
       const publishDate = $el.find('.info_date').text().trim();
       const price = $el.find('.info_price .txt_num').text().trim();
