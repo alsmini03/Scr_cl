@@ -821,21 +821,45 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    await sql`
-      INSERT INTO books (
-        id, title, author, cover_image, description, published_date,
-        price, category, status, progress, rating, notes, added_at, user_id,
-        intro, toc, author_intro, inside, publisher_review, yes24_url
-      ) VALUES (
-        ${id}, ${book.title}, ${book.author}, ${book.coverImage},
-        ${book.description || null}, ${book.publishDate || null},
-        ${book.price || null}, ${book.category || null},
-        ${book.readingStatus}, ${book.progress || 0},
-        ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
-        ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
-        ${book.yes24Url || null}
-      )
-    `;
+    try {
+      await sql`
+        INSERT INTO books (
+          id, title, author, cover_image, description, published_date,
+          price, category, status, progress, rating, notes, added_at, user_id,
+          intro, toc, author_intro, inside, publisher_review, yes24_url
+        ) VALUES (
+          ${id}, ${book.title}, ${book.author}, ${book.coverImage},
+          ${book.description || null}, ${book.publishDate || null},
+          ${book.price || null}, ${book.category || null},
+          ${book.readingStatus}, ${book.progress || 0},
+          ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
+          ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
+          ${book.yes24Url || null}
+        )
+      `;
+    } catch (dbError: any) {
+        if (dbError.code === '42703' || dbError.message.includes('column "yes24_url" does not exist')) {
+            await sql`ALTER TABLE books ADD COLUMN IF NOT EXISTS yes24_url TEXT`;
+            // Retry
+            await sql`
+              INSERT INTO books (
+                id, title, author, cover_image, description, published_date,
+                price, category, status, progress, rating, notes, added_at, user_id,
+                intro, toc, author_intro, inside, publisher_review, yes24_url
+              ) VALUES (
+                ${id}, ${book.title}, ${book.author}, ${book.coverImage},
+                ${book.description || null}, ${book.publishDate || null},
+                ${book.price || null}, ${book.category || null},
+                ${book.readingStatus}, ${book.progress || 0},
+                ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
+                ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
+                ${book.yes24Url || null}
+              )
+            `;
+        } else {
+            throw dbError;
+        }
+    }
 
     safeRevalidate('/');
     return { success: true, data: { ...book, id, createdAt } };
@@ -852,27 +876,57 @@ export async function updateBook(book: Book): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await sql`
-      UPDATE books SET
-        title = ${book.title},
-        author = ${book.author},
-        cover_image = ${book.coverImage},
-        description = ${book.description || null},
-        published_date = ${book.publishDate || null},
-        price = ${book.price || null},
-        category = ${book.category || null},
-        status = ${book.readingStatus},
-        progress = ${book.progress || 0},
-        rating = ${book.rating || 0},
-        notes = ${book.notes || null},
-        intro = ${book.intro || null},
-        toc = ${book.toc || null},
-        author_intro = ${book.authorIntro || null},
-        inside = ${book.inside || null},
-        publisher_review = ${book.publisherReview || null},
-        yes24_url = ${book.yes24Url || null}
-      WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    try {
+      await sql`
+        UPDATE books SET
+          title = ${book.title},
+          author = ${book.author},
+          cover_image = ${book.coverImage},
+          description = ${book.description || null},
+          published_date = ${book.publishDate || null},
+          price = ${book.price || null},
+          category = ${book.category || null},
+          status = ${book.readingStatus},
+          progress = ${book.progress || 0},
+          rating = ${book.rating || 0},
+          notes = ${book.notes || null},
+          intro = ${book.intro || null},
+          toc = ${book.toc || null},
+          author_intro = ${book.authorIntro || null},
+          inside = ${book.inside || null},
+          publisher_review = ${book.publisherReview || null},
+          yes24_url = ${book.yes24Url || null}
+        WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
+      `;
+    } catch (dbError: any) {
+        if (dbError.code === '42703' || dbError.message.includes('column "yes24_url" does not exist')) {
+            await sql`ALTER TABLE books ADD COLUMN IF NOT EXISTS yes24_url TEXT`;
+            // Retry
+            await sql`
+              UPDATE books SET
+                title = ${book.title},
+                author = ${book.author},
+                cover_image = ${book.coverImage},
+                description = ${book.description || null},
+                published_date = ${book.publishDate || null},
+                price = ${book.price || null},
+                category = ${book.category || null},
+                status = ${book.readingStatus},
+                progress = ${book.progress || 0},
+                rating = ${book.rating || 0},
+                notes = ${book.notes || null},
+                intro = ${book.intro || null},
+                toc = ${book.toc || null},
+                author_intro = ${book.authorIntro || null},
+                inside = ${book.inside || null},
+                publisher_review = ${book.publisherReview || null},
+                yes24_url = ${book.yes24Url || null}
+              WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
+            `;
+        } else {
+            throw dbError;
+        }
+    }
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
   } catch (error) {
