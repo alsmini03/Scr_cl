@@ -1,17 +1,25 @@
-import { getYes24Tabs } from '@/lib/db';
+import { getYes24Tabs, getBooks, batchDeleteBooks } from '@/lib/db';
 import { auth } from '@/auth';
 import BestClient from '@/components/BestClient';
 
 export default async function BestPage() {
-  const [session, tabs] = await Promise.all([
+  const [session, tabs, books] = await Promise.all([
     auth(),
-    getYes24Tabs()
+    getYes24Tabs(),
+    getBooks()
   ]);
+
+  const isDev = process.env.NODE_ENV === 'development';
 
   return (
     <BestClient
       session={session}
       initialTabs={tabs}
+      initialBooks={books}
+      isDev={isDev}
+      actions={{
+        batchDeleteBooks
+      }}
     />
   );
 }

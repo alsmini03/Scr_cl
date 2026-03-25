@@ -6,6 +6,10 @@ import { useEffect, useState, memo } from 'react';
 import { saveBook, addYes24Tab, deleteYes24Tab, updateYes24TabOrder } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
+import BookGrid from '@/components/BookGrid';
+import { Book } from '@/types/book';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface BestBook {
   title: string;
@@ -20,17 +24,33 @@ interface BestBook {
 export default function BestClient({
   session,
   initialTabs,
+  initialBooks,
+  isDev,
+  actions,
 }: {
   session: any;
   initialTabs: any[];
+  initialBooks: Book[];
+  isDev: boolean;
+  actions: {
+    batchDeleteBooks: (ids: string[]) => Promise<{ success: boolean; error?: string }>;
+  };
 }) {
+  const router = useRouter();
   const [books, setBooks] = useState<BestBook[]>([]);
+  const [myBooks, setMyBooks] = useState<Book[]>(initialBooks);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showTabManager, setShowTabManager] = useState(false);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [bookView, setBookView] = useState('2');
 
   useEffect(() => {
     const savedTab = localStorage.getItem('yes24_active_tab');
@@ -39,6 +59,14 @@ export default function BestClient({
     } else if (tabs.length > 0) {
         setActiveTabId(tabs[0].id);
     }
+
+    const savedViewMode = localStorage.getItem('yes24_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+        setViewMode(savedViewMode);
+    }
+
+    const savedBookView = localStorage.getItem('book-view');
+    if (savedBookView) setBookView(savedBookView);
   }, [tabs]);
 
   useEffect(() => {
@@ -46,6 +74,10 @@ export default function BestClient({
         localStorage.setItem('yes24_active_tab', activeTabId);
     }
   }, [activeTabId]);
+
+  useEffect(() => {
+    localStorage.setItem('yes24_view_mode', viewMode);
+  }, [viewMode]);
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
@@ -53,8 +85,8 @@ export default function BestClient({
 
   useEffect(() => {
     async function fetchBest() {
-      if (!activeTabId) {
-        setBooks([]);
+      if (!activeTabId || viewMode !== 'recommend') {
+        if (viewMode === 'recommend') setBooks([]);
         setIsLoading(false);
         return;
       }
@@ -83,7 +115,7 @@ export default function BestClient({
       }
     }
     fetchBest();
-  }, [activeTabId, tabs]);
+  }, [activeTabId, tabs, viewMode]);
 
   const handleAddBook = async (e: React.MouseEvent, book: BestBook, idx: number) => {
     e.preventDefault();
@@ -105,7 +137,7 @@ export default function BestClient({
       if (!response.ok) throw new Error('Failed to extract details');
       const fullDetail = await response.json();
 
-      await saveBook({
+      const saveRes = await saveBook({
         title: fullDetail.title || book.title,
         author: fullDetail.author || book.author,
         coverImage: fullDetail.coverImage || book.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
@@ -115,14 +147,60 @@ export default function BestClient({
         description: fullDetail.description,
         readingStatus: 'READING',
         progress: 0,
+        yes24Url: book.yes24Url
       });
 
-      alert(`'${book.title}'이(가) 상세 정보와 함께 서재에 추가되었습니다.`);
+      if (saveRes.success && saveRes.data) {
+        alert(`'${book.title}'이(가) 상세 정보와 함께 서재에 추가되었습니다.`);
+        setMyBooks(prev => [saveRes.data!, ...prev]);
+      }
     } catch (error) {
       console.error(error);
       alert('서재 추가에 실패했습니다.');
     } finally {
       setAddingId(null);
+    }
+  };
+
+  const updateBookView = (view: string) => {
+    setBookView(view);
+    localStorage.setItem('book-view', view);
+  };
+
+  const handleLongPress = (id: string) => {
+    if (!isEditMode) {
+      setIsEditMode(true);
+      setSelectedIds([id]);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`${selectedIds.length}개의 항목을 삭제하시겠습니까?`)) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await actions.batchDeleteBooks(selectedIds);
+
+      if (result.success) {
+        alert('삭제되었습니다.');
+        setMyBooks(prev => prev.filter(b => !selectedIds.includes(b.id)));
+        setSelectedIds([]);
+        setIsEditMode(false);
+      } else {
+        alert(`삭제 실패: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Batch delete error:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -176,19 +254,69 @@ export default function BestClient({
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
-        title="Yes24 베스트 100"
+        title="Yes24"
         transparent
         rightAction={
-            <button
-                onClick={() => setShowTabManager(!showTabManager)}
-                className="text-primary p-2"
-            >
-                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-            </button>
+            <div className="flex items-center gap-1">
+                {viewMode === 'my' ? (
+                    isEditMode ? (
+                        <button
+                          onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
+                          className="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold mr-2"
+                        >
+                          취소
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => {
+                                if (bookView === '2') updateBookView('3');
+                                else if (bookView === '3') updateBookView('5');
+                                else updateBookView('2');
+                            }}
+                            className="text-primary p-2"
+                        >
+                            <span className="material-symbols-outlined text-2xl">
+                                {bookView === '2' ? 'grid_view' : (bookView === '3' ? 'view_module' : 'view_comfy')}
+                            </span>
+                        </button>
+                    )
+                ) : (
+                    <button
+                        onClick={() => setShowTabManager(!showTabManager)}
+                        className="text-primary p-2"
+                    >
+                        <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+                    </button>
+                )}
+            </div>
         }
       />
 
       <main className="mt-4 px-4">
+        {/* Toggle View Mode */}
+        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl max-w-xs mx-auto">
+            <button
+              onClick={() => { setViewMode('my'); }}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
+                viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
+              )}
+            >
+              내 보관함
+            </button>
+            <button
+              onClick={() => { setViewMode('recommend'); }}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-bold transition-all text-center",
+                viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400"
+              )}
+            >
+              추천
+            </button>
+        </div>
+
+        {viewMode === 'recommend' ? (
+        <>
         {/* Source Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
@@ -271,7 +399,73 @@ export default function BestClient({
             ))}
           </div>
         )}
+        </>
+        ) : (
+            <div className="space-y-6 pb-20">
+                {!session?.user && !isDev ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                            <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                        <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">서재를 이용하고 독서 기록을 남기려면 먼저 로그인해 주세요.</p>
+                        <Link
+                            href="/login"
+                            className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                        >
+                            로그인하기
+                        </Link>
+                    </div>
+                ) : (
+                    myBooks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-center">
+                            <span className="material-symbols-outlined text-6xl mb-4">library_books</span>
+                            <p>아직 등록된 책이 없습니다.</p>
+                            <Link href="/add?tab=yes24" className="text-primary text-sm font-bold mt-2">새 책 추가하기</Link>
+                        </div>
+                    ) : (
+                        <BookGrid
+                            books={myBooks}
+                            viewMode={bookView}
+                            isSelectionMode={isEditMode}
+                            selectedIds={selectedIds}
+                            onToggleSelection={toggleSelection}
+                            onLongPress={handleLongPress}
+                        />
+                    )
+                )}
+            </div>
+        )}
       </main>
+
+      {/* Selection Mode Action Bar */}
+      {isEditMode && selectedIds.length > 0 && viewMode === 'my' && (
+        <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <span className="text-primary">{selectedIds.length}</span>개 선택됨
+            </p>
+            <button
+              onClick={handleBatchDelete}
+              disabled={isDeleting}
+              className="px-6 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span>
+              {isDeleting ? '삭제 중...' : '삭제하기'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Add Button */}
+      {!isEditMode && viewMode === 'my' && (session?.user || isDev) && (
+        <Link
+          href="/add?tab=yes24"
+          className="fixed bottom-24 right-6 flex size-14 items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-primary/40 hover:scale-105 active:scale-95 transition-transform z-20"
+        >
+          <span className="material-symbols-outlined text-3xl">add</span>
+        </Link>
+      )}
 
       <BottomNav activeTab="yes24" />
 
