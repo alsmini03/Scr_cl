@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
       description,
       coverImage,
       category,
+      yes24Url: url,
       ...details
     });
   } catch (error) {

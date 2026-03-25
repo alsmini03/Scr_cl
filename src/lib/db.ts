@@ -50,6 +50,7 @@ function mapRowToBook(row: any): Book {
     authorIntro: row.author_intro,
     inside: row.inside,
     publisherReview: row.publisher_review,
+    yes24Url: row.yes24_url,
   };
 }
 
@@ -824,14 +825,15 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
       INSERT INTO books (
         id, title, author, cover_image, description, published_date,
         price, category, status, progress, rating, notes, added_at, user_id,
-        intro, toc, author_intro, inside, publisher_review
+        intro, toc, author_intro, inside, publisher_review, yes24_url
       ) VALUES (
         ${id}, ${book.title}, ${book.author}, ${book.coverImage},
         ${book.description || null}, ${book.publishDate || null},
         ${book.price || null}, ${book.category || null},
         ${book.readingStatus}, ${book.progress || 0},
         ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
-        ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null}
+        ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
+        ${book.yes24Url || null}
       )
     `;
 
@@ -867,7 +869,8 @@ export async function updateBook(book: Book): Promise<void> {
         toc = ${book.toc || null},
         author_intro = ${book.authorIntro || null},
         inside = ${book.inside || null},
-        publisher_review = ${book.publisherReview || null}
+        publisher_review = ${book.publisherReview || null},
+        yes24_url = ${book.yes24Url || null}
       WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
     `;
     safeRevalidate('/');

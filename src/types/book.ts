@@ -17,4 +17,5 @@ export interface Book {
   authorIntro?: string;
   inside?: string;
   publisherReview?: string;
+  yes24Url?: string;
 }

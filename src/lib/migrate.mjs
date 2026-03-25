@@ -112,7 +112,8 @@ async function migrate() {
       { name: 'toc', type: 'TEXT' },
       { name: 'author_intro', type: 'TEXT' },
       { name: 'inside', type: 'TEXT' },
-      { name: 'publisher_review', type: 'TEXT' }
+      { name: 'publisher_review', type: 'TEXT' },
+      { name: 'yes24_url', type: 'TEXT' }
     ];
 
     for (const col of columns) {

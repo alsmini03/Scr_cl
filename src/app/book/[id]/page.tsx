@@ -135,6 +135,20 @@ export default function BookDetailPage() {
                 <p className="text-slate-500 dark:text-slate-400 text-sm">가격: {book.price}</p>
               )}
 
+              {book.yes24Url && (
+                <div className="mt-2">
+                  <a
+                    href={book.yes24Url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-primary text-sm font-bold hover:underline"
+                  >
+                    <span className="material-symbols-outlined text-sm">link</span>
+                    Yes24에서 보기
+                  </a>
+                </div>
+              )}
+
               <div className="mt-4">
                 <h3 className="font-bold text-lg mb-1">책 소개</h3>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

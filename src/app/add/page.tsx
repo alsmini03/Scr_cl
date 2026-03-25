@@ -19,6 +19,7 @@ interface ExtractedBook {
   category: string;
   description: string;
   coverImage?: string;
+  yes24Url?: string;
   intro?: string;
   toc?: string;
   author_intro?: string;
@@ -99,6 +100,7 @@ function AddContent() {
         readingStatus: 'READING',
         progress: 0,
         intro: extractedBook.intro,
+        yes24Url: extractedBook.yes24Url || url,
         toc: extractedBook.toc,
         authorIntro: extractedBook.author_intro,
         inside: extractedBook.inside,
@@ -191,6 +193,7 @@ function AddContent() {
         readingStatus: 'READING',
         progress: 0,
         intro: data.intro,
+        yes24Url: data.yes24Url || url,
         toc: data.toc,
         authorIntro: data.author_intro,
         inside: data.inside,
