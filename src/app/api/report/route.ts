@@ -51,7 +51,6 @@ export async function POST(req: NextRequest) {
       url = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400'
     } = body;
 
-    // The Ajax target is constant, but the params depend on the SubDiv URL
     const ajaxUrl = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListHotClickSub.asp';
     const { selMnuT, selMnuB } = await getTabParams(url);
 
@@ -95,6 +94,7 @@ export async function POST(req: NextRequest) {
       const authorMatch = /fnMenuSearch\('nIdWrt','([^']*)'\);/;
       const institutionMatch = /fnMenuSearch\('nIdSrc','([^']*)'\);/;
       const fileMatch = /getFileDown\((\d+), (\d+)\)/;
+      const fileDownMatch = /getFileDown_\('(\d+)', (\d+)\)/;
       const indexMatch = /name="nTr"[^>]*value="(\d+)"/;
 
       const date = content.match(dateMatch)?.[1]?.trim() || '';
@@ -102,7 +102,9 @@ export async function POST(req: NextRequest) {
       const title = titleInfo?.[3]?.trim() || '';
       const author = content.match(authorMatch)?.[1] || '';
       const institution = content.match(institutionMatch)?.[1] || '';
-      const fileInfo = content.match(fileMatch);
+
+      const fileInfo = content.match(fileMatch) || content.match(fileDownMatch);
+      const isAltFile = content.includes('getFileDown_');
 
       rawReports.push({
         id,
@@ -113,6 +115,7 @@ export async function POST(req: NextRequest) {
         institution,
         fileId: fileInfo?.[1],
         fileNum: fileInfo?.[2],
+        isAltFile,
         hasFile: !!fileInfo,
       });
     }
@@ -121,25 +124,40 @@ export async function POST(req: NextRequest) {
       let fileSize = '';
       if (report.hasFile) {
           try {
-              const headRes = await fetch('https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp', {
+              const downloadUrl = report.isAltFile
+                ? 'https://www.bondweb.co.kr/prime_web/menu01/research/DownloadPage.asp'
+                : 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp';
+
+              const downloadRes = await fetch(downloadUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'User-Agent': 'Mozilla/5.0',
                 },
                 body: `number=${report.fileId}&gn=${report.fileNum}`,
                 redirect: 'manual',
                 signal: AbortSignal.timeout(5000)
               });
 
-              const contentLength = headRes.headers.get('content-length');
-              if (contentLength) {
-                  const size = parseInt(contentLength, 10);
-                  if (size > 1024 * 1024) fileSize = (size / (1024 * 1024)).toFixed(1) + 'MB';
-                  else fileSize = (size / 1024).toFixed(0) + 'KB';
+              const cd = downloadRes.headers.get('content-disposition');
+              if (cd && cd.includes('filename=')) {
+                  const filename = cd.split('filename=')[1].trim();
+                  if (filename.startsWith('/Data/')) {
+                      const headRes = await fetch('https://www.bondweb.co.kr' + filename, {
+                          method: 'HEAD',
+                          headers: { 'User-Agent': 'Mozilla/5.0' },
+                          signal: AbortSignal.timeout(3000)
+                      });
+                      const size = headRes.headers.get('content-length');
+                      if (size) {
+                          const s = parseInt(size, 10);
+                          if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
+                          else fileSize = (s / 1024).toFixed(0) + 'KB';
+                      }
+                  }
               }
           } catch (e) {
-              // Ignore size errors
+              // ignore
           }
       }
       return { ...report, fileSize };

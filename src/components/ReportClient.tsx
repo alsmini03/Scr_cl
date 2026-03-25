@@ -16,6 +16,7 @@ interface Report {
   institution: string;
   fileId?: string;
   fileNum?: string;
+  scrapPath?: string;
   hasFile: boolean;
   fileSize?: string;
 }
@@ -56,8 +57,6 @@ export default function ReportClient({
         setActiveTabId(savedTab);
     } else if (tabs.length > 0) {
         setActiveTabId(tabs[0].id);
-    } else {
-        setActiveTabId('default');
     }
   }, [tabs]);
 
@@ -65,10 +64,14 @@ export default function ReportClient({
     if (activeTabId) {
         localStorage.setItem('report_active_tab', activeTabId);
         fetchReports(true);
+    } else if (tabs.length === 0) {
+        setIsLoading(false);
     }
   }, [activeTabId]);
 
   const fetchReports = async (isInitial = false) => {
+    if (!activeTabId && tabs.length > 0) return;
+
     if (isInitial) {
         setIsLoading(true);
         setReports([]);
@@ -81,7 +84,7 @@ export default function ReportClient({
 
     try {
       const activeTab = tabs.find(t => t.id === activeTabId);
-      const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListHotClickSub.asp';
+      const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400';
 
       const res = await fetch('/api/report', {
         method: 'POST',
@@ -156,6 +159,11 @@ export default function ReportClient({
   };
 
   const handleDownload = async (report: Report) => {
+    if (report.scrapPath) {
+        window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
+        return;
+    }
+
     if (!report.fileId || !report.fileNum) return;
 
     try {
@@ -203,7 +211,8 @@ export default function ReportClient({
     if (res.success && res.id) {
       setNewTabName('');
       setNewTabUrl('');
-      setTabs(prev => [...prev, { id: res.id, name: newTabName, url: newTabUrl }]);
+      const newTabs = [...tabs, { id: res.id, name: newTabName, url: newTabUrl }];
+      setTabs(newTabs);
       setActiveTabId(res.id);
       setShowTabManager(false);
     } else {
@@ -217,8 +226,11 @@ export default function ReportClient({
     if (!confirm('탭을 삭제하시겠습니까?')) return;
     const res = await deleteReportTab(id);
     if (res.success) {
-      if (activeTabId === id) setActiveTabId(tabs.find(t => t.id !== id)?.id || 'default');
-      setTabs(prev => prev.filter(t => t.id !== id));
+      const remainingTabs = tabs.filter(t => t.id !== id);
+      setTabs(remainingTabs);
+      if (activeTabId === id) {
+          setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
+      }
     }
   };
 
@@ -262,15 +274,6 @@ export default function ReportClient({
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2">
-            <button
-                onClick={() => setActiveTabId('default')}
-                className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    activeTabId === 'default' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                )}
-            >
-                전체리포트
-            </button>
             {tabs.map(tab => {
                 let timer: any;
                 const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
@@ -334,7 +337,7 @@ export default function ReportClient({
           </div>
         ) : reports.length === 0 ? (
           <div className="text-center py-20 text-slate-400 dark:text-slate-600">
-            <p>리포트 정보가 없습니다.</p>
+            <p>{tabs.length === 0 ? '탭을 추가해 주세요.' : '리포트 정보가 없습니다.'}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -370,7 +373,7 @@ export default function ReportClient({
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all active:scale-95"
                     >
                       <span className="material-symbols-outlined text-lg">download</span>
-                      {report.fileSize ? report.fileSize : '다운로드'}
+                      {report.fileSize || '다운로드'}
                     </button>
                   )}
                 </div>
