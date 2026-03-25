@@ -324,6 +324,8 @@ export default function YouTubeRecommendClient({
             title="유튜브"
             viewMode={viewMode}
             onViewModeChange={setViewMode}
+            myLabel="저장"
+            recommendLabel="새글"
           />
       </Header>
 
