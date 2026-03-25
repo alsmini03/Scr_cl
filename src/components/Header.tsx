@@ -36,7 +36,7 @@ export default function Header({ title, showBack, rightAction, transparent, chil
         )}
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center min-w-0">
+      <div className="flex-1 flex items-center justify-center min-w-0">
         {children ? children : (
             <h1 className="text-xl font-bold leading-tight tracking-tight text-center truncate text-slate-900 dark:text-slate-100 px-2">
                 {title}

@@ -10,16 +10,14 @@ interface ViewModeToggleProps {
 
 export default function ViewModeToggle({ title, viewMode, onViewModeChange }: ViewModeToggleProps) {
   return (
-    <div className="flex items-center justify-center gap-3">
-      <h1 className="text-lg font-bold leading-tight tracking-tight text-slate-900 dark:text-slate-100 truncate">
-        {title}
-      </h1>
-      <div className="flex flex-col gap-0.5 p-0.5 bg-slate-200 dark:bg-slate-800 rounded-md">
+    <div className="flex items-center gap-4">
+      <h1 className="hidden sm:block text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">{title}</h1>
+      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-primary/10">
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewModeChange('my'); }}
           className={cn(
-            "px-2 py-0.5 rounded text-[8px] font-bold transition-all text-center leading-tight min-w-[50px]",
-            viewMode === 'my' ? "bg-white dark:bg-slate-700 text-primary shadow-xs" : "text-slate-500 dark:text-slate-400"
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-center min-w-[80px]",
+            viewMode === 'my' ? "bg-primary text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
           )}
         >
           내 보관함
@@ -27,8 +25,8 @@ export default function ViewModeToggle({ title, viewMode, onViewModeChange }: Vi
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onViewModeChange('recommend'); }}
           className={cn(
-            "px-2 py-0.5 rounded text-[8px] font-bold transition-all text-center leading-tight min-w-[50px]",
-            viewMode === 'recommend' ? "bg-white dark:bg-slate-700 text-primary shadow-xs" : "text-slate-500 dark:text-slate-400"
+            "px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-center min-w-[80px]",
+            viewMode === 'recommend' ? "bg-primary text-white shadow-md" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
           )}
         >
           추천
