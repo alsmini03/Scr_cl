@@ -105,18 +105,36 @@ export async function deleteRecord(tableName: string, id: string) {
   });
 }
 
+async function getAirtableIds(tableName: string, ids: string[]): Promise<string[]> {
+  const resultIds: string[] = [];
+  const idsToLookup: string[] = [];
+
+  for (const id of ids) {
+    if (id.startsWith('rec')) {
+      resultIds.push(id);
+    } else {
+      idsToLookup.push(id);
+    }
+  }
+
+  if (idsToLookup.length > 0) {
+    // Airtable formula for OR({id}='id1', {id}='id2', ...)
+    // Note: If too many IDs, we might need to chunk this to avoid long formula error
+    for (let i = 0; i < idsToLookup.length; i += 20) {
+      const chunk = idsToLookup.slice(i, i + 20);
+      const formula = `OR(${chunk.map(id => `{id} = '${escapeFormula(id)}'`).join(',')})`;
+      const records = await findRecords(tableName, { filterByFormula: formula });
+      records.forEach(r => resultIds.push(r.airtable_id));
+    }
+  }
+
+  return resultIds;
+}
+
 export async function batchDeleteRecords(tableName: string, ids: string[]) {
   if (ids.length === 0) return;
 
-  const airtableIds: string[] = [];
-  for (const id of ids) {
-    if (id.startsWith('rec')) {
-      airtableIds.push(id);
-    } else {
-      const record = await findRecord(tableName, `{id} = '${escapeFormula(id)}'`);
-      if (record) airtableIds.push(record.airtable_id);
-    }
-  }
+  const airtableIds = await getAirtableIds(tableName, ids);
 
   for (let i = 0; i < airtableIds.length; i += 10) {
     const batch = airtableIds.slice(i, i + 10);
@@ -129,16 +147,22 @@ export async function batchDeleteRecords(tableName: string, ids: string[]) {
 export async function batchUpdateRecords(tableName: string, records: { id: string, fields: any }[]) {
   if (records.length === 0) return;
 
-  const updates: { id: string, fields: any }[] = [];
-  for (const item of records) {
-    let airtableId = item.id;
-    if (!item.id.startsWith('rec')) {
-      const record = await findRecord(tableName, `{id} = '${escapeFormula(item.id)}'`);
-      if (record) airtableId = record.airtable_id;
-      else continue;
+  const idMap = new Map<string, string>();
+  const idsToLookup = records.filter(r => !r.id.startsWith('rec')).map(r => r.id);
+
+  if (idsToLookup.length > 0) {
+    for (let i = 0; i < idsToLookup.length; i += 20) {
+      const chunk = idsToLookup.slice(i, i + 20);
+      const formula = `OR(${chunk.map(id => `{id} = '${escapeFormula(id)}'`).join(',')})`;
+      const foundRecords = await findRecords(tableName, { filterByFormula: formula });
+      foundRecords.forEach(r => idMap.set(r.id, r.airtable_id));
     }
-    updates.push({ id: airtableId, fields: item.fields });
   }
+
+  const updates = records.map(r => {
+    const airtableId = r.id.startsWith('rec') ? r.id : idMap.get(r.id);
+    return airtableId ? { id: airtableId, fields: r.fields } : null;
+  }).filter((r): r is { id: string, fields: any } => r !== null);
 
   for (let i = 0; i < updates.length; i += 10) {
     const batch = updates.slice(i, i + 10);
