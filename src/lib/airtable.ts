@@ -17,7 +17,8 @@ export default base;
  * Escapes values for Airtable filter formulas
  * Handles single quotes correctly
  */
-export function escapeFormula(value: string | number | boolean): string {
+export function escapeFormula(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) return '';
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
   }
