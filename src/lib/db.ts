@@ -228,10 +228,12 @@ export async function getBlogTabs(): Promise<any[]> {
   }
 }
 
+import { randomUUID } from "node:crypto";
+
 export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
 
     const tabs = await getBlogTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
@@ -269,7 +271,7 @@ export async function getReportTabs(): Promise<any[]> {
 export async function addReportTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
 
     const tabs = await getReportTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
@@ -344,7 +346,7 @@ export async function getYes24Tabs(): Promise<any[]> {
 export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
 
     const tabs = await getYes24Tabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
@@ -421,7 +423,7 @@ export async function saveBlog(blog: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const addedAt = new Date().toISOString();
 
     await createRecord('naver_blogs', {
@@ -522,7 +524,7 @@ export async function getGeminiModels(): Promise<any[]> {
 export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     await createRecord('gemini_models', {
       id,
       user_id: user.id,
@@ -553,7 +555,7 @@ export async function getYoutubeTabs(): Promise<any[]> {
 export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
 
     const tabs = await getYoutubeTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
@@ -651,7 +653,7 @@ export async function getGeminiPrompts(): Promise<any[]> {
 export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     await createRecord('gemini_prompts', {
       id,
       user_id: user.id,
@@ -749,7 +751,7 @@ export async function getBookById(id: string): Promise<Book | undefined> {
 export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boolean; data?: Book; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const createdAt = new Date().toISOString();
 
     await createRecord('books', {
@@ -897,7 +899,7 @@ export async function saveYoutubeVideo(video: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const addedAt = new Date().toISOString();
 
     await createRecord('youtube_videos', {

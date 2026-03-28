@@ -1,10 +1,11 @@
 import { Adapter, AdapterUser, AdapterAccount, AdapterSession, VerificationToken } from "next-auth/adapters";
-import { findRecord, findRecords, createRecord, updateRecord, deleteRecord } from "./airtable";
+import { findRecord, createRecord, updateRecord, deleteRecord, escapeFormula } from "./airtable";
+import { randomUUID } from "node:crypto";
 
 export function AirtableAdapter(): Adapter {
   return {
     async createUser(user) {
-      const id = crypto.randomUUID();
+      const id = randomUUID();
       const record = await createRecord("users", {
         ...user,
         id,
@@ -13,19 +14,19 @@ export function AirtableAdapter(): Adapter {
       return { ...record, id: record.id } as AdapterUser;
     },
     async getUser(id) {
-      const record = await findRecord("users", `{id} = '${id}'`);
+      const record = await findRecord("users", `{id} = '${escapeFormula(id)}'`);
       if (!record) return null;
       return { ...record, id: record.id } as AdapterUser;
     },
     async getUserByEmail(email) {
-      const record = await findRecord("users", `{email} = '${email}'`);
+      const record = await findRecord("users", `{email} = '${escapeFormula(email)}'`);
       if (!record) return null;
       return { ...record, id: record.id } as AdapterUser;
     },
     async getUserByAccount({ providerAccountId, provider }) {
-      const account = await findRecord("accounts", `AND({providerAccountId} = '${providerAccountId}', {provider} = '${provider}')`);
+      const account = await findRecord("accounts", `AND({providerAccountId} = '${escapeFormula(providerAccountId)}', {provider} = '${escapeFormula(provider)}')`);
       if (!account) return null;
-      const user = await findRecord("users", `{id} = '${account.userId}'`);
+      const user = await findRecord("users", `{id} = '${escapeFormula(account.userId)}'`);
       if (!user) return null;
       return { ...user, id: user.id } as AdapterUser;
     },
@@ -37,18 +38,18 @@ export function AirtableAdapter(): Adapter {
       await deleteRecord("users", userId);
     },
     async linkAccount(account) {
-      const id = crypto.randomUUID();
+      const id = randomUUID();
       await createRecord("accounts", { ...account, id });
       return account as AdapterAccount;
     },
     async unlinkAccount({ providerAccountId, provider }) {
-      const account = await findRecord("accounts", `AND({providerAccountId} = '${providerAccountId}', {provider} = '${provider}')`);
+      const account = await findRecord("accounts", `AND({providerAccountId} = '${escapeFormula(providerAccountId)}', {provider} = '${escapeFormula(provider)}')`);
       if (account) {
         await deleteRecord("accounts", account.id);
       }
     },
     async createSession({ sessionToken, userId, expires }) {
-      const id = crypto.randomUUID();
+      const id = randomUUID();
       const record = await createRecord("sessions", {
         id,
         sessionToken,
@@ -58,9 +59,9 @@ export function AirtableAdapter(): Adapter {
       return { ...record, expires: new Date(record.expires) } as AdapterSession;
     },
     async getSessionAndUser(sessionToken) {
-      const sessionRecord = await findRecord("sessions", `{sessionToken} = '${sessionToken}'`);
+      const sessionRecord = await findRecord("sessions", `{sessionToken} = '${escapeFormula(sessionToken)}'`);
       if (!sessionRecord) return null;
-      const userRecord = await findRecord("users", `{id} = '${sessionRecord.userId}'`);
+      const userRecord = await findRecord("users", `{id} = '${escapeFormula(sessionRecord.userId)}'`);
       if (!userRecord) return null;
       return {
         session: { ...sessionRecord, expires: new Date(sessionRecord.expires) } as AdapterSession,
@@ -75,7 +76,7 @@ export function AirtableAdapter(): Adapter {
       return { ...record, expires: new Date(record.expires) } as AdapterSession;
     },
     async deleteSession(sessionToken) {
-      const session = await findRecord("sessions", `{sessionToken} = '${sessionToken}'`);
+      const session = await findRecord("sessions", `{sessionToken} = '${escapeFormula(sessionToken)}'`);
       if (session) {
         await deleteRecord("sessions", session.id);
       }
@@ -88,7 +89,7 @@ export function AirtableAdapter(): Adapter {
       return verificationToken;
     },
     async useVerificationToken({ identifier, token }) {
-      const record = await findRecord("verification_tokens", `AND({identifier} = '${identifier}', {token} = '${token}')`);
+      const record = await findRecord("verification_tokens", `AND({identifier} = '${escapeFormula(identifier)}', {token} = '${escapeFormula(token)}')`);
       if (!record) return null;
       await deleteRecord("verification_tokens", record.airtable_id);
       return { ...record, expires: new Date(record.expires) } as VerificationToken;
