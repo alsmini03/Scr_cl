@@ -1,10 +1,7 @@
 import authConfig from "./auth.config";
 import NextAuth from "next-auth";
 
-const { auth } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  ...authConfig,
-});
+const { auth } = NextAuth(authConfig);
 
 export default auth;
 
