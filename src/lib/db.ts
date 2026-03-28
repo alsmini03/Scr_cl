@@ -1,11 +1,11 @@
 'use server';
 
-import { sql } from '@vercel/postgres';
 import { Book } from '@/types/book';
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { sendGmail } from './gmail';
 import { marked } from 'marked';
+import { findRecord, findRecords, createRecord, updateRecord, deleteRecord, batchDeleteRecords, batchUpdateRecords, escapeFormula } from './airtable';
 
 async function getSessionUser() {
   const session = await auth();
@@ -20,37 +20,33 @@ async function getSessionUser() {
 
 async function ensureApproved() {
   const user = await getSessionUser();
-
-  // Strict isApproved check as per user requirements.
-  // Only the primary user (admin) or approved users should be able to register books.
   if (!user.isApproved) {
     throw new Error('권한이 없습니다. 관리자의 승인이 필요합니다.');
   }
-
   return user;
 }
 
-function mapRowToBook(row: any): Book {
+function mapRecordToBook(record: any): Book {
   return {
-    id: row.id,
-    title: row.title,
-    author: row.author || '',
-    coverImage: row.cover_image || '',
-    category: row.category,
-    publishDate: row.published_date,
-    price: row.price,
-    description: row.description,
-    readingStatus: row.status as 'READING' | 'FINISHED',
-    progress: row.progress,
-    rating: row.rating,
-    notes: row.notes,
-    createdAt: row.added_at,
-    intro: row.intro,
-    toc: row.toc,
-    authorIntro: row.author_intro,
-    inside: row.inside,
-    publisherReview: row.publisher_review,
-    yes24Url: row.yes24_url,
+    id: record.id,
+    title: record.title,
+    author: record.author || '',
+    coverImage: record.cover_image || '',
+    category: record.category,
+    publishDate: record.published_date,
+    price: record.price,
+    description: record.description,
+    readingStatus: record.status as 'READING' | 'FINISHED',
+    progress: record.progress,
+    rating: record.rating,
+    notes: record.notes,
+    createdAt: record.added_at,
+    intro: record.intro,
+    toc: record.toc,
+    authorIntro: record.author_intro,
+    inside: record.inside,
+    publisherReview: record.publisher_review,
+    yes24Url: record.yes24_url,
   };
 }
 
@@ -65,15 +61,12 @@ function safeRevalidate(path: string) {
 export async function getBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT id, title, author, cover_image, category, published_date, status, rating, progress, added_at
-      FROM books
-      WHERE deleted_at IS NULL AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      ORDER BY added_at DESC
-    `;
-    return rows.map(mapRowToBook);
+    const records = await findRecords('books', {
+      filterByFormula: `AND({deleted_at} = BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
+      sort: [{ field: 'added_at', direction: 'desc' }]
+    });
+    return records.map(mapRecordToBook);
   } catch (error) {
-    // If not logged in, return empty list instead of throwing
     return [];
   }
 }
@@ -82,49 +75,31 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  // Try finding by userId directly
-  let res = await sql`
-    SELECT * FROM accounts
-    WHERE "userId"::text = ${userId}::text AND provider = 'google'
-    LIMIT 1
-  `;
+  const escapedUserId = escapeFormula(userId);
+  const account = await findRecord('accounts', `AND({userId} = '${escapedUserId}', {provider} = 'google')`);
+  if (account) return account;
 
-  if (res.rows.length > 0) return res.rows[0];
+  const user = await findRecord('users', `{email} = '${escapedUserId}'`);
+  if (user) {
+    return await findRecord('accounts', `AND({userId} = '${escapeFormula(user.id)}', {provider} = 'google')`);
+  }
 
-  // Fallback: If userId is an email, search accounts joining with users.
-  res = await sql`
-    SELECT a.* FROM accounts a
-    JOIN users u ON a."userId"::text = u.id::text
-    WHERE u.email = ${userId} AND a.provider = 'google'
-    LIMIT 1
-  `;
-
-  return res.rows[0];
+  return null;
 }
 
 export async function updateAccountTokens(userId: string, tokens: { access_token: string, expires_at: number, refresh_token?: string }) {
-  const expiresAtStr = tokens.expires_at.toString();
-
-  // We search by original identifiers to ensure we update the correct record
   const account = await getUserAccount(userId);
   if (!account) throw new Error('Account not found for token update');
 
+  const fields: any = {
+    access_token: tokens.access_token,
+    expires_at: tokens.expires_at
+  };
   if (tokens.refresh_token) {
-    await sql`
-      UPDATE accounts
-      SET access_token = ${tokens.access_token},
-          expires_at = ${expiresAtStr},
-          refresh_token = ${tokens.refresh_token}
-      WHERE id = ${account.id}
-    `;
-  } else {
-    await sql`
-      UPDATE accounts
-      SET access_token = ${tokens.access_token},
-          expires_at = ${expiresAtStr}
-      WHERE id = ${account.id}
-    `;
+    fields.refresh_token = tokens.refresh_token;
   }
+
+  await updateRecord('accounts', account.id, fields);
 }
 
 export async function getValidAccessToken(userId: string): Promise<string> {
@@ -244,12 +219,10 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
 export async function getBlogTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM blog_tabs
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY position ASC, created_at ASC
-    `;
-    return rows;
+    return await findRecords('blog_tabs', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -260,13 +233,17 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
     const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM blog_tabs WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text`;
-    const nextPos = rows[0].max_pos + 1;
+    const tabs = await getBlogTabs();
+    const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await sql`
-      INSERT INTO blog_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
-    `;
+    await createRecord('blog_tabs', {
+      id,
+      user_id: user.id,
+      name,
+      url,
+      position: nextPos,
+      created_at: new Date().toISOString()
+    });
     safeRevalidate('/blog');
     return { success: true, id };
   } catch (error: any) {
@@ -280,38 +257,10 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    let rows;
-    try {
-        const result = await sql`
-          SELECT * FROM report_tabs
-          WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-          ORDER BY position ASC, created_at ASC
-        `;
-        rows = result.rows;
-    } catch (dbError: any) {
-        if (dbError.message.includes('does not exist')) {
-            await sql`
-              CREATE TABLE IF NOT EXISTS report_tabs (
-                id TEXT PRIMARY KEY,
-                user_id TEXT NOT NULL,
-                name TEXT NOT NULL,
-                url TEXT NOT NULL,
-                position INTEGER DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-              )
-            `;
-            await sql`CREATE INDEX IF NOT EXISTS idx_report_tabs_user_id_text ON report_tabs ((user_id::text))`;
-            const result = await sql`
-              SELECT * FROM report_tabs
-              WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-              ORDER BY position ASC, created_at ASC
-            `;
-            rows = result.rows;
-        } else {
-            throw dbError;
-        }
-    }
-    return rows || [];
+    return await findRecords('report_tabs', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -322,13 +271,17 @@ export async function addReportTab(name: string, url: string): Promise<{ success
     const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM report_tabs WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text`;
-    const nextPos = rows[0].max_pos + 1;
+    const tabs = await getReportTabs();
+    const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await sql`
-      INSERT INTO report_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
-    `;
+    await createRecord('report_tabs', {
+      id,
+      user_id: user.id,
+      name,
+      url,
+      position: nextPos,
+      created_at: new Date().toISOString()
+    });
     safeRevalidate('/report');
     return { success: true, id };
   } catch (error: any) {
@@ -339,13 +292,7 @@ export async function addReportTab(name: string, url: string): Promise<{ success
 export async function updateReportTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    for (const item of tabOrders) {
-      await sql`
-        UPDATE report_tabs
-        SET position = ${item.position}
-        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      `;
-    }
+    await batchUpdateRecords('report_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -356,10 +303,7 @@ export async function updateReportTabOrder(tabOrders: { id: string; position: nu
 export async function deleteReportTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM report_tabs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('report_tabs', id);
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -372,10 +316,7 @@ export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolea
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    await sql`
-      DELETE FROM naver_blogs
-      WHERE (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text) AND id = ANY(${ids as any})
-    `;
+    await batchDeleteRecords('naver_blogs', ids);
 
     safeRevalidate('/blog');
     return { success: true };
@@ -391,12 +332,10 @@ export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolea
 export async function getYes24Tabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM yes24_tabs
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY position ASC, created_at ASC
-    `;
-    return rows;
+    return await findRecords('yes24_tabs', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -407,13 +346,17 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
     const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM yes24_tabs WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text`;
-    const nextPos = rows[0].max_pos + 1;
+    const tabs = await getYes24Tabs();
+    const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await sql`
-      INSERT INTO yes24_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
-    `;
+    await createRecord('yes24_tabs', {
+      id,
+      user_id: user.id,
+      name,
+      url,
+      position: nextPos,
+      created_at: new Date().toISOString()
+    });
     safeRevalidate('/best');
     return { success: true, id };
   } catch (error: any) {
@@ -424,13 +367,7 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
 export async function updateYes24TabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    for (const item of tabOrders) {
-      await sql`
-        UPDATE yes24_tabs
-        SET position = ${item.position}
-        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      `;
-    }
+    await batchUpdateRecords('yes24_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -441,10 +378,7 @@ export async function updateYes24TabOrder(tabOrders: { id: string; position: num
 export async function deleteYes24Tab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM yes24_tabs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('yes24_tabs', id);
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -455,13 +389,7 @@ export async function deleteYes24Tab(id: string): Promise<{ success: boolean; er
 export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    for (const item of tabOrders) {
-      await sql`
-        UPDATE blog_tabs
-        SET position = ${item.position}
-        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      `;
-    }
+    await batchUpdateRecords('blog_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -472,10 +400,7 @@ export async function updateBlogTabOrder(tabOrders: { id: string; position: numb
 export async function deleteBlogTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM blog_tabs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('blog_tabs', id);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -499,38 +424,17 @@ export async function saveBlog(blog: {
     const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
-    try {
-      await sql`
-        INSERT INTO naver_blogs (
-          id, title, author, url, thumbnail, content, published_at, user_id, added_at
-        ) VALUES (
-          ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
-          ${blog.content || null}, ${blog.published_at || null}, ${user.id}, ${addedAt}
-        )
-      `;
-    } catch (dbError: any) {
-      // If column is missing, try to add it and retry once
-      // PostgreSQL error code 42703 is undefined_column
-      if (dbError.code === '42703' || dbError.message.includes('column "author" does not exist')) {
-        try {
-            await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
-            // Retry
-            await sql`
-              INSERT INTO naver_blogs (
-                id, title, author, url, thumbnail, content, published_at, user_id, added_at
-              ) VALUES (
-                ${id}, ${blog.title}, ${blog.author || null}, ${blog.url}, ${blog.thumbnail || null},
-                ${blog.content || null}, ${blog.published_at || null}, ${user.id}, ${addedAt}
-              )
-            `;
-        } catch (retryError) {
-            console.error('Retry saveBlog failed:', retryError);
-            throw dbError;
-        }
-      } else {
-        throw dbError;
-      }
-    }
+    await createRecord('naver_blogs', {
+      id,
+      title: blog.title,
+      author: blog.author,
+      url: blog.url,
+      thumbnail: blog.thumbnail,
+      content: blog.content,
+      published_at: blog.published_at,
+      user_id: user.id,
+      added_at: addedAt
+    });
 
     safeRevalidate('/blog');
     return { success: true };
@@ -543,33 +447,10 @@ export async function saveBlog(blog: {
 export async function getBlogs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    let rows;
-    try {
-        const result = await sql`
-            SELECT id, title, author, url, thumbnail, published_at, added_at FROM naver_blogs
-            WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-            ORDER BY added_at DESC
-        `;
-        rows = result.rows;
-    } catch (dbError: any) {
-        if (dbError.code === '42703' || dbError.message.includes('column "author" does not exist')) {
-            try {
-                await sql`ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS author TEXT`;
-                const result = await sql`
-                    SELECT * FROM naver_blogs
-                    WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-                    ORDER BY added_at DESC
-                `;
-                rows = result.rows;
-            } catch (retryError) {
-                console.error('Retry getBlogs failed:', retryError);
-                throw dbError;
-            }
-        } else {
-            throw dbError;
-        }
-    }
-    return rows || [];
+    return await findRecords('naver_blogs', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'added_at', direction: 'desc' }]
+    });
   } catch (error) {
     console.error('getBlogs error:', error);
     return [];
@@ -579,12 +460,7 @@ export async function getBlogs(): Promise<any[]> {
 export async function getBlogById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM naver_blogs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
-    if (rows.length === 0) return undefined;
-    return rows[0];
+    return await findRecord('naver_blogs', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
   } catch (error) {
     return undefined;
   }
@@ -593,10 +469,7 @@ export async function getBlogById(id: string): Promise<any | undefined> {
 export async function deleteBlog(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM naver_blogs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('naver_blogs', id);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -614,16 +487,14 @@ export async function updateYoutubeVideo(id: string, video: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
-    await sql`
-      UPDATE youtube_videos SET
-        title = ${video.title},
-        thumbnail = ${video.thumbnail || null},
-        duration = ${video.duration || null},
-        published_at = ${video.published_at || null},
-        summary = ${video.summary || null},
-        description = ${video.description || null}
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await updateRecord('youtube_videos', id, {
+      title: video.title,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      published_at: video.published_at,
+      summary: video.summary,
+      description: video.description
+    });
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
     return { success: true };
@@ -639,12 +510,10 @@ export async function updateYoutubeVideo(id: string, video: {
 export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM gemini_models
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY created_at ASC
-    `;
-    return rows;
+    return await findRecords('gemini_models', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -654,10 +523,12 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
   try {
     const user = await ensureApproved();
     const id = crypto.randomUUID();
-    await sql`
-      INSERT INTO gemini_models (id, user_id, name)
-      VALUES (${id}, ${user.id}, ${name})
-    `;
+    await createRecord('gemini_models', {
+      id,
+      user_id: user.id,
+      name,
+      created_at: new Date().toISOString()
+    });
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -670,12 +541,10 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
 export async function getYoutubeTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM youtube_tabs
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY position ASC, created_at ASC
-    `;
-    return rows;
+    return await findRecords('youtube_tabs', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -686,14 +555,17 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
     const user = await ensureApproved();
     const id = crypto.randomUUID();
 
-    // Get max position
-    const { rows } = await sql`SELECT COALESCE(MAX(position), -1) as max_pos FROM youtube_tabs WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text`;
-    const nextPos = rows[0].max_pos + 1;
+    const tabs = await getYoutubeTabs();
+    const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await sql`
-      INSERT INTO youtube_tabs (id, user_id, name, url, position)
-      VALUES (${id}, ${user.id}, ${name}, ${url}, ${nextPos})
-    `;
+    await createRecord('youtube_tabs', {
+      id,
+      user_id: user.id,
+      name,
+      url,
+      position: nextPos,
+      created_at: new Date().toISOString()
+    });
     safeRevalidate('/youtube/recommend');
     return { success: true, id };
   } catch (error: any) {
@@ -704,16 +576,7 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
 export async function updateYoutubeTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-
-    // Perform updates in a loop (sequential for simplicity with @vercel/postgres)
-    for (const item of tabOrders) {
-      await sql`
-        UPDATE youtube_tabs
-        SET position = ${item.position}
-        WHERE id = ${item.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      `;
-    }
-
+    await batchUpdateRecords('youtube_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -724,10 +587,7 @@ export async function updateYoutubeTabOrder(tabOrders: { id: string; position: n
 export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM youtube_tabs
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('youtube_tabs', id);
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -738,10 +598,7 @@ export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; 
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      UPDATE gemini_models SET name = ${name}
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await updateRecord('gemini_models', id, { name });
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -751,10 +608,7 @@ export async function updateGeminiModel(id: string, name: string): Promise<{ suc
 export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM gemini_models
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('gemini_models', id);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -764,10 +618,7 @@ export async function deleteGeminiModel(id: string): Promise<{ success: boolean;
 export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      UPDATE gemini_prompts SET name = ${name}, content = ${content}
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await updateRecord('gemini_prompts', id, { name, content });
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -777,8 +628,8 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
 export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`UPDATE gemini_models SET is_default = FALSE WHERE (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)`;
-    await sql`UPDATE gemini_models SET is_default = TRUE WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)`;
+    const models = await getGeminiModels();
+    await batchUpdateRecords('gemini_models', models.map(m => ({ id: m.id, fields: { is_default: m.id === id } })));
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -788,12 +639,10 @@ export async function setDefaultGeminiModel(id: string): Promise<{ success: bool
 export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM gemini_prompts
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY created_at ASC
-    `;
-    return rows;
+    return await findRecords('gemini_prompts', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'created_at', direction: 'asc' }]
+    });
   } catch (error) {
     return [];
   }
@@ -803,10 +652,13 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
   try {
     const user = await ensureApproved();
     const id = crypto.randomUUID();
-    await sql`
-      INSERT INTO gemini_prompts (id, user_id, name, content)
-      VALUES (${id}, ${user.id}, ${name}, ${content})
-    `;
+    await createRecord('gemini_prompts', {
+      id,
+      user_id: user.id,
+      name,
+      content,
+      created_at: new Date().toISOString()
+    });
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -816,10 +668,7 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
 export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM gemini_prompts
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('gemini_prompts', id);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -829,8 +678,8 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
 export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`UPDATE gemini_prompts SET is_default = FALSE WHERE (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)`;
-    await sql`UPDATE gemini_prompts SET is_default = TRUE WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)`;
+    const prompts = await getGeminiPrompts();
+    await batchUpdateRecords('gemini_prompts', prompts.map(p => ({ id: p.id, fields: { is_default: p.id === id } })));
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -840,10 +689,7 @@ export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boo
 export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await sql`
-      DELETE FROM youtube_videos
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('youtube_videos', id);
     safeRevalidate('/');
     return { success: true };
   } catch (error: any) {
@@ -857,11 +703,7 @@ export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    // Use an array of IDs for the query
-    await sql`
-      DELETE FROM youtube_videos
-      WHERE (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text) AND id = ANY(${ids as any})
-    `;
+    await batchDeleteRecords('youtube_videos', ids);
 
     safeRevalidate('/');
     return { success: true };
@@ -874,12 +716,7 @@ export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success
 export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM youtube_videos
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
-    if (rows.length === 0) return undefined;
-    return rows[0];
+    return await findRecord('youtube_videos', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
   } catch (error) {
     return undefined;
   }
@@ -888,12 +725,11 @@ export async function getYoutubeVideoById(id: string): Promise<any | undefined> 
 export async function getDeletedBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM books
-      WHERE deleted_at IS NOT NULL AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      ORDER BY deleted_at DESC
-    `;
-    return rows.map(mapRowToBook);
+    const records = await findRecords('books', {
+      filterByFormula: `AND({deleted_at} != BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
+      sort: [{ field: 'deleted_at', direction: 'desc' }]
+    });
+    return records.map(mapRecordToBook);
   } catch (error) {
     return [];
   }
@@ -902,12 +738,9 @@ export async function getDeletedBooks(): Promise<Book[]> {
 export async function getBookById(id: string): Promise<Book | undefined> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT * FROM books
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
-    if (rows.length === 0) return undefined;
-    return mapRowToBook(rows[0]);
+    const record = await findRecord('books', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
+    if (!record) return undefined;
+    return mapRecordToBook(record);
   } catch (error) {
     return undefined;
   }
@@ -919,45 +752,28 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     const id = crypto.randomUUID();
     const createdAt = new Date().toISOString();
 
-    try {
-      await sql`
-        INSERT INTO books (
-          id, title, author, cover_image, description, published_date,
-          price, category, status, progress, rating, notes, added_at, user_id,
-          intro, toc, author_intro, inside, publisher_review, yes24_url
-        ) VALUES (
-          ${id}, ${book.title}, ${book.author}, ${book.coverImage},
-          ${book.description || null}, ${book.publishDate || null},
-          ${book.price || null}, ${book.category || null},
-          ${book.readingStatus}, ${book.progress || 0},
-          ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
-          ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
-          ${book.yes24Url || null}
-        )
-      `;
-    } catch (dbError: any) {
-        if (dbError.code === '42703' || dbError.message.includes('column "yes24_url" does not exist')) {
-            await sql`ALTER TABLE books ADD COLUMN IF NOT EXISTS yes24_url TEXT`;
-            // Retry
-            await sql`
-              INSERT INTO books (
-                id, title, author, cover_image, description, published_date,
-                price, category, status, progress, rating, notes, added_at, user_id,
-                intro, toc, author_intro, inside, publisher_review, yes24_url
-              ) VALUES (
-                ${id}, ${book.title}, ${book.author}, ${book.coverImage},
-                ${book.description || null}, ${book.publishDate || null},
-                ${book.price || null}, ${book.category || null},
-                ${book.readingStatus}, ${book.progress || 0},
-                ${book.rating || 0}, ${book.notes || null}, ${createdAt}, ${user.id},
-                ${book.intro || null}, ${book.toc || null}, ${book.authorIntro || null}, ${book.inside || null}, ${book.publisherReview || null},
-                ${book.yes24Url || null}
-              )
-            `;
-        } else {
-            throw dbError;
-        }
-    }
+    await createRecord('books', {
+      id,
+      title: book.title,
+      author: book.author,
+      cover_image: book.coverImage,
+      description: book.description,
+      published_date: book.publishDate,
+      price: book.price,
+      category: book.category,
+      status: book.readingStatus,
+      progress: book.progress || 0,
+      rating: book.rating || 0,
+      notes: book.notes,
+      added_at: createdAt,
+      user_id: user.id,
+      intro: book.intro,
+      toc: book.toc,
+      author_intro: book.authorIntro,
+      inside: book.inside,
+      publisher_review: book.publisherReview,
+      yes24_url: book.yes24Url
+    });
 
     safeRevalidate('/');
     return { success: true, data: { ...book, id, createdAt } };
@@ -974,57 +790,25 @@ export async function updateBook(book: Book): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    try {
-      await sql`
-        UPDATE books SET
-          title = ${book.title},
-          author = ${book.author},
-          cover_image = ${book.coverImage},
-          description = ${book.description || null},
-          published_date = ${book.publishDate || null},
-          price = ${book.price || null},
-          category = ${book.category || null},
-          status = ${book.readingStatus},
-          progress = ${book.progress || 0},
-          rating = ${book.rating || 0},
-          notes = ${book.notes || null},
-          intro = ${book.intro || null},
-          toc = ${book.toc || null},
-          author_intro = ${book.authorIntro || null},
-          inside = ${book.inside || null},
-          publisher_review = ${book.publisherReview || null},
-          yes24_url = ${book.yes24Url || null}
-        WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-      `;
-    } catch (dbError: any) {
-        if (dbError.code === '42703' || dbError.message.includes('column "yes24_url" does not exist')) {
-            await sql`ALTER TABLE books ADD COLUMN IF NOT EXISTS yes24_url TEXT`;
-            // Retry
-            await sql`
-              UPDATE books SET
-                title = ${book.title},
-                author = ${book.author},
-                cover_image = ${book.coverImage},
-                description = ${book.description || null},
-                published_date = ${book.publishDate || null},
-                price = ${book.price || null},
-                category = ${book.category || null},
-                status = ${book.readingStatus},
-                progress = ${book.progress || 0},
-                rating = ${book.rating || 0},
-                notes = ${book.notes || null},
-                intro = ${book.intro || null},
-                toc = ${book.toc || null},
-                author_intro = ${book.authorIntro || null},
-                inside = ${book.inside || null},
-                publisher_review = ${book.publisherReview || null},
-                yes24_url = ${book.yes24Url || null}
-              WHERE id = ${book.id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-            `;
-        } else {
-            throw dbError;
-        }
-    }
+    await updateRecord('books', book.id, {
+      title: book.title,
+      author: book.author,
+      cover_image: book.coverImage,
+      description: book.description,
+      published_date: book.publishDate,
+      price: book.price,
+      category: book.category,
+      status: book.readingStatus,
+      progress: book.progress || 0,
+      rating: book.rating || 0,
+      notes: book.notes,
+      intro: book.intro,
+      toc: book.toc,
+      author_intro: book.authorIntro,
+      inside: book.inside,
+      publisher_review: book.publisherReview,
+      yes24_url: book.yes24Url
+    });
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
   } catch (error) {
@@ -1041,10 +825,7 @@ export async function softDeleteBook(id: string): Promise<void> {
   await ensureApproved();
   const deletedAt = new Date().toISOString();
   try {
-    await sql`
-      UPDATE books SET deleted_at = ${deletedAt}
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await updateRecord('books', id, { deleted_at: deletedAt });
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -1060,10 +841,7 @@ export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolea
     if (ids.length === 0) return { success: true };
 
     const deletedAt = new Date().toISOString();
-    await sql`
-      UPDATE books SET deleted_at = ${deletedAt}
-      WHERE (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text) AND id = ANY(${ids as any})
-    `;
+    await batchUpdateRecords('books', ids.map(id => ({ id, fields: { deleted_at: deletedAt } })));
 
     safeRevalidate('/');
     safeRevalidate('/trash');
@@ -1081,10 +859,7 @@ export async function restoreBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await sql`
-      UPDATE books SET deleted_at = NULL
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await updateRecord('books', id, { deleted_at: null });
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -1100,10 +875,7 @@ export async function permanentlyDeleteBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await sql`
-      DELETE FROM books
-      WHERE id = ${id} AND (user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text)
-    `;
+    await deleteRecord('books', id);
     safeRevalidate('/trash');
   } catch (error) {
     console.error(`Failed to permanently delete book with id ${id}:`, error);
@@ -1128,15 +900,18 @@ export async function saveYoutubeVideo(video: {
     const id = crypto.randomUUID();
     const addedAt = new Date().toISOString();
 
-    await sql`
-      INSERT INTO youtube_videos (
-        id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at
-      ) VALUES (
-        ${id}, ${video.title}, ${video.url}, ${video.thumbnail || null},
-        ${video.duration || null}, ${video.published_at || null},
-        ${video.summary || null}, ${video.description || null}, ${user.id}, ${addedAt}
-      )
-    `;
+    await createRecord('youtube_videos', {
+      id,
+      title: video.title,
+      url: video.url,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      published_at: video.published_at,
+      summary: video.summary,
+      description: video.description,
+      user_id: user.id,
+      added_at: addedAt
+    });
 
     safeRevalidate('/');
     return { success: true };
@@ -1152,12 +927,10 @@ export async function saveYoutubeVideo(video: {
 export async function getYoutubeVideos(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const { rows } = await sql`
-      SELECT id, title, url, thumbnail, duration, published_at, added_at FROM youtube_videos
-      WHERE user_id::text = ${user.id}::text OR user_id::text = ${user.email}::text
-      ORDER BY added_at DESC
-    `;
-    return rows;
+    return await findRecords('youtube_videos', {
+      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
+      sort: [{ field: 'added_at', direction: 'desc' }]
+    });
   } catch (error) {
     return [];
   }
