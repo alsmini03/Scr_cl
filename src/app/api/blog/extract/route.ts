@@ -227,10 +227,18 @@ export async function POST(req: NextRequest) {
     }
 
 
+    // Requirement: Remove id and class attributes from extracted content
+    const cleanContent = (html: string) => {
+        if (!html) return "";
+        const $clean = cheerio.load(html, null, false);
+        $clean('*').removeAttr('id').removeAttr('class');
+        return $clean.html() || "";
+    };
+
     return NextResponse.json({
       title,
       author,
-      content,
+      content: cleanContent(content),
       thumbnail,
       published_at: formattedDateForTitle, // Title date (YYYY년 M월 D일)
       original_published_at: date, // Keep original for body if needed
