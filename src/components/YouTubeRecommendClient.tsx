@@ -386,6 +386,9 @@ export default function YouTubeRecommendClient({
               const handleTouchEnd = () => {
                 clearTimeout(timer);
               };
+              const handleTouchMove = () => {
+                clearTimeout(timer);
+              };
 
               return (
               <div
@@ -395,8 +398,10 @@ export default function YouTubeRecommendClient({
                 )}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchMove}
                 onMouseDown={handleTouchStart}
                 onMouseUp={handleTouchEnd}
+                onMouseMove={handleTouchMove}
               >
                 <button
                   onClick={() => {
@@ -525,14 +530,17 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
   let timer: any;
   const startPress = () => { timer = setTimeout(() => onCopyUrl(video.url), 600); };
   const endPress = () => { clearTimeout(timer); };
+  const movePress = () => { clearTimeout(timer); };
 
   return (
     <div
       className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up"
       onTouchStart={startPress}
       onTouchEnd={endPress}
+      onTouchMove={movePress}
       onMouseDown={startPress}
       onMouseUp={endPress}
+      onMouseMove={movePress}
       onMouseLeave={endPress}
     >
       <a
@@ -595,6 +603,7 @@ const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggle
   let timer: any;
   const handleTouchStart = () => { timer = setTimeout(() => onLongPress(video.id), 500); };
   const handleTouchEnd = () => { clearTimeout(timer); };
+  const handleTouchMove = () => { clearTimeout(timer); };
 
   return (
     <div className="relative animate-fade-in-up">
@@ -603,8 +612,10 @@ const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggle
             onClick={(e) => isEditMode && onToggleSelect(video.id, e)}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onTouchMove={handleTouchMove}
             onMouseDown={handleTouchStart}
             onMouseUp={handleTouchEnd}
+            onMouseMove={handleTouchMove}
             className={cn(
                 "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
                 isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"

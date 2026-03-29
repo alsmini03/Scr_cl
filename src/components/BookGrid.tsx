@@ -67,9 +67,11 @@ const BookGrid = memo(({
                 href={isSelectionMode ? '#' : `/book/${book.id}`}
                 onMouseDown={() => startPress(book.id)}
                 onMouseUp={endPress}
+                onMouseMove={endPress}
                 onMouseLeave={endPress}
                 onTouchStart={() => startPress(book.id)}
                 onTouchEnd={endPress}
+                onTouchMove={endPress}
                 onClick={(e) => {
                   if (isSelectionMode) {
                     e.preventDefault();

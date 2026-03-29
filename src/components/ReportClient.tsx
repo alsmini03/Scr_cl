@@ -278,14 +278,17 @@ export default function ReportClient({
                 let timer: any;
                 const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
                 const handleTouchEnd = () => { clearTimeout(timer); };
+                const handleTouchMove = () => { clearTimeout(timer); };
                 return (
                     <div
                         key={tab.id}
                         className="relative flex-shrink-0 group transition-all"
                         onTouchStart={handleTouchStart}
                         onTouchEnd={handleTouchEnd}
+                        onTouchMove={handleTouchMove}
                         onMouseDown={handleTouchStart}
                         onMouseUp={handleTouchEnd}
+                        onMouseMove={handleTouchMove}
                     >
                         <button
                             onClick={() => setActiveTabId(tab.id)}

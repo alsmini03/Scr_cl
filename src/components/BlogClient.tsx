@@ -321,6 +321,7 @@ export default function BlogClient({
                         let timer: any;
                         const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
                         const handleTouchEnd = () => { clearTimeout(timer); };
+                        const handleTouchMove = () => { clearTimeout(timer); };
                         return (
                             <div
                                 key={tab.id}
@@ -329,8 +330,10 @@ export default function BlogClient({
                                 )}
                                 onTouchStart={handleTouchStart}
                                 onTouchEnd={handleTouchEnd}
+                                onTouchMove={handleTouchMove}
                                 onMouseDown={handleTouchStart}
                                 onMouseUp={handleTouchEnd}
+                                onMouseMove={handleTouchMove}
                             >
                                 <button
                                     onClick={() => {
@@ -468,6 +471,7 @@ const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSe
   let timer: any;
   const handleTouchStart = () => { timer = setTimeout(() => onLongPress(blog.id), 500); };
   const handleTouchEnd = () => { clearTimeout(timer); };
+  const handleTouchMove = () => { clearTimeout(timer); };
 
   return (
       <div className="relative animate-fade-in-up">
@@ -476,8 +480,10 @@ const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSe
               onClick={(e) => isEditMode && onToggleSelect(blog.id, e)}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
+              onTouchMove={handleTouchMove}
               onMouseDown={handleTouchStart}
               onMouseUp={handleTouchEnd}
+              onMouseMove={handleTouchMove}
               className={cn(
                   "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
                   isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
