@@ -3,8 +3,8 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
-import { cn } from '@/lib/utils';
+import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { cn, getLongPressHandlers } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -379,29 +379,14 @@ export default function YouTubeRecommendClient({
               전체
             </button>
             {tabs.map(tab => {
-              let timer: any;
-              const handleTouchStart = () => {
-                timer = setTimeout(() => handleTabLongPress(tab.id), 600);
-              };
-              const handleTouchEnd = () => {
-                clearTimeout(timer);
-              };
-              const handleTouchMove = () => {
-                clearTimeout(timer);
-              };
-
+              const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
               return (
               <div
                 key={tab.id}
                 className={cn(
                   "relative flex-shrink-0 group transition-all"
                 )}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onTouchMove={handleTouchMove}
-                onMouseDown={handleTouchStart}
-                onMouseUp={handleTouchEnd}
-                onMouseMove={handleTouchMove}
+                {...longPressHandlers}
               >
                 <button
                   onClick={() => {
@@ -527,21 +512,12 @@ export default function YouTubeRecommendClient({
 }
 
 const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
-  let timer: any;
-  const startPress = () => { timer = setTimeout(() => onCopyUrl(video.url), 600); };
-  const endPress = () => { clearTimeout(timer); };
-  const movePress = () => { clearTimeout(timer); };
+  const longPressHandlers = getLongPressHandlers(() => onCopyUrl(video.url));
 
   return (
     <div
       className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up"
-      onTouchStart={startPress}
-      onTouchEnd={endPress}
-      onTouchMove={movePress}
-      onMouseDown={startPress}
-      onMouseUp={endPress}
-      onMouseMove={movePress}
-      onMouseLeave={endPress}
+      {...longPressHandlers}
     >
       <a
         href={video.url}
@@ -600,22 +576,14 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
 });
 
 const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggleSelect }: any) => {
-  let timer: any;
-  const handleTouchStart = () => { timer = setTimeout(() => onLongPress(video.id), 500); };
-  const handleTouchEnd = () => { clearTimeout(timer); };
-  const handleTouchMove = () => { clearTimeout(timer); };
+  const longPressHandlers = getLongPressHandlers(() => onLongPress(video.id), 500);
 
   return (
     <div className="relative animate-fade-in-up">
         <Link
             href={isEditMode ? '#' : `/youtube/${video.id}`}
             onClick={(e) => isEditMode && onToggleSelect(video.id, e)}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onTouchMove={handleTouchMove}
-            onMouseDown={handleTouchStart}
-            onMouseUp={handleTouchEnd}
-            onMouseMove={handleTouchMove}
+            {...longPressHandlers}
             className={cn(
                 "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
                 isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"

@@ -1,4 +1,4 @@
-import { getYes24Tabs, getBooks, batchDeleteBooks } from '@/lib/db';
+import { getYes24Tabs, getBooks, batchDeleteBooksAction as batchDeleteBooks } from '@/lib/db';
 import { auth } from '@/auth';
 import BestClient from '@/components/BestClient';
 

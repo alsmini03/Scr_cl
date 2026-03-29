@@ -57,3 +57,43 @@ export function formatDateToYMD(dateStr?: string): string {
 
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Long press handler logic
+ * Prevents action if user moves more than moveThreshold
+ */
+export function getLongPressHandlers(callback: () => void, threshold = 600, moveThreshold = 10) {
+    let timer: NodeJS.Timeout;
+    let startX = 0;
+    let startY = 0;
+
+    const start = (e: any) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        startX = clientX;
+        startY = clientY;
+        timer = setTimeout(callback, threshold);
+    };
+
+    const move = (e: any) => {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        if (Math.abs(clientX - startX) > moveThreshold || Math.abs(clientY - startY) > moveThreshold) {
+            clearTimeout(timer);
+        }
+    };
+
+    const end = () => {
+        clearTimeout(timer);
+    };
+
+    return {
+        onTouchStart: start,
+        onTouchMove: move,
+        onTouchEnd: end,
+        onMouseDown: start,
+        onMouseMove: move,
+        onMouseUp: end,
+        onMouseLeave: end
+    };
+}

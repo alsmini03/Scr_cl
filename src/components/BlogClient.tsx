@@ -3,8 +3,8 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveBlog, deleteBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogs } from '@/lib/db';
-import { cn, formatDateToYMD } from '@/lib/utils';
+import { saveBlog, deleteBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogsAction as batchDeleteBlogs } from '@/lib/db';
+import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -318,22 +318,14 @@ export default function BlogClient({
                         전체
                     </button>
                     {tabs.map(tab => {
-                        let timer: any;
-                        const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
-                        const handleTouchEnd = () => { clearTimeout(timer); };
-                        const handleTouchMove = () => { clearTimeout(timer); };
+                        const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                         return (
                             <div
                                 key={tab.id}
                                 className={cn(
                                     "relative flex-shrink-0 group transition-all"
                                 )}
-                                onTouchStart={handleTouchStart}
-                                onTouchEnd={handleTouchEnd}
-                                onTouchMove={handleTouchMove}
-                                onMouseDown={handleTouchStart}
-                                onMouseUp={handleTouchEnd}
-                                onMouseMove={handleTouchMove}
+                                {...longPressHandlers}
                             >
                                 <button
                                     onClick={() => {
@@ -468,22 +460,14 @@ const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
 ));
 
 const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSelect, onDelete }: any) => {
-  let timer: any;
-  const handleTouchStart = () => { timer = setTimeout(() => onLongPress(blog.id), 500); };
-  const handleTouchEnd = () => { clearTimeout(timer); };
-  const handleTouchMove = () => { clearTimeout(timer); };
+  const longPressHandlers = getLongPressHandlers(() => onLongPress(blog.id), 500);
 
   return (
       <div className="relative animate-fade-in-up">
           <Link
               href={isEditMode ? '#' : `/blog/${blog.id}`}
               onClick={(e) => isEditMode && onToggleSelect(blog.id, e)}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-              onTouchMove={handleTouchMove}
-              onMouseDown={handleTouchStart}
-              onMouseUp={handleTouchEnd}
-              onMouseMove={handleTouchMove}
+              {...longPressHandlers}
               className={cn(
                   "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
                   isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"

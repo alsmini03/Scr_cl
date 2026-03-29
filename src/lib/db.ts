@@ -313,7 +313,7 @@ export async function deleteReportTab(id: string): Promise<{ success: boolean; e
   }
 }
 
-export async function batchDeleteBlogs(ids: string[]): Promise<{ success: boolean; error?: string }> {
+export async function batchDeleteBlogsAction(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
@@ -700,7 +700,7 @@ export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean
   }
 }
 
-export async function batchDeleteYoutubeVideos(ids: string[]): Promise<{ success: boolean; error?: string }> {
+export async function batchDeleteYoutubeVideosAction(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
@@ -836,7 +836,7 @@ export async function softDeleteBook(id: string): Promise<void> {
   }
 }
 
-export async function batchDeleteBooks(ids: string[]): Promise<{ success: boolean; error?: string }> {
+export async function batchDeleteBooksAction(ids: string[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     await ensureApproved();

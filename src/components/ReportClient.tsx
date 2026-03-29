@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
 import { addReportTab, deleteReportTab, updateReportTabOrder } from '@/lib/db';
-import { cn } from '@/lib/utils';
+import { cn, getLongPressHandlers } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
 
 interface Report {
@@ -275,20 +275,12 @@ export default function ReportClient({
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
             {tabs.map(tab => {
-                let timer: any;
-                const handleTouchStart = () => { timer = setTimeout(() => handleTabLongPress(tab.id), 600); };
-                const handleTouchEnd = () => { clearTimeout(timer); };
-                const handleTouchMove = () => { clearTimeout(timer); };
+                const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                 return (
                     <div
                         key={tab.id}
                         className="relative flex-shrink-0 group transition-all"
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={handleTouchEnd}
-                        onTouchMove={handleTouchMove}
-                        onMouseDown={handleTouchStart}
-                        onMouseUp={handleTouchEnd}
-                        onMouseMove={handleTouchMove}
+                        {...longPressHandlers}
                     >
                         <button
                             onClick={() => setActiveTabId(tab.id)}
