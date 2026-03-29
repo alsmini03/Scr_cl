@@ -44,9 +44,7 @@ export default function BlogDetailPage() {
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(blog.url).then(() => {
-      alert('URL이 복사되었습니다.');
-    });
+    navigator.clipboard.writeText(blog.url);
   };
 
   const handleSendEmail = async () => {

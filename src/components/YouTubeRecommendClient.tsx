@@ -125,9 +125,7 @@ export default function YouTubeRecommendClient({
   }, [activeTabId, tabs, viewMode]);
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      alert('URL이 클립보드에 복사되었습니다.');
-    }).catch(err => {
+    navigator.clipboard.writeText(url).catch(err => {
       console.error('Copy failed:', err);
     });
   };

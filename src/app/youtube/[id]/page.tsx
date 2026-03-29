@@ -92,9 +92,7 @@ export default function YoutubeDetailPage() {
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(video?.url || '').then(() => {
-      alert('URL이 클립보드에 복사되었습니다.');
-    });
+    navigator.clipboard.writeText(video?.url || '');
   };
 
   const handleSendEmail = async () => {
