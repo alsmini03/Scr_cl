@@ -232,6 +232,8 @@ export async function POST(req: NextRequest) {
         if (!html) return "";
         const $clean = cheerio.load(html, null, false);
         $clean('*').removeAttr('id').removeAttr('class');
+        // Add referrerpolicy="no-referrer" to all images to bypass Naver/Tistory hotlinking protection
+        $clean('img').attr('referrerpolicy', 'no-referrer');
         return $clean.html() || "";
     };
 
