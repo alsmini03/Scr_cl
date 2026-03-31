@@ -9,7 +9,7 @@ if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
   }
 }
 
-const base = new Airtable({ apiKey: AIRTABLE_PAT }).base(AIRTABLE_BASE_ID || '');
+const base = new Airtable({ apiKey: AIRTABLE_PAT || 'dummy' }).base(AIRTABLE_BASE_ID || 'dummy');
 
 export default base;
 
