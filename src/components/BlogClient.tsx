@@ -213,7 +213,6 @@ export default function BlogClient({
   };
 
   const handleTabLongPress = (id: string) => {
-    if (id === 'all') return;
     setIsModalOpen(true);
   };
 
@@ -302,21 +301,26 @@ export default function BlogClient({
                 <div className={cn(
                     "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
                 )}>
-                    <button
-                        onClick={() => {
-                            if (activeTabId === 'all') {
-                                fetchRecommend();
-                            } else {
-                                setActiveTabId('all');
-                            }
-                        }}
-                        className={cn(
-                            "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                            activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                        )}
+                    <div
+                        className="relative flex-shrink-0 group transition-all"
+                        {...getLongPressHandlers(() => handleTabLongPress('all'))}
                     >
-                        전체
-                    </button>
+                        <button
+                            onClick={() => {
+                                if (activeTabId === 'all') {
+                                    fetchRecommend();
+                                } else {
+                                    setActiveTabId('all');
+                                }
+                            }}
+                            className={cn(
+                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                            )}
+                        >
+                            전체
+                        </button>
+                    </div>
                     {tabs.map(tab => {
                         const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                         return (
