@@ -4,16 +4,57 @@ export async function POST(req: NextRequest) {
   try {
     const { number, gn, title } = await req.json();
 
-    const response = await fetch('https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      body: `number=${number}&gn=${gn}`,
-    });
+    const endpoints = [
+      'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp',
+      'https://www.bondweb.co.kr/prime_web/menu01/research/DownloadPage.asp'
+    ];
 
-    if (!response.ok) throw new Error('Download failed');
+    let lastError = null;
+    let finalResponse = null;
+
+    for (const url of endpoints) {
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                },
+                body: `number=${number}&gn=${gn}`,
+                redirect: 'manual'
+            });
+
+            let fileUrl = '';
+            if (res.status === 302 || res.status === 301) {
+                fileUrl = res.headers.get('location') || '';
+            } else {
+                const cd = res.headers.get('content-disposition');
+                if (cd && cd.includes('filename=')) {
+                    const match = cd.match(/filename=([^;]*)/i);
+                    if (match) fileUrl = match[1].trim().replace(/['"]/g, '');
+                }
+            }
+
+            if (fileUrl) {
+                const absoluteUrl = fileUrl.startsWith('http') ? fileUrl : 'https://www.bondweb.co.kr' + (fileUrl.startsWith('/') ? '' : '/') + fileUrl;
+                finalResponse = await fetch(absoluteUrl, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    }
+                });
+                if (finalResponse.ok) break;
+            } else if (res.ok) {
+                // If it didn't redirect but returned content directly (unlikely for these endpoints but safe to handle)
+                finalResponse = res;
+                break;
+            }
+        } catch (e) {
+            lastError = e;
+        }
+    }
+
+    if (!finalResponse || !finalResponse.ok) throw new Error('Download failed from all endpoints');
+    const response = finalResponse;
 
     const blob = await response.blob();
     const headers = new Headers();
