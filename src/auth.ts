@@ -1,16 +1,10 @@
 import NextAuth from "next-auth";
-import PostgresAdapter from "@auth/pg-adapter";
-import { Pool } from "pg";
+import { AirtableAdapter } from "./lib/airtable-adapter";
 import authConfig from "./auth.config";
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-});
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PostgresAdapter(pool),
+  adapter: AirtableAdapter(),
   session: { strategy: "jwt" },
-  secret: process.env.AUTH_SECRET,
   ...authConfig,
   callbacks: {
     ...authConfig.callbacks,

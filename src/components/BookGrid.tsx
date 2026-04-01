@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Book } from '@/types/book';
-import { cn } from '@/lib/utils';
+import { cn, getLongPressHandlers } from '@/lib/utils';
 import { useRef, memo } from 'react';
 
 interface BookGridProps {
@@ -23,20 +23,6 @@ const BookGrid = memo(({
   onLongPress
 }: BookGridProps) => {
   const gridCols = parseInt(viewMode) || 2;
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  const startPress = (id: string) => {
-    timerRef.current = setTimeout(() => {
-      onLongPress?.(id);
-    }, 500);
-  };
-
-  const endPress = () => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -65,11 +51,7 @@ const BookGrid = memo(({
 
               <Link
                 href={isSelectionMode ? '#' : `/book/${book.id}`}
-                onMouseDown={() => startPress(book.id)}
-                onMouseUp={endPress}
-                onMouseLeave={endPress}
-                onTouchStart={() => startPress(book.id)}
-                onTouchEnd={endPress}
+                {...getLongPressHandlers(() => onLongPress?.(book.id), 500)}
                 onClick={(e) => {
                   if (isSelectionMode) {
                     e.preventDefault();

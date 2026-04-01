@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import he from 'he';
 
 export async function getBlogPosts(idOrUrl: string, limit = 0) {
     let blogId = idOrUrl;
@@ -44,7 +45,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
             const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
 
             itemsToProcess.forEach((el) => {
-                const title = $(el).find("title").text().trim();
+                const title = he.decode($(el).find("title").text().trim());
                 let link = $(el).find("link").text().trim();
                 const description = $(el).find("description").text();
                 const pubDate = $(el).find("pubDate").text();
@@ -109,7 +110,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                         const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
 
                         itemsToProcess.forEach((el) => {
-                            const title = $rss(el).find("title").text().trim();
+                            const title = he.decode($rss(el).find("title").text().trim());
                             const link = $rss(el).find("link").text().trim();
                             const pubDate = $rss(el).find("pubDate").text();
                             const description = $rss(el).find("description").text();
@@ -162,7 +163,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                                     } catch(e) {}
 
                                     return {
-                                        title: item.item.name,
+                                        title: he.decode(item.item.name),
                                         author: blogTitle,
                                         url: fullUrl,
                                         thumbnail: null,
@@ -211,7 +212,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                         }
 
                         allPosts.push({
-                            title: title || "Untitled Post",
+                            title: he.decode(title || "Untitled Post"),
                             author: blogTitle,
                             url: fullUrl,
                             thumbnail: thumbnail ? (thumbnail.startsWith('//') ? 'https:' + thumbnail : thumbnail) : null,
@@ -254,7 +255,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                                 } catch(e) {}
 
                                 allPosts.push({
-                                    title,
+                                    title: he.decode(title),
                                     author: blogTitle,
                                     url: fullUrl,
                                     thumbnail: null,
@@ -286,7 +287,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
                         const itemsToProcess = limit > 0 ? items.slice(0, limit) : items;
 
                         itemsToProcess.forEach((el) => {
-                            const title = $rss(el).find("title").text().trim();
+                            const title = he.decode($rss(el).find("title").text().trim());
                             const link = $rss(el).find("link").text().trim();
                             const pubDate = $rss(el).find("pubDate").text();
                             const description = $rss(el).find("description").text();
@@ -316,7 +317,7 @@ export async function getBlogPosts(idOrUrl: string, limit = 0) {
 
                         items.forEach((item: any) => {
                             allPosts.push({
-                                title: item.titleWithOutEmoji || item.title,
+                                title: he.decode(item.titleWithOutEmoji || item.title),
                                 url: `https://m.blog.naver.com/${item.blogId || blogId}/${item.logNo}`,
                                 thumbnail: item.thumbnailUrl,
                                 published_at: item.addDate,

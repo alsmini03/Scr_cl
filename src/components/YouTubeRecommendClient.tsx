@@ -3,8 +3,8 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
-import { cn } from '@/lib/utils';
+import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { cn, getLongPressHandlers } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -125,9 +125,7 @@ export default function YouTubeRecommendClient({
   }, [activeTabId, tabs, viewMode]);
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).then(() => {
-      alert('URL이 클립보드에 복사되었습니다.');
-    }).catch(err => {
+    navigator.clipboard.writeText(url).catch(err => {
       console.error('Copy failed:', err);
     });
   };
@@ -222,7 +220,6 @@ export default function YouTubeRecommendClient({
   };
 
   const handleTabLongPress = (id: string) => {
-    if (id === 'all') return;
     setIsModalOpen(true);
   };
 
@@ -363,40 +360,35 @@ export default function YouTubeRecommendClient({
           <div className={cn(
             "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
           )}>
-            <button
-              onClick={() => {
-                if (activeTabId === 'all') {
-                  fetchVideos();
-                } else {
-                  setActiveTabId('all');
-                }
-              }}
-              className={cn(
-                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-              )}
+            <div
+                className="relative flex-shrink-0 group transition-all"
+                {...getLongPressHandlers(() => handleTabLongPress('all'))}
             >
-              전체
-            </button>
+                <button
+                onClick={() => {
+                    if (activeTabId === 'all') {
+                    fetchVideos();
+                    } else {
+                    setActiveTabId('all');
+                    }
+                }}
+                className={cn(
+                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                    activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                )}
+                >
+                전체
+                </button>
+            </div>
             {tabs.map(tab => {
-              let timer: any;
-              const handleTouchStart = () => {
-                timer = setTimeout(() => handleTabLongPress(tab.id), 600);
-              };
-              const handleTouchEnd = () => {
-                clearTimeout(timer);
-              };
-
+              const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
               return (
               <div
                 key={tab.id}
                 className={cn(
                   "relative flex-shrink-0 group transition-all"
                 )}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onMouseDown={handleTouchStart}
-                onMouseUp={handleTouchEnd}
+                {...longPressHandlers}
               >
                 <button
                   onClick={() => {
@@ -522,18 +514,12 @@ export default function YouTubeRecommendClient({
 }
 
 const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
-  let timer: any;
-  const startPress = () => { timer = setTimeout(() => onCopyUrl(video.url), 600); };
-  const endPress = () => { clearTimeout(timer); };
+  const longPressHandlers = getLongPressHandlers(() => onCopyUrl(video.url));
 
   return (
     <div
       className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up"
-      onTouchStart={startPress}
-      onTouchEnd={endPress}
-      onMouseDown={startPress}
-      onMouseUp={endPress}
-      onMouseLeave={endPress}
+      {...longPressHandlers}
     >
       <a
         href={video.url}
@@ -592,19 +578,14 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
 });
 
 const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggleSelect }: any) => {
-  let timer: any;
-  const handleTouchStart = () => { timer = setTimeout(() => onLongPress(video.id), 500); };
-  const handleTouchEnd = () => { clearTimeout(timer); };
+  const longPressHandlers = getLongPressHandlers(() => onLongPress(video.id), 500);
 
   return (
     <div className="relative animate-fade-in-up">
         <Link
             href={isEditMode ? '#' : `/youtube/${video.id}`}
             onClick={(e) => isEditMode && onToggleSelect(video.id, e)}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            onMouseDown={handleTouchStart}
-            onMouseUp={handleTouchEnd}
+            {...longPressHandlers}
             className={cn(
                 "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
                 isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"

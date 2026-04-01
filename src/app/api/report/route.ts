@@ -51,11 +51,15 @@ export async function POST(req: NextRequest) {
       url = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400'
     } = body;
 
-    const ajaxUrl = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListHotClickSub.asp';
+    const isAllReport = url.includes('SubDiv=Sub100');
+    const ajaxUrl = isAllReport
+        ? 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListSub.asp'
+        : 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/AjaxPrimeListHotClickSub.asp';
+
     const { selMnuT, selMnuB } = await getTabParams(url);
 
-    const mnuMatch = /SubDiv=Sub(\d)/.exec(url);
-    const nwMnu = mnuMatch ? mnuMatch[1].padStart(2, '0') : '04';
+    const mnuMatch = /SubDiv=Sub(\d+)/.exec(url);
+    const nwMnu = mnuMatch ? mnuMatch[1].substring(0, 2) : '04';
 
     const params = new URLSearchParams();
     params.append('selMnuT', selMnuT);
@@ -68,8 +72,12 @@ export async function POST(req: NextRequest) {
     params.append('srhWord', srhWord);
     params.append('BoardLink', '');
     params.append('NWMnu', nwMnu);
-    params.append('HotClick', '1');
-    params.append('HotClickSearchDate', '0');
+    if (!isAllReport) {
+        params.append('HotClick', '1');
+        params.append('HotClickSearchDate', '0');
+    } else {
+        params.append('HcCnt', '5');
+    }
     params.append('DATA_CYCLE', '');
 
     const response = await fetch(ajaxUrl, {

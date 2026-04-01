@@ -10,7 +10,7 @@ import {
   getGeminiPrompts,
   sendYoutubeEmailAction
 } from '@/lib/db';
-import { notFound, useRouter } from 'next/navigation';
+import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
@@ -28,7 +28,9 @@ interface YoutubeVideo {
   user_id: string;
 }
 
-export default function YoutubeDetailPage({ params }: { params: { id: string } }) {
+export default function YoutubeDetailPage() {
+  const params = useParams();
+  const id = params?.id as string;
   const router = useRouter();
   const [video, setVideo] = useState<YoutubeVideo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,7 +47,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
 
   useEffect(() => {
     async function loadVideo() {
-      const { id } = await params;
+      if (!id) return;
       const data = await getYoutubeVideoById(id);
       if (data) {
         setVideo(data);
@@ -53,7 +55,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
       setLoading(false);
     }
     loadVideo();
-  }, [params]);
+  }, [id]);
 
   if (loading) {
     return (
@@ -90,9 +92,7 @@ export default function YoutubeDetailPage({ params }: { params: { id: string } }
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(video?.url || '').then(() => {
-      alert('URL이 클립보드에 복사되었습니다.');
-    });
+    navigator.clipboard.writeText(video?.url || '');
   };
 
   const handleSendEmail = async () => {

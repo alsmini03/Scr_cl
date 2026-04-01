@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { getBlogPosts } from "@/lib/blog";
+import he from "he";
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,12 +58,12 @@ export async function POST(req: NextRequest) {
     let thumbnail = $("meta[property='og:image']").attr("content");
 
     if (isNaver) {
-        title = $(".se-title-text, h2.title, .htitle, .tit_h3").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = he.decode($(".se-title-text, h2.title, .htitle, .tit_h3").first().text().trim() || $("meta[property='og:title']").attr("content") || "");
         title = title.replace(/\s*:\s*네이버\s*블로그$/, "");
 
         // Mobile Naver blog often has a different title structure
         if (!title) {
-            title = $(".se_title h3, .tit_h3").text().trim();
+            title = he.decode($(".se_title h3, .tit_h3").text().trim());
         }
 
         const contentArea = $(".se-main-container, .post_ct, #post-view, .se_component_wrap, #postViewArea, .se_content");
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
         date = $(".se_publishDate, .date, .se-publish-date, .publishDate").first().text().trim();
         author = $(".nick, .writer, .nick_area").first().text().trim();
     } else if (isTistory) {
-        title = $(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = he.decode($(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "");
         author = $(".txt_author, .writer").first().text().trim();
 
         // Tistory Mobile content selector
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
         if (!content.trim()) content = $(".blogview_content, .article_view").html() || "";
         date = $("meta[property='article:published_time']").attr("content") || $(".txt_date, .date").first().text().trim();
     } else if (isBrunch) {
-        title = $(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "";
+        title = he.decode($(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "");
         author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
 
         const contentArea = $(".wrap_body");
@@ -227,10 +228,20 @@ export async function POST(req: NextRequest) {
     }
 
 
+    // Requirement: Remove id and class attributes from extracted content
+    const cleanContent = (html: string) => {
+        if (!html) return "";
+        const $clean = cheerio.load(html, null, false);
+        $clean('*').removeAttr('id').removeAttr('class');
+        // Add referrerpolicy="no-referrer" to all images to bypass Naver/Tistory hotlinking protection
+        $clean('img').attr('referrerpolicy', 'no-referrer');
+        return $clean.html() || "";
+    };
+
     return NextResponse.json({
       title,
       author,
-      content,
+      content: cleanContent(content),
       thumbnail,
       published_at: formattedDateForTitle, // Title date (YYYY년 M월 D일)
       original_published_at: date, // Keep original for body if needed

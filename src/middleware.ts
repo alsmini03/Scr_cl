@@ -1,12 +1,8 @@
 import authConfig from "./auth.config";
 import NextAuth from "next-auth";
 
-const { auth } = NextAuth({
-  secret: process.env.AUTH_SECRET,
-  ...authConfig,
-});
+const { auth } = NextAuth(authConfig);
 
-export const proxy = auth;
 export default auth;
 
 export const config = {
