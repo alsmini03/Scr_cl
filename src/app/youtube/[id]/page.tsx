@@ -12,6 +12,8 @@ import {
 } from '@/lib/db';
 import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
@@ -249,7 +251,12 @@ export default function YoutubeDetailPage() {
                AI 요약 분석
             </h2>
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
-               <ReactMarkdown>{video.summary}</ReactMarkdown>
+               <ReactMarkdown
+                 remarkPlugins={[remarkGfm]}
+                 rehypePlugins={[rehypeRaw]}
+               >
+                 {video.summary}
+               </ReactMarkdown>
             </div>
           </div>
 

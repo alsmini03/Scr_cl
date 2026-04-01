@@ -17,6 +17,8 @@ import {
   setDefaultGeminiPrompt
 } from '@/lib/db';
 import { useRouter } from 'next/navigation';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 
@@ -614,7 +616,12 @@ export default function AddYouTubePage() {
               </div>
             ) : transcript ? (
               <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
-                <ReactMarkdown>{transcript}</ReactMarkdown>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                >
+                  {transcript}
+                </ReactMarkdown>
               </div>
             ) : (
               <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-600 min-h-64 p-4 shadow-inner">
