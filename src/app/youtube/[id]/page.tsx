@@ -44,6 +44,13 @@ export default function YoutubeDetailPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
 
+  // Edit states
+  const [isEditingMode, setIsEditingMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedSummary, setEditedSummary] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+
   useEffect(() => {
     const lastEmail = localStorage.getItem('last_blog_email');
     if (lastEmail) setRecipientEmail(lastEmail);
@@ -54,7 +61,17 @@ export default function YoutubeDetailPage() {
       if (!id) return;
       const data = await getYoutubeVideoById(id);
       if (data) {
-        setVideo(data);
+        // Decode entities for all fields to ensure consistent display and editing
+        const decodedData = {
+          ...data,
+          title: he.decode(data.title || ''),
+          summary: he.decode(data.summary || ''),
+          description: he.decode(data.description || '')
+        };
+        setVideo(decodedData);
+        setEditedTitle(decodedData.title);
+        setEditedSummary(decodedData.summary);
+        setEditedDescription(decodedData.description);
       }
       setLoading(false);
     }
@@ -97,6 +114,55 @@ export default function YoutubeDetailPage() {
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(video?.url || '');
+  };
+
+  const handleEditToggle = () => {
+    if (isEditingMode) {
+      // Cancel editing, reset to current video data
+      setEditedTitle(video?.title || '');
+      setEditedSummary(video?.summary || '');
+      setEditedDescription(video?.description || '');
+      setIsEditingMode(false);
+    } else {
+      // Entering edit mode: sync edited fields with current video state
+      setEditedTitle(video?.title || '');
+      setEditedSummary(video?.summary || '');
+      setEditedDescription(video?.description || '');
+      setIsEditingMode(true);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!video) return;
+    setIsSaving(true);
+    try {
+      const result = await updateYoutubeVideo(video.id, {
+        title: editedTitle,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        published_at: video.published_at,
+        summary: editedSummary,
+        description: editedDescription,
+      });
+
+      if (result.success) {
+        setVideo({
+          ...video,
+          title: editedTitle,
+          summary: editedSummary,
+          description: editedDescription,
+        });
+        setIsEditingMode(false);
+        alert('수정되었습니다.');
+      } else {
+        alert(`수정 실패: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSendEmail = async () => {
@@ -186,22 +252,55 @@ export default function YoutubeDetailPage() {
         showBack
         rightAction={
           <div className="flex items-center gap-1">
-            <button
-              onClick={handleRefetch}
-              disabled={isRefetching || isDeleting}
-              className="text-primary hover:bg-primary/5 p-2 rounded-full transition-colors disabled:opacity-50"
-              title="다시 가져오기"
-            >
-              <span className={cn("material-symbols-outlined", isRefetching && "animate-spin")}>sync</span>
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting || isRefetching}
-              className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors disabled:opacity-50"
-              title="기록 삭제"
-            >
-              <span className="material-symbols-outlined">delete</span>
-            </button>
+            {isEditingMode ? (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="text-primary font-bold px-3 py-1 rounded-full hover:bg-primary/5 transition-colors flex items-center gap-1"
+                >
+                  <span className={cn("material-symbols-outlined text-xl", isSaving && "animate-spin")}>
+                    {isSaving ? "sync" : "save"}
+                  </span>
+                  저장
+                </button>
+                <button
+                  onClick={handleEditToggle}
+                  disabled={isSaving}
+                  className="text-slate-500 font-bold px-3 py-1 rounded-full hover:bg-slate-100 transition-colors flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-xl">close</span>
+                  취소
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleEditToggle}
+                  disabled={isRefetching || isDeleting}
+                  className="text-primary hover:bg-primary/5 p-2 rounded-full transition-colors disabled:opacity-50"
+                  title="내용 수정"
+                >
+                  <span className="material-symbols-outlined">edit</span>
+                </button>
+                <button
+                  onClick={handleRefetch}
+                  disabled={isRefetching || isDeleting}
+                  className="text-primary hover:bg-primary/5 p-2 rounded-full transition-colors disabled:opacity-50"
+                  title="다시 가져오기"
+                >
+                  <span className={cn("material-symbols-outlined", isRefetching && "animate-spin")}>sync</span>
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting || isRefetching}
+                  className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors disabled:opacity-50"
+                  title="기록 삭제"
+                >
+                  <span className="material-symbols-outlined">delete</span>
+                </button>
+              </>
+            )}
           </div>
         }
       />
@@ -213,7 +312,19 @@ export default function YoutubeDetailPage() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight">{video.title}</h1>
+          {isEditingMode ? (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 uppercase ml-1">제목</label>
+              <textarea
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                className="w-full text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 border border-primary/20 focus:ring-2 focus:ring-primary/20 outline-none resize-none min-h-[100px]"
+                placeholder="제목을 입력하세요"
+              />
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight">{video.title}</h1>
+          )}
           <div className="flex gap-3 text-sm text-slate-500 dark:text-slate-400 font-medium">
              <span>{video.duration}</span>
              <span>•</span>
@@ -252,14 +363,23 @@ export default function YoutubeDetailPage() {
                <span className="material-symbols-outlined text-primary">auto_awesome</span>
                AI 요약 분석
             </h2>
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
-               <ReactMarkdown
-                 remarkPlugins={[remarkGfm, remarkBreaks]}
-                 rehypePlugins={[rehypeRaw]}
-               >
-                 {he.decode(video.summary || '')}
-               </ReactMarkdown>
-            </div>
+            {isEditingMode ? (
+              <textarea
+                value={editedSummary}
+                onChange={(e) => setEditedSummary(e.target.value)}
+                className="w-full min-h-[300px] bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-primary/20 focus:ring-2 focus:ring-primary/20 outline-none resize-y text-sm leading-relaxed"
+                placeholder="AI 요약 내용을 수정하세요 (마크다운 지원)"
+              />
+            ) : (
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
+                 <ReactMarkdown
+                   remarkPlugins={[remarkGfm, remarkBreaks]}
+                   rehypePlugins={[rehypeRaw]}
+                 >
+                 {video.summary || ''}
+                 </ReactMarkdown>
+              </div>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -267,9 +387,18 @@ export default function YoutubeDetailPage() {
                <span className="material-symbols-outlined text-slate-400">description</span>
                상세 설명
             </h2>
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed shadow-inner break-words overflow-hidden">
-               {video.description || "설명이 없습니다."}
-            </div>
+            {isEditingMode ? (
+              <textarea
+                value={editedDescription}
+                onChange={(e) => setEditedDescription(e.target.value)}
+                className="w-full min-h-[200px] bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-primary/20 focus:ring-2 focus:ring-primary/20 outline-none resize-y text-sm leading-relaxed"
+                placeholder="상세 설명을 수정하세요"
+              />
+            ) : (
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed shadow-inner break-words overflow-hidden">
+                 {video.description || "설명이 없습니다."}
+              </div>
+            )}
           </div>
         </section>
       </main>
