@@ -5,7 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { auth } from '@/auth';
 import { sendGmail } from './gmail';
 import { marked } from 'marked';
+import { gfmHeadingId } from "marked-gfm-heading-id";
 import { findRecord, findRecords, createRecord, updateRecord, deleteRecord, batchDeleteRecords, batchUpdateRecords, escapeFormula } from './airtable';
+
+// Configure marked
+marked.use(gfmHeadingId());
 import { randomUUID } from "node:crypto";
 
 async function getSessionUser() {

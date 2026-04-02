@@ -18,8 +18,10 @@ import {
 } from '@/lib/db';
 import { useRouter } from 'next/navigation';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
+import he from 'he';
 import ReactMarkdown from 'react-markdown';
 
 interface YouTubeMetadata {
@@ -617,10 +619,10 @@ export default function AddYouTubePage() {
             ) : transcript ? (
               <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
                   rehypePlugins={[rehypeRaw]}
                 >
-                  {transcript}
+                  {he.decode(transcript || '')}
                 </ReactMarkdown>
               </div>
             ) : (

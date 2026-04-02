@@ -13,8 +13,10 @@ import {
 import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
+import he from 'he';
 import { useState, useEffect } from 'react';
 
 interface YoutubeVideo {
@@ -252,10 +254,10 @@ export default function YoutubeDetailPage() {
             </h2>
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-6 border border-slate-100 dark:border-primary/10 prose dark:prose-invert prose-slate prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
                <ReactMarkdown
-                 remarkPlugins={[remarkGfm]}
+                 remarkPlugins={[remarkGfm, remarkBreaks]}
                  rehypePlugins={[rehypeRaw]}
                >
-                 {video.summary}
+                 {he.decode(video.summary || '')}
                </ReactMarkdown>
             </div>
           </div>

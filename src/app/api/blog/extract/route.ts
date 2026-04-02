@@ -142,6 +142,7 @@ export async function POST(req: NextRequest) {
 
         // Tistory Mobile content selector
         const contentArea = $(".blogview_content, .article_view, .view_section, .post-content");
+        contentArea.find('*').removeAttr('id').removeAttr('class');
         if (contentArea.length > 0) {
             contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote").each((_, el) => {
                 const tag = el.tagName.toLowerCase();
@@ -173,6 +174,7 @@ export async function POST(req: NextRequest) {
         author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
 
         const contentArea = $(".wrap_body");
+        contentArea.find('*').removeAttr('id').removeAttr('class');
         if (contentArea.length > 0) {
             contentArea.find("p, img, h1, h2, h3, h4, h5, h6, blockquote").each((_, el) => {
                 const tag = el.tagName.toLowerCase();

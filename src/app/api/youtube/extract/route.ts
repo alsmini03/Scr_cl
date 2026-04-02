@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import he from "he";
 
 export async function POST(req: NextRequest) {
   try {
@@ -185,13 +186,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Use transcript/summary as description if found, otherwise use OG description
-    const finalSummary = summary || transcript || "";
+    const finalSummary = he.decode(summary || transcript || "");
     const finalDescription = playerResponse?.videoDetails?.shortDescription || ogDescription || "";
 
     return NextResponse.json({
-      title,
+      title: he.decode(title),
       summary: finalSummary,
-      description: finalDescription,
+      description: he.decode(finalDescription),
       thumbnail,
       duration,
       publishDate,
