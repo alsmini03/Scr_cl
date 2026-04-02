@@ -243,7 +243,7 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 
     await createRecord('blog_tabs', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       url,
       position: nextPos,
@@ -281,7 +281,7 @@ export async function addReportTab(name: string, url: string): Promise<{ success
 
     await createRecord('report_tabs', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       url,
       position: nextPos,
@@ -356,7 +356,7 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
 
     await createRecord('yes24_tabs', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       url,
       position: nextPos,
@@ -437,7 +437,7 @@ export async function saveBlog(blog: {
       thumbnail: blog.thumbnail,
       content: blog.content,
       published_at: blog.published_at,
-      user_id: user.id,
+      user_id: user.email || user.id,
       added_at: addedAt
     });
 
@@ -530,7 +530,7 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
     const id = randomUUID();
     await createRecord('gemini_models', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       created_at: new Date().toISOString()
     });
@@ -565,7 +565,7 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
 
     await createRecord('youtube_tabs', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       url,
       position: nextPos,
@@ -659,7 +659,7 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
     const id = randomUUID();
     await createRecord('gemini_prompts', {
       id,
-      user_id: user.id,
+      user_id: user.email || user.id,
       name,
       content,
       created_at: new Date().toISOString()
@@ -771,7 +771,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
       rating: book.rating || 0,
       notes: book.notes,
       added_at: createdAt,
-      user_id: user.id,
+      user_id: user.email || user.id,
       intro: book.intro,
       toc: book.toc,
       author_intro: book.authorIntro,
@@ -914,7 +914,7 @@ export async function saveYoutubeVideo(video: {
       published_at: video.published_at,
       summary: video.summary,
       description: video.description,
-      user_id: user.id,
+      user_id: user.email || user.id,
       added_at: addedAt
     });
 
