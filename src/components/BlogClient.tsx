@@ -124,11 +124,11 @@ export default function BlogClient({
         published_at: data.published_at || post.published_at
       });
 
-      if (saveRes.success) {
+      if (saveRes.success && saveRes.id) {
         alert('블로그 글이 저장되었습니다.');
         // Refresh library locally
         setBlogs(prev => [{
-            id: crypto.randomUUID(), // Temp ID for UI
+            id: saveRes.id,
             title: data.title || post.title,
             author: data.author || post.author,
             url: post.url,

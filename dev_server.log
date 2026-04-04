@@ -78,3 +78,6 @@ Airtable credentials (AIRTABLE_PAT, AIRTABLE_BASE_ID) are missing from environme
     at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
  GET /api/auth/session 500 in 43ms
 Airtable credentials (AIRTABLE_PAT, AIRTABLE_BASE_ID) are missing from environment variables.
+ ✓ Compiled in 8.4s (956 modules)
+ ✓ Compiled in 818ms (956 modules)
+ ✓ Compiled in 182ms (320 modules)

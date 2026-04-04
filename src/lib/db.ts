@@ -423,7 +423,7 @@ export async function saveBlog(blog: {
   thumbnail?: string;
   content?: string;
   published_at?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
@@ -442,7 +442,7 @@ export async function saveBlog(blog: {
     });
 
     safeRevalidate('/blog');
-    return { success: true };
+    return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save blog:', error);
     return { success: false, error: error.message || '블로그 정보를 저장하는 중 오류가 발생했습니다.' };
@@ -899,7 +899,7 @@ export async function saveYoutubeVideo(video: {
   published_at?: string;
   summary?: string;
   description?: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
@@ -919,7 +919,7 @@ export async function saveYoutubeVideo(video: {
     });
 
     safeRevalidate('/');
-    return { success: true };
+    return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save youtube video:', error);
     return {

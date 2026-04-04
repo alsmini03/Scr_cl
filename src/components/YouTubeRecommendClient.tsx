@@ -172,10 +172,10 @@ export default function YouTubeRecommendClient({
         description: data.description || '',
       });
 
-      if (result.success) {
+      if (result.success && result.id) {
         alert('유튜브 영상이 내 서재에 추가되었습니다.');
         setMyVideos(prev => [{
-            id: crypto.randomUUID(),
+            id: result.id,
             title: data.title || video.title,
             url: video.url,
             thumbnail: data.thumbnail || video.thumbnail,
