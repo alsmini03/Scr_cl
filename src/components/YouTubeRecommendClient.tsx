@@ -449,7 +449,7 @@ export default function YouTubeRecommendClient({
             cols === 1 ? "grid-cols-1" : "grid-cols-2"
           )}>
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl aspect-video w-full animate-skeleton" />
+              <SkeletonVideoItem key={i} cols={cols} />
             ))}
           </div>
         ) : videos.length === 0 ? (
@@ -512,6 +512,22 @@ export default function YouTubeRecommendClient({
     </div>
   );
 }
+
+const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
+  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3">
+    <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-skeleton" />
+    <div className="space-y-2">
+      <div className={cn(
+        "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
+        cols === 1 ? "h-5 w-3/4" : "h-4 w-5/6"
+      )} />
+      <div className={cn(
+        "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
+        cols === 1 ? "h-3 w-1/4" : "h-2 w-1/3"
+      )} />
+    </div>
+  </div>
+));
 
 const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
   const longPressHandlers = getLongPressHandlers(() => onCopyUrl(video.url));
