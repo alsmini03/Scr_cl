@@ -6,11 +6,11 @@ import { auth } from '@/auth';
 import { sendGmail } from './gmail';
 import { marked } from 'marked';
 import { gfmHeadingId } from "marked-gfm-heading-id";
-import { findRecord, findRecords, createRecord, updateRecord, deleteRecord, batchDeleteRecords, batchUpdateRecords, escapeFormula } from './airtable';
+import { query } from './pg';
+import { randomUUID } from "node:crypto";
 
 // Configure marked
 marked.use(gfmHeadingId());
-import { randomUUID } from "node:crypto";
 
 async function getSessionUser() {
   const session = await auth();
@@ -31,27 +31,27 @@ async function ensureApproved() {
   return user;
 }
 
-function mapRecordToBook(record: any): Book {
+function mapRowToBook(row: any): Book {
   return {
-    id: record.id,
-    title: record.title,
-    author: record.author || '',
-    coverImage: record.cover_image || '',
-    category: record.category,
-    publishDate: record.published_date,
-    price: record.price,
-    description: record.description,
-    readingStatus: record.status as 'READING' | 'FINISHED',
-    progress: record.progress,
-    rating: record.rating,
-    notes: record.notes,
-    createdAt: record.added_at,
-    intro: record.intro,
-    toc: record.toc,
-    authorIntro: record.author_intro,
-    inside: record.inside,
-    publisherReview: record.publisher_review,
-    yes24Url: record.yes24_url,
+    id: row.id,
+    title: row.title,
+    author: row.author || '',
+    coverImage: row.cover_image || '',
+    category: row.category,
+    publishDate: row.published_date,
+    price: row.price,
+    description: row.description,
+    readingStatus: row.status as 'READING' | 'FINISHED',
+    progress: row.progress,
+    rating: row.rating,
+    notes: row.notes,
+    createdAt: row.added_at,
+    intro: row.intro,
+    toc: row.toc,
+    authorIntro: row.author_intro,
+    inside: row.inside,
+    publisherReview: row.publisher_review,
+    yes24Url: row.yes24_url,
   };
 }
 
@@ -66,12 +66,13 @@ function safeRevalidate(path: string) {
 export async function getBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
-    const records = await findRecords('books', {
-      filterByFormula: `AND({deleted_at} = BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
-    return records.map(mapRecordToBook);
+    const res = await query(
+      "SELECT * FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows.map(mapRowToBook);
   } catch (error) {
+    console.error('getBooks error:', error);
     return [];
   }
 }
@@ -80,13 +81,19 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  const escapedUserId = escapeFormula(userId);
-  const account = await findRecord('accounts', `AND({userId} = '${escapedUserId}', {provider} = 'google')`);
-  if (account) return account;
+  const res = await query(
+    'SELECT * FROM accounts WHERE "userId" = $1 AND provider = $2',
+    [userId, 'google']
+  );
+  if (res.rows.length > 0) return res.rows[0];
 
-  const user = await findRecord('users', `{email} = '${escapedUserId}'`);
-  if (user) {
-    return await findRecord('accounts', `AND({userId} = '${escapeFormula(user.id)}', {provider} = 'google')`);
+  const userRes = await query('SELECT * FROM users WHERE email = $1', [userId]);
+  if (userRes.rows.length > 0) {
+    const accountRes = await query(
+      'SELECT * FROM accounts WHERE "userId" = $1 AND provider = $2',
+      [userRes.rows[0].id, 'google']
+    );
+    return accountRes.rows[0] || null;
   }
 
   return null;
@@ -96,15 +103,17 @@ export async function updateAccountTokens(userId: string, tokens: { access_token
   const account = await getUserAccount(userId);
   if (!account) throw new Error('Account not found for token update');
 
-  const fields: any = {
-    access_token: tokens.access_token,
-    expires_at: tokens.expires_at
-  };
   if (tokens.refresh_token) {
-    fields.refresh_token = tokens.refresh_token;
+    await query(
+      'UPDATE accounts SET access_token = $1, expires_at = $2, refresh_token = $3 WHERE id = $4',
+      [tokens.access_token, tokens.expires_at, tokens.refresh_token, account.id]
+    );
+  } else {
+    await query(
+      'UPDATE accounts SET access_token = $1, expires_at = $2 WHERE id = $3',
+      [tokens.access_token, tokens.expires_at, account.id]
+    );
   }
-
-  await updateRecord('accounts', account.id, fields);
 }
 
 export async function getValidAccessToken(userId: string): Promise<string> {
@@ -224,11 +233,13 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
 export async function getBlogTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('blog_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM blog_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getBlogTabs error:', error);
     return [];
   }
 }
@@ -241,14 +252,10 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
     const tabs = await getBlogTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('blog_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO blog_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/blog');
     return { success: true, id };
   } catch (error: any) {
@@ -262,11 +269,13 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('report_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getReportTabs error:', error);
     return [];
   }
 }
@@ -279,14 +288,10 @@ export async function addReportTab(name: string, url: string): Promise<{ success
     const tabs = await getReportTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('report_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO report_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/report');
     return { success: true, id };
   } catch (error: any) {
@@ -297,7 +302,9 @@ export async function addReportTab(name: string, url: string): Promise<{ success
 export async function updateReportTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('report_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE report_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -308,7 +315,7 @@ export async function updateReportTabOrder(tabOrders: { id: string; position: nu
 export async function deleteReportTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('report_tabs', id);
+    await query("DELETE FROM report_tabs WHERE id = $1", [id]);
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -321,7 +328,7 @@ export async function batchDeleteBlogsAction(ids: string[]): Promise<{ success: 
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    await batchDeleteRecords('naver_blogs', ids);
+    await query("DELETE FROM naver_blogs WHERE id = ANY($1)", [ids]);
 
     safeRevalidate('/blog');
     return { success: true };
@@ -337,11 +344,13 @@ export async function batchDeleteBlogsAction(ids: string[]): Promise<{ success: 
 export async function getYes24Tabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('yes24_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM yes24_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYes24Tabs error:', error);
     return [];
   }
 }
@@ -354,14 +363,10 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
     const tabs = await getYes24Tabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('yes24_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO yes24_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/best');
     return { success: true, id };
   } catch (error: any) {
@@ -372,7 +377,9 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
 export async function updateYes24TabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('yes24_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE yes24_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -383,7 +390,7 @@ export async function updateYes24TabOrder(tabOrders: { id: string; position: num
 export async function deleteYes24Tab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('yes24_tabs', id);
+    await query("DELETE FROM yes24_tabs WHERE id = $1", [id]);
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -394,7 +401,9 @@ export async function deleteYes24Tab(id: string): Promise<{ success: boolean; er
 export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('blog_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE blog_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -405,7 +414,7 @@ export async function updateBlogTabOrder(tabOrders: { id: string; position: numb
 export async function deleteBlogTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('blog_tabs', id);
+    await query("DELETE FROM blog_tabs WHERE id = $1", [id]);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -429,17 +438,10 @@ export async function saveBlog(blog: {
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await createRecord('naver_blogs', {
-      id,
-      title: blog.title,
-      author: blog.author,
-      url: blog.url,
-      thumbnail: blog.thumbnail,
-      content: blog.content,
-      published_at: blog.published_at,
-      user_id: user.email || user.id,
-      added_at: addedAt
-    });
+    await query(
+      "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+      [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt]
+    );
 
     safeRevalidate('/blog');
     return { success: true, id };
@@ -452,10 +454,11 @@ export async function saveBlog(blog: {
 export async function getBlogs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('naver_blogs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
+    const res = await query(
+      "SELECT * FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
     console.error('getBlogs error:', error);
     return [];
@@ -465,8 +468,13 @@ export async function getBlogs(): Promise<any[]> {
 export async function getBlogById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    return await findRecord('naver_blogs', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
+    const res = await query(
+      "SELECT * FROM naver_blogs WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
   } catch (error) {
+    console.error('getBlogById error:', error);
     return undefined;
   }
 }
@@ -474,7 +482,7 @@ export async function getBlogById(id: string): Promise<any | undefined> {
 export async function deleteBlog(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('naver_blogs', id);
+    await query("DELETE FROM naver_blogs WHERE id = $1", [id]);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -492,14 +500,10 @@ export async function updateYoutubeVideo(id: string, video: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
-    await updateRecord('youtube_videos', id, {
-      title: video.title,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      published_at: video.published_at,
-      summary: video.summary,
-      description: video.description
-    });
+    await query(
+      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, description = $6 WHERE id = $7",
+      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.description, id]
+    );
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
     return { success: true };
@@ -515,11 +519,13 @@ export async function updateYoutubeVideo(id: string, video: {
 export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('gemini_models', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM gemini_models WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getGeminiModels error:', error);
     return [];
   }
 }
@@ -528,12 +534,10 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
   try {
     const user = await ensureApproved();
     const id = randomUUID();
-    await createRecord('gemini_models', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO gemini_models (id, user_id, name, created_at) VALUES ($1, $2, $3, $4)",
+      [id, user.email || user.id, name, new Date().toISOString()]
+    );
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -546,11 +550,13 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
 export async function getYoutubeTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('youtube_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM youtube_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYoutubeTabs error:', error);
     return [];
   }
 }
@@ -563,14 +569,10 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
     const tabs = await getYoutubeTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('youtube_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO youtube_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/youtube/recommend');
     return { success: true, id };
   } catch (error: any) {
@@ -581,7 +583,9 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
 export async function updateYoutubeTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('youtube_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE youtube_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -592,7 +596,7 @@ export async function updateYoutubeTabOrder(tabOrders: { id: string; position: n
 export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('youtube_tabs', id);
+    await query("DELETE FROM youtube_tabs WHERE id = $1", [id]);
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -603,7 +607,7 @@ export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; 
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await updateRecord('gemini_models', id, { name });
+    await query("UPDATE gemini_models SET name = $1 WHERE id = $2", [name, id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -613,7 +617,7 @@ export async function updateGeminiModel(id: string, name: string): Promise<{ suc
 export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('gemini_models', id);
+    await query("DELETE FROM gemini_models WHERE id = $1", [id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -623,7 +627,7 @@ export async function deleteGeminiModel(id: string): Promise<{ success: boolean;
 export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await updateRecord('gemini_prompts', id, { name, content });
+    await query("UPDATE gemini_prompts SET name = $1, content = $2 WHERE id = $3", [name, content, id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -633,8 +637,7 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
 export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const models = await getGeminiModels();
-    await batchUpdateRecords('gemini_models', models.map(m => ({ id: m.id, fields: { is_default: m.id === id } })));
+    await query("UPDATE gemini_models SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -644,11 +647,13 @@ export async function setDefaultGeminiModel(id: string): Promise<{ success: bool
 export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('gemini_prompts', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM gemini_prompts WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getGeminiPrompts error:', error);
     return [];
   }
 }
@@ -657,13 +662,10 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
   try {
     const user = await ensureApproved();
     const id = randomUUID();
-    await createRecord('gemini_prompts', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      content,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO gemini_prompts (id, user_id, name, content, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, name, content, new Date().toISOString()]
+    );
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -673,7 +675,7 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
 export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('gemini_prompts', id);
+    await query("DELETE FROM gemini_prompts WHERE id = $1", [id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -683,8 +685,7 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
 export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const prompts = await getGeminiPrompts();
-    await batchUpdateRecords('gemini_prompts', prompts.map(p => ({ id: p.id, fields: { is_default: p.id === id } })));
+    await query("UPDATE gemini_prompts SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -694,7 +695,7 @@ export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boo
 export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('youtube_videos', id);
+    await query("DELETE FROM youtube_videos WHERE id = $1", [id]);
     safeRevalidate('/');
     return { success: true };
   } catch (error: any) {
@@ -708,7 +709,7 @@ export async function batchDeleteYoutubeVideosAction(ids: string[]): Promise<{ s
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    await batchDeleteRecords('youtube_videos', ids);
+    await query("DELETE FROM youtube_videos WHERE id = ANY($1)", [ids]);
 
     safeRevalidate('/');
     return { success: true };
@@ -721,8 +722,13 @@ export async function batchDeleteYoutubeVideosAction(ids: string[]): Promise<{ s
 export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    return await findRecord('youtube_videos', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
+    const res = await query(
+      "SELECT * FROM youtube_videos WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
   } catch (error) {
+    console.error('getYoutubeVideoById error:', error);
     return undefined;
   }
 }
@@ -730,12 +736,13 @@ export async function getYoutubeVideoById(id: string): Promise<any | undefined> 
 export async function getDeletedBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
-    const records = await findRecords('books', {
-      filterByFormula: `AND({deleted_at} != BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
-      sort: [{ field: 'deleted_at', direction: 'desc' }]
-    });
-    return records.map(mapRecordToBook);
+    const res = await query(
+      "SELECT * FROM books WHERE deleted_at IS NOT NULL AND (user_id = $1 OR user_id = $2) ORDER BY deleted_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows.map(mapRowToBook);
   } catch (error) {
+    console.error('getDeletedBooks error:', error);
     return [];
   }
 }
@@ -743,10 +750,14 @@ export async function getDeletedBooks(): Promise<Book[]> {
 export async function getBookById(id: string): Promise<Book | undefined> {
   try {
     const user = await getSessionUser();
-    const record = await findRecord('books', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
-    if (!record) return undefined;
-    return mapRecordToBook(record);
+    const res = await query(
+      "SELECT * FROM books WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    if (res.rows.length === 0) return undefined;
+    return mapRowToBook(res.rows[0]);
   } catch (error) {
+    console.error('getBookById error:', error);
     return undefined;
   }
 }
@@ -757,28 +768,10 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     const id = randomUUID();
     const createdAt = new Date().toISOString();
 
-    await createRecord('books', {
-      id,
-      title: book.title,
-      author: book.author,
-      cover_image: book.coverImage,
-      description: book.description,
-      published_date: book.publishDate,
-      price: book.price,
-      category: book.category,
-      status: book.readingStatus,
-      progress: book.progress || 0,
-      rating: book.rating || 0,
-      notes: book.notes,
-      added_at: createdAt,
-      user_id: user.email || user.id,
-      intro: book.intro,
-      toc: book.toc,
-      author_intro: book.authorIntro,
-      inside: book.inside,
-      publisher_review: book.publisherReview,
-      yes24_url: book.yes24Url
-    });
+    await query(
+      "INSERT INTO books (id, title, author, cover_image, description, published_date, price, category, status, progress, rating, notes, added_at, user_id, intro, toc, author_intro, inside, publisher_review, yes24_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)",
+      [id, book.title, book.author, book.coverImage, book.description, book.publishDate, book.price, book.category, book.readingStatus, book.progress || 0, book.rating || 0, book.notes, createdAt, user.email || user.id, book.intro, book.toc, book.authorIntro, book.inside, book.publisherReview, book.yes24Url]
+    );
 
     safeRevalidate('/');
     return { success: true, data: { ...book, id, createdAt } };
@@ -795,25 +788,10 @@ export async function updateBook(book: Book): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await updateRecord('books', book.id, {
-      title: book.title,
-      author: book.author,
-      cover_image: book.coverImage,
-      description: book.description,
-      published_date: book.publishDate,
-      price: book.price,
-      category: book.category,
-      status: book.readingStatus,
-      progress: book.progress || 0,
-      rating: book.rating || 0,
-      notes: book.notes,
-      intro: book.intro,
-      toc: book.toc,
-      author_intro: book.authorIntro,
-      inside: book.inside,
-      publisher_review: book.publisherReview,
-      yes24_url: book.yes24Url
-    });
+    await query(
+      "UPDATE books SET title = $1, author = $2, cover_image = $3, description = $4, published_date = $5, price = $6, category = $7, status = $8, progress = $9, rating = $10, notes = $11, intro = $12, toc = $13, author_intro = $14, inside = $15, publisher_review = $16, yes24_url = $17 WHERE id = $18",
+      [book.title, book.author, book.coverImage, book.description, book.publishDate, book.price, book.category, book.readingStatus, book.progress || 0, book.rating || 0, book.notes, book.intro, book.toc, book.authorIntro, book.inside, book.publisherReview, book.yes24Url, book.id]
+    );
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
   } catch (error) {
@@ -830,7 +808,7 @@ export async function softDeleteBook(id: string): Promise<void> {
   await ensureApproved();
   const deletedAt = new Date().toISOString();
   try {
-    await updateRecord('books', id, { deleted_at: deletedAt });
+    await query("UPDATE books SET deleted_at = $1 WHERE id = $2", [deletedAt, id]);
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -846,7 +824,7 @@ export async function batchDeleteBooksAction(ids: string[]): Promise<{ success: 
     if (ids.length === 0) return { success: true };
 
     const deletedAt = new Date().toISOString();
-    await batchUpdateRecords('books', ids.map(id => ({ id, fields: { deleted_at: deletedAt } })));
+    await query("UPDATE books SET deleted_at = $1 WHERE id = ANY($2)", [deletedAt, ids]);
 
     safeRevalidate('/');
     safeRevalidate('/trash');
@@ -864,7 +842,7 @@ export async function restoreBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await updateRecord('books', id, { deleted_at: null });
+    await query("UPDATE books SET deleted_at = NULL WHERE id = $1", [id]);
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -880,7 +858,7 @@ export async function permanentlyDeleteBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await deleteRecord('books', id);
+    await query("DELETE FROM books WHERE id = $1", [id]);
     safeRevalidate('/trash');
   } catch (error) {
     console.error(`Failed to permanently delete book with id ${id}:`, error);
@@ -905,18 +883,10 @@ export async function saveYoutubeVideo(video: {
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await createRecord('youtube_videos', {
-      id,
-      title: video.title,
-      url: video.url,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      published_at: video.published_at,
-      summary: video.summary,
-      description: video.description,
-      user_id: user.email || user.id,
-      added_at: addedAt
-    });
+    await query(
+      "INSERT INTO youtube_videos (id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+      [id, video.title, video.url, video.thumbnail, video.duration, video.published_at, video.summary, video.description, user.email || user.id, addedAt]
+    );
 
     safeRevalidate('/');
     return { success: true, id };
@@ -932,11 +902,13 @@ export async function saveYoutubeVideo(video: {
 export async function getYoutubeVideos(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('youtube_videos', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
+    const res = await query(
+      "SELECT * FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYoutubeVideos error:', error);
     return [];
   }
 }

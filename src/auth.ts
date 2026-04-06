@@ -1,9 +1,10 @@
 import NextAuth from "next-auth";
-import { AirtableAdapter } from "./lib/airtable-adapter";
+import PostgresAdapter from "@auth/pg-adapter";
+import pool from "./lib/pg";
 import authConfig from "./auth.config";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: AirtableAdapter(),
+  adapter: PostgresAdapter(pool),
   session: { strategy: "jwt" },
   ...authConfig,
   callbacks: {
