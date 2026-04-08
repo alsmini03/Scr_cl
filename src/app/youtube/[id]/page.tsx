@@ -194,8 +194,8 @@ export default function YoutubeDetailPage() {
     setIsRefetching(true);
     try {
       // Load user settings for Gemini
-      const dbModels = await getGeminiModels('youtube');
-      const dbPrompts = await getGeminiPrompts('youtube');
+      const dbModels = await getGeminiModels();
+      const dbPrompts = await getGeminiPrompts();
 
       const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
       const defaultPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];

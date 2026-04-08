@@ -47,8 +47,8 @@ export default function GeminiSettingsPage() {
 
   const loadSettings = async () => {
     const [dbModels, dbPrompts] = await Promise.all([
-      getGeminiModels(category),
-      getGeminiPrompts(category)
+      getGeminiModels(),
+      getGeminiPrompts()
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
@@ -56,7 +56,7 @@ export default function GeminiSettingsPage() {
 
   useEffect(() => {
     loadSettings();
-  }, [category]);
+  }, []);
 
   const handleAddModel = async () => {
     if (newModelName) {
@@ -64,7 +64,7 @@ export default function GeminiSettingsPage() {
       if (editingModelId) {
         res = await updateGeminiModel(editingModelId, newModelName);
       } else {
-        res = await addGeminiModel(newModelName, category);
+        res = await addGeminiModel(newModelName);
       }
 
       if (res.success) {
@@ -104,7 +104,7 @@ export default function GeminiSettingsPage() {
       if (editingPromptId) {
         res = await updateGeminiPrompt(editingPromptId, newPromptName, newPromptText);
       } else {
-        res = await addGeminiPrompt(newPromptName, newPromptText, category);
+        res = await addGeminiPrompt(newPromptName, newPromptText);
       }
 
       if (res.success) {

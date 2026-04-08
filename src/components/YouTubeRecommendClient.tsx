@@ -143,8 +143,8 @@ export default function YouTubeRecommendClient({
     setAddingId(video.videoId);
     try {
       // 1. Fetch Gemini settings
-      const models = await getGeminiModels('youtube');
-      const prompts = await getGeminiPrompts('youtube');
+      const models = await getGeminiModels();
+      const prompts = await getGeminiPrompts();
       const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
 

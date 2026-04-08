@@ -719,12 +719,12 @@ export async function updateYoutubeVideo(id: string, video: {
 /**
  * Gemini Settings Database Operations
  */
-export async function getGeminiModels(category: string = 'youtube'): Promise<any[]> {
+export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) AND category = $3 ORDER BY created_at ASC",
-      [user.id, user.email, category]
+      "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+      [user.id, user.email]
     );
     return res.rows;
   } catch (error) {
@@ -733,13 +733,13 @@ export async function getGeminiModels(category: string = 'youtube'): Promise<any
   }
 }
 
-export async function addGeminiModel(name: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
+export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     await query(
-      "INSERT INTO gemini_models (id, user_id, name, category, created_at) VALUES ($1, $2, $3, $4, $5)",
-      [id, user.email || user.id, name, category, new Date().toISOString()]
+      "INSERT INTO gemini_models (id, user_id, name, created_at) VALUES ($1, $2, $3, $4)",
+      [id, user.email || user.id, name, new Date().toISOString()]
     );
     return { success: true };
   } catch (error: any) {
@@ -848,12 +848,12 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
   }
 }
 
-export async function getGeminiPrompts(category: string = 'youtube'): Promise<any[]> {
+export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) AND category = $3 ORDER BY created_at ASC",
-      [user.id, user.email, category]
+      "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+      [user.id, user.email]
     );
     return res.rows;
   } catch (error) {
@@ -862,13 +862,13 @@ export async function getGeminiPrompts(category: string = 'youtube'): Promise<an
   }
 }
 
-export async function addGeminiPrompt(name: string, content: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
+export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     await query(
-      "INSERT INTO gemini_prompts (id, user_id, name, content, category, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
-      [id, user.email || user.id, name, content, category, new Date().toISOString()]
+      "INSERT INTO gemini_prompts (id, user_id, name, content, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, name, content, new Date().toISOString()]
     );
     return { success: true };
   } catch (error: any) {

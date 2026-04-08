@@ -252,8 +252,8 @@ export default function ReportClient({
 
     setSavingId(report.id);
     try {
-      const models = await getGeminiModels('report');
-      const prompts = await getGeminiPrompts('report');
+      const models = await getGeminiModels();
+      const prompts = await getGeminiPrompts();
       const selectedModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
 

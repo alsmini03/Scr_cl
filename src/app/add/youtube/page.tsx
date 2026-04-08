@@ -65,8 +65,8 @@ export default function AddYouTubePage() {
   const [isAutoAdding, setIsAutoAdding] = useState(false);
 
   const loadSettings = async () => {
-    const dbModels = await getGeminiModels('youtube');
-    const dbPrompts = await getGeminiPrompts('youtube');
+    const dbModels = await getGeminiModels();
+    const dbPrompts = await getGeminiPrompts();
 
     setModels(dbModels);
     const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
