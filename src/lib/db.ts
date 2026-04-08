@@ -719,12 +719,12 @@ export async function updateYoutubeVideo(id: string, video: {
 /**
  * Gemini Settings Database Operations
  */
-export async function getGeminiModels(): Promise<any[]> {
+export async function getGeminiModels(category: string = 'youtube'): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT * FROM gemini_models WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
-      [user.id, user.email]
+      "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) AND category = $3 ORDER BY created_at ASC",
+      [user.id, user.email, category]
     );
     return res.rows;
   } catch (error) {
@@ -733,13 +733,13 @@ export async function getGeminiModels(): Promise<any[]> {
   }
 }
 
-export async function addGeminiModel(name: string): Promise<{ success: boolean; error?: string }> {
+export async function addGeminiModel(name: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     await query(
-      "INSERT INTO gemini_models (id, user_id, name, created_at) VALUES ($1, $2, $3, $4)",
-      [id, user.email || user.id, name, new Date().toISOString()]
+      "INSERT INTO gemini_models (id, user_id, name, category, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, name, category, new Date().toISOString()]
     );
     return { success: true };
   } catch (error: any) {
@@ -837,22 +837,22 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
   }
 }
 
-export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
+export async function setDefaultGeminiModel(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_models SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
+    await query("UPDATE gemini_models SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3) AND category = $4", [id, user.id, user.email, category]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function getGeminiPrompts(): Promise<any[]> {
+export async function getGeminiPrompts(category: string = 'youtube'): Promise<any[]> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT * FROM gemini_prompts WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
-      [user.id, user.email]
+      "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) AND category = $3 ORDER BY created_at ASC",
+      [user.id, user.email, category]
     );
     return res.rows;
   } catch (error) {
@@ -861,13 +861,13 @@ export async function getGeminiPrompts(): Promise<any[]> {
   }
 }
 
-export async function addGeminiPrompt(name: string, content: string): Promise<{ success: boolean; error?: string }> {
+export async function addGeminiPrompt(name: string, content: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     await query(
-      "INSERT INTO gemini_prompts (id, user_id, name, content, created_at) VALUES ($1, $2, $3, $4, $5)",
-      [id, user.email || user.id, name, content, new Date().toISOString()]
+      "INSERT INTO gemini_prompts (id, user_id, name, content, category, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, content, category, new Date().toISOString()]
     );
     return { success: true };
   } catch (error: any) {
@@ -885,10 +885,10 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
   }
 }
 
-export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
+export async function setDefaultGeminiPrompt(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_prompts SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
+    await query("UPDATE gemini_prompts SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3) AND category = $4", [id, user.id, user.email, category]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

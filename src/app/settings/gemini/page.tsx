@@ -33,21 +33,20 @@ interface GeminiPrompt {
 
 export default function GeminiSettingsPage() {
   const router = useRouter();
+  const [category, setCategory] = useState<'youtube' | 'report'>('youtube');
   const [models, setModels] = useState<GeminiModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
-  const [showModelManager, setShowModelManager] = useState(true);
 
   const [prompts, setPrompts] = useState<GeminiPrompt[]>([]);
   const [newPromptName, setNewPromptName] = useState('');
   const [newPromptText, setNewPromptText] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
-  const [showPromptManager, setShowPromptManager] = useState(true);
 
   const loadSettings = async () => {
     const [dbModels, dbPrompts] = await Promise.all([
-      getGeminiModels(),
-      getGeminiPrompts()
+      getGeminiModels(category),
+      getGeminiPrompts(category)
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
@@ -55,7 +54,7 @@ export default function GeminiSettingsPage() {
 
   useEffect(() => {
     loadSettings();
-  }, []);
+  }, [category]);
 
   const handleAddModel = async () => {
     if (newModelName) {
@@ -63,7 +62,7 @@ export default function GeminiSettingsPage() {
       if (editingModelId) {
         res = await updateGeminiModel(editingModelId, newModelName);
       } else {
-        res = await addGeminiModel(newModelName);
+        res = await addGeminiModel(newModelName, category);
       }
 
       if (res.success) {
@@ -91,7 +90,7 @@ export default function GeminiSettingsPage() {
   };
 
   const handleSetDefaultModel = async (id: string) => {
-    const res = await setDefaultGeminiModel(id);
+    const res = await setDefaultGeminiModel(id, category);
     if (res.success) {
       await loadSettings();
     }
@@ -103,7 +102,7 @@ export default function GeminiSettingsPage() {
       if (editingPromptId) {
         res = await updateGeminiPrompt(editingPromptId, newPromptName, newPromptText);
       } else {
-        res = await addGeminiPrompt(newPromptName, newPromptText);
+        res = await addGeminiPrompt(newPromptName, newPromptText, category);
       }
 
       if (res.success) {
@@ -135,7 +134,7 @@ export default function GeminiSettingsPage() {
   };
 
   const handleSetDefaultPrompt = async (id: string) => {
-    const res = await setDefaultGeminiPrompt(id);
+    const res = await setDefaultGeminiPrompt(id, category);
     if (res.success) {
       await loadSettings();
     }
@@ -146,6 +145,30 @@ export default function GeminiSettingsPage() {
       <Header title="Gemini 설정" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-10">
+
+        {/* Category Toggle */}
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-primary/10">
+            <button
+                onClick={() => setCategory('youtube')}
+                className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+                    category === 'youtube' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+            >
+                <span className="material-symbols-outlined text-lg">smart_display</span>
+                유튜브
+            </button>
+            <button
+                onClick={() => setCategory('report')}
+                className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+                    category === 'report' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+            >
+                <span className="material-symbols-outlined text-lg">description</span>
+                리포트
+            </button>
+        </div>
 
         {/* Model Section */}
         <section className="space-y-4">
