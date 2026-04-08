@@ -1,0 +1,240 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.1.9
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
+
+ ✓ Starting...
+ ✓ Ready in 2.5s
+ ○ Compiling /report ...
+ ✓ Compiled /report in 7s (824 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+(node:1772501) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'.
+In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees.
+
+To prepare for this change:
+- If you want the current behavior, explicitly use 'sslmode=verify-full'
+- If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'
+
+See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.
+(Use `node --trace-warnings ...` to show where the warning was created)
+executed query {
+  text: 'SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC',
+  duration: 2134,
+  rows: 5
+}
+executed query {
+  text: 'SELECT * FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC',
+  duration: 2784,
+  rows: 4
+}
+ GET /report 200 in 11335ms
+ ○ Compiling /api/report ...
+ ✓ Compiled /api/report in 3.5s (1089 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 912ms (858 modules)
+executed query {
+  text: 'SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC',
+  duration: 1481,
+  rows: 5
+}
+executed query {
+  text: 'SELECT * FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC',
+  duration: 1889,
+  rows: 4
+}
+ GET /report 200 in 2760ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 2355ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 25ms
+ ○ Compiling /youtube/recommend ...
+ ✓ Compiled /youtube/recommend in 951ms (866 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+executed query {
+  text: 'SELECT * FROM youtube_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC',
+  duration: 1640,
+  rows: 12
+}
+executed query {
+  text: 'SELECT * FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC',
+  duration: 2459,
+  rows: 29
+}
+ POST /api/report 200 in 10758ms
+ GET /youtube/recommend 200 in 3879ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 61ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 15ms
+ ✓ Compiled /blog in 488ms (874 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+executed query {
+  text: 'SELECT * FROM blog_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC',
+  duration: 1630,
+  rows: 8
+}
+executed query {
+  text: 'SELECT * FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC',
+  duration: 2445,
+  rows: 10
+}
+ GET /blog 200 in 3210ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 63ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 10ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+executed query {
+  text: 'SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC',
+  duration: 1426,
+  rows: 5
+}
+executed query {
+  text: 'SELECT * FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC',
+  duration: 1831,
+  rows: 4
+}
+ GET /report 200 in 1982ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 83ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 32ms
+ POST /api/report 200 in 10411ms

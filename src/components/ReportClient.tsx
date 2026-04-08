@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport, sendBatchEmailAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -58,6 +58,9 @@ export default function ReportClient({
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [showTabManager, setShowTabManager] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [newTabName, setNewTabName] = useState('');
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
@@ -330,6 +333,67 @@ export default function ReportClient({
       }
   };
 
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    setSelectedIds(prev =>
+        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleLongPress = (id: string) => {
+    setIsEditMode(true);
+    setSelectedIds([id]);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`선택한 ${selectedIds.length}개의 리포트를 삭제하시겠습니까?`)) return;
+
+    setIsLoading(true);
+    try {
+        for (const id of selectedIds) {
+            await deleteReport(id);
+        }
+        setSavedReports(prev => prev.filter(r => !selectedIds.includes(r.id)));
+        setIsEditMode(false);
+        setSelectedIds([]);
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  const handleBatchEmail = async () => {
+    if (selectedIds.length === 0) return;
+
+    const lastEmail = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+    const email = window.prompt('보내실 이메일 주소를 입력해 주세요:', lastEmail);
+
+    if (!email) return;
+    localStorage.setItem('last_blog_email', email);
+
+    setIsSendingEmail(true);
+    try {
+      const items = selectedIds.map(id => ({ type: 'report' as const, id }));
+      const res = await sendBatchEmailAction(items, email);
+      if (res.success) {
+        alert(`${selectedIds.length}개의 리포트 정보가 메일로 발송되었습니다.`);
+        setIsEditMode(false);
+        setSelectedIds([]);
+      } else {
+        alert(res.error);
+      }
+    } catch (err: any) {
+      alert(`발송 실패: ${err.message}`);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   const handleStartEdit = (report: SavedReport) => {
       setEditTitle(report.title);
       setEditAuthor(report.author || '');
@@ -440,19 +504,30 @@ export default function ReportClient({
         rightAction={
           !isDetailView && (
           <div className="flex items-center gap-1">
-              <button
-                onClick={() => window.location.href = '/settings/gemini'}
-                className="text-primary p-2"
-                title="Gemini 설정"
-              >
-                <span className="material-symbols-outlined text-2xl">settings_suggest</span>
-              </button>
-              <button
-                onClick={() => setShowTabManager(!showTabManager)}
-                className="text-primary p-2"
-              >
-                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-              </button>
+              {isEditMode ? (
+                  <button
+                    onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
+                    className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
+                  >
+                    취소
+                  </button>
+              ) : (
+                  <>
+                  <button
+                    onClick={() => window.location.href = '/settings/gemini'}
+                    className="text-primary p-2"
+                    title="Gemini 설정"
+                  >
+                    <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+                  </button>
+                  <button
+                    onClick={() => setShowTabManager(!showTabManager)}
+                    className="text-primary p-2"
+                  >
+                    <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+                  </button>
+                  </>
+              )}
           </div>
           )
         }
@@ -757,29 +832,83 @@ export default function ReportClient({
             </div>
         ) : (
             /* Saved View Mode - List View */
+            <>
+            {isEditMode && (
+                <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
+                    <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
+                        {selectedIds.length}개 선택됨
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setSelectedIds(selectedIds.length === savedReports.length ? [] : savedReports.map(r => r.id))}
+                            className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                        >
+                            {selectedIds.length === savedReports.length ? '전체 해제' : '전체 선택'}
+                        </button>
+                        <button
+                            onClick={handleBatchEmail}
+                            disabled={selectedIds.length === 0 || isSendingEmail}
+                            className="px-4 py-1.5 text-xs font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                        >
+                            {isSendingEmail ? (
+                                <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-[14px]">mail</span>
+                            )}
+                            메일 발송
+                        </button>
+                        <button
+                            onClick={handleBatchDelete}
+                            disabled={selectedIds.length === 0 || isSendingEmail}
+                            className="px-4 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
+                        >
+                            삭제하기
+                        </button>
+                    </div>
+                </div>
+            )}
             <div className="space-y-3 pb-20">
                 {savedReports.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">저장된 리포트가 없습니다.</div>
                 ) : (
-                    savedReports.map(report => (
-                        <div
-                            key={report.id}
-                            onClick={() => setSelectedReportId(report.id)}
-                            className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up cursor-pointer hover:border-primary/20 transition-colors"
-                        >
-                             <div className="flex justify-between items-start mb-2">
-                                <span className="text-xs font-bold text-primary">{report.institution}</span>
-                                <span className="text-xs text-slate-400">{report.date}</span>
+                    savedReports.map(report => {
+                        const isSelected = selectedIds.includes(report.id);
+                        const longPressHandlers = getLongPressHandlers(() => handleLongPress(report.id), 500);
+                        return (
+                            <div
+                                key={report.id}
+                                onClick={() => isEditMode ? toggleSelect(report.id) : setSelectedReportId(report.id)}
+                                {...longPressHandlers}
+                                className={cn(
+                                    "bg-white dark:bg-slate-900/50 border rounded-2xl p-4 shadow-sm animate-fade-in-up cursor-pointer transition-all relative group",
+                                    isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10 hover:border-primary/20"
+                                )}
+                            >
+                                <div className="flex justify-between items-start mb-2">
+                                    <span className="text-xs font-bold text-primary">{report.institution}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-slate-400">{report.date}</span>
+                                        {isEditMode && (
+                                            <div className={cn(
+                                                "size-5 rounded-full border flex items-center justify-center transition-all",
+                                                isSelected ? "bg-primary border-primary" : "border-slate-300 dark:border-slate-700"
+                                            )}>
+                                                {isSelected && <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1 line-clamp-1">{report.title}</h3>
+                                <div className="flex justify-between items-center">
+                                    <div className="text-[12px] text-slate-500 dark:text-slate-400">{report.author}</div>
+                                    {!isEditMode && <span className="material-symbols-outlined text-slate-300 text-sm font-bold">arrow_forward_ios</span>}
+                                </div>
                             </div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1 line-clamp-1">{report.title}</h3>
-                            <div className="flex justify-between items-center">
-                                <div className="text-[12px] text-slate-500 dark:text-slate-400">{report.author}</div>
-                                <span className="material-symbols-outlined text-slate-300 text-sm font-bold">arrow_forward_ios</span>
-                            </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
+            </>
         )}
       </main>
 

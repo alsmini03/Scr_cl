@@ -255,69 +255,135 @@ export async function getValidAccessToken(userId: string): Promise<string> {
 }
 
 export async function sendBlogEmailAction(blogId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await getSessionUser();
-    if (!user.id) throw new Error('Unauthorized');
-
-    const accessToken = await getValidAccessToken(user.id);
-
-    const blog = await getBlogById(blogId);
-    if (!blog) throw new Error('Blog post not found');
-
-    const subject = `${blog.title}`;
-    const body = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #1978e5;">${blog.title}</h2>
-        <p><b>작성자:</b> ${blog.author || '알 수 없음'}</p>
-        <p><b>원본 URL:</b> <a href="${blog.url}">${blog.url}</a></p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="white-space: pre-wrap;">${blog.content}</div>
-      </div>
-    `;
-
-    await sendGmail(accessToken, toEmail, subject, body);
-    return { success: true };
-  } catch (error: any) {
-    console.error('sendBlogEmailAction error:', error);
-    return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
-  }
+  return sendBatchEmailAction([{ type: 'blog', id: blogId }], toEmail);
 }
 
 export async function sendYoutubeEmailAction(videoId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
+  return sendBatchEmailAction([{ type: 'youtube', id: videoId }], toEmail);
+}
+
+export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     if (!user.id) throw new Error('Unauthorized');
 
     const accessToken = await getValidAccessToken(user.id);
 
-    const video = await getYoutubeVideoById(videoId);
-    if (!video) throw new Error('Video not found');
+    let htmlContent = '';
+    let subject = '';
 
-    const subject = `${video.title}`;
-    const summaryHtml = await marked.parse(video.summary || '');
-    const body = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1978e5; font-size: 20px; margin-bottom: 15px;">${video.title}</h2>
-        <p style="margin: 5px 0;"><b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a></p>
-        <p style="margin: 5px 0;"><b>게시일:</b> ${video.published_at || '-'}</p>
-        <p style="margin: 5px 0;"><b>재생시간:</b> ${video.duration || '-'}</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="background: #f9f9f9; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
-          <h3 style="margin-top: 0; color: #444; font-size: 18px; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 5px; margin-bottom: 15px;">AI 요약 분석</h3>
-          <div style="word-break: break-word; color: #444;">
-            ${summaryHtml}
+    if (items.length === 1) {
+      // Single item subject
+      const firstItem = items[0];
+      if (firstItem.type === 'youtube') {
+        const video = await getYoutubeVideoById(firstItem.id);
+        subject = video?.title || 'YouTube 영상';
+      } else if (firstItem.type === 'blog') {
+        const blog = await getBlogById(firstItem.id);
+        subject = blog?.title || '블로그 글';
+      } else if (firstItem.type === 'report') {
+        const report = await getReportById(firstItem.id);
+        subject = report?.title || '리포트';
+      }
+    } else {
+      subject = `[Book Journal] ${items.length}개의 항목이 공유되었습니다.`;
+    }
+
+    for (const item of items) {
+      if (item.type === 'youtube') {
+        const video = await getYoutubeVideoById(item.id);
+        if (!video) continue;
+        const summaryHtml = await marked.parse(video.summary || '');
+        htmlContent += `
+          <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #ff0000; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">YOUTUBE</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${video.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+                <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
+                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
+              </p>
+              <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
+              </div>
+            </div>
           </div>
+        `;
+      } else if (item.type === 'blog') {
+        const blog = await getBlogById(item.id);
+        if (!blog) continue;
+        htmlContent += `
+          <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #19ce60; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">BLOG</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${blog.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666;">
+                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a>
+              </p>
+              <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
+            </div>
+          </div>
+        `;
+      } else if (item.type === 'report') {
+        const report = await getReportById(item.id);
+        if (!report) continue;
+        const summaryHtml = report.summary ? await marked.parse(report.summary) : '';
+        htmlContent += `
+          <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #6366f1; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">REPORT</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${report.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
+              </p>
+              ${report.url ? `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${report.url}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>` : ''}
+
+              ${summaryHtml ? `
+              <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
+              </div>
+              ` : ''}
+
+              ${report.content ? `
+              <div style="margin-top: 20px; font-size: 13px; color: #555; line-height: 1.6; border-top: 1px dashed #eee; padding-top: 15px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">추출된 텍스트 내용</h3>
+                <div style="max-height: 300px; overflow-y: auto; background: #fcfcfc; padding: 10px;">${report.content}</div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    const body = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 680px; margin: 0 auto; background-color: #f4f7f9; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 30px; padding-top: 10px;">
+          <h1 style="color: #1978e5; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Book Journal</h1>
+          <p style="color: #64748b; font-size: 14px; margin-top: 5px;">당신의 독서 여정을 기록하고 공유하세요</p>
         </div>
-        <footer style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
-          본 메일은 Book Journal 앱에서 발송되었습니다.
-        </footer>
+
+        ${htmlContent}
+
+        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+          <p style="margin: 0;">본 메일은 Book Journal 앱에서 사용자의 요청에 의해 발송되었습니다.</p>
+          <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} Book Journal. All rights reserved.</p>
+        </div>
       </div>
     `;
 
     await sendGmail(accessToken, toEmail, subject, body);
     return { success: true };
   } catch (error: any) {
-    console.error('sendYoutubeEmailAction error:', error);
+    console.error('sendBatchEmailAction error:', error);
     return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
   }
 }

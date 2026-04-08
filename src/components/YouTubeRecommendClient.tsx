@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, sendBatchEmailAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -40,6 +40,7 @@ export default function YouTubeRecommendClient({
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Tab Management
   const [showTabManager, setShowTabManager] = useState(false);
@@ -282,6 +283,33 @@ export default function YouTubeRecommendClient({
     setIsLoading(false);
   };
 
+  const handleBatchEmail = async () => {
+    if (selectedIds.length === 0) return;
+
+    const lastEmail = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+    const email = window.prompt('보내실 이메일 주소를 입력해 주세요:', lastEmail);
+
+    if (!email) return;
+    localStorage.setItem('last_blog_email', email);
+
+    setIsSendingEmail(true);
+    try {
+      const items = selectedIds.map(id => ({ type: 'youtube' as const, id }));
+      const res = await sendBatchEmailAction(items, email);
+      if (res.success) {
+        alert(`${selectedIds.length}개의 영상 정보가 메일로 발송되었습니다.`);
+        setIsEditMode(false);
+        setSelectedIds([]);
+      } else {
+        alert(res.error);
+      }
+    } catch (err: any) {
+      alert(`발송 실패: ${err.message}`);
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
@@ -341,8 +369,20 @@ export default function YouTubeRecommendClient({
                         {selectedIds.length === myVideos.length ? '전체 해제' : '전체 선택'}
                     </button>
                     <button
+                        onClick={handleBatchEmail}
+                        disabled={selectedIds.length === 0 || isSendingEmail}
+                        className="px-4 py-1.5 text-xs font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                        {isSendingEmail ? (
+                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <span className="material-symbols-outlined text-[14px]">mail</span>
+                        )}
+                        메일 발송
+                    </button>
+                    <button
                         onClick={handleBatchDelete}
-                        disabled={selectedIds.length === 0}
+                        disabled={selectedIds.length === 0 || isSendingEmail}
                         className="px-4 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
                     >
                         삭제하기
