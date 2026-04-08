@@ -216,14 +216,11 @@ export default function ReportClient({
     if (!report.fileId || !report.fileNum) return;
 
     try {
-        const res = await fetch('/api/report/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                number: report.fileId,
-                gn: report.fileNum,
-                title: report.title
-            })
+        const encodedTitle = encodeURIComponent(report.title);
+        const downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
+
+        const res = await fetch(downloadUrl, {
+            method: 'GET'
         });
 
         if (!res.ok) throw new Error('Download failed');
@@ -675,24 +672,43 @@ export default function ReportClient({
                 {reports.map((report, idx) => (
                 <div
                     key={report.id + idx}
-                    onClick={() => handleRecommendClick(report)}
-                    className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up cursor-pointer hover:border-primary/20 transition-colors"
+                    className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
                 >
-                    <div className="flex justify-between items-start mb-2">
-                        <span className="text-xs font-bold text-primary">{report.institution}</span>
-                        <span className="text-xs text-slate-400">{report.date}</span>
-                    </div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-2 leading-snug line-clamp-2">
-                        {report.title}
-                    </h3>
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-500 dark:text-slate-400">{report.author}</span>
-                        <div className="flex items-center gap-2">
-                             {report.hasFile && (
-                                <span className="material-symbols-outlined text-slate-400 text-base">picture_as_pdf</span>
-                            )}
-                            <span className="material-symbols-outlined text-slate-300 text-sm font-bold">arrow_forward_ios</span>
+                    <div onClick={() => handleRecommendClick(report)} className="cursor-pointer">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold text-primary">{report.institution}</span>
+                            <span className="text-xs text-slate-400">{report.date}</span>
                         </div>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-2 leading-snug line-clamp-2 hover:text-primary transition-colors">
+                            {report.title}
+                        </h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{report.author}</p>
+                    </div>
+
+                    <div className="flex gap-2 pt-3 border-t border-slate-50 dark:border-primary/5">
+                        {report.hasFile && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleDownload(report); }}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-xl font-bold text-[11px] transition-colors hover:bg-slate-100 dark:hover:bg-slate-700"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">download</span>
+                                {report.fileSize || 'PDF'}
+                            </button>
+                        )}
+                        <button
+                            onClick={(e) => { e.stopPropagation(); handleSaveReport(report); }}
+                            disabled={savingId === report.id}
+                            className="flex-[1.5] flex items-center justify-center gap-1.5 py-2.5 px-3 bg-primary/10 text-primary rounded-xl font-bold text-[11px] transition-all hover:bg-primary hover:text-white active:scale-95 disabled:opacity-50"
+                        >
+                            {savingId === report.id ? (
+                                <div className="size-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <span className="material-symbols-outlined text-[16px]">auto_awesome</span>
+                                    AI 분석 및 저장
+                                </>
+                            )}
+                        </button>
                     </div>
                 </div>
                 ))}
