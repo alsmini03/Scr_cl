@@ -8,6 +8,7 @@ import { marked } from 'marked';
 import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
+import { resolveBondwebPdfUrl } from './utils';
 
 // Configure marked
 marked.use(gfmHeadingId());
@@ -366,7 +367,19 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
                 <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
               </p>
-              ${report.url ? `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${report.url}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>` : ''}
+              ${report.url ? await (async () => {
+                let displayUrl = report.url;
+                if (report.url.includes('/api/report/download')) {
+                    const urlObj = new URL(report.url, 'http://localhost');
+                    const number = urlObj.searchParams.get('number');
+                    const gn = urlObj.searchParams.get('gn');
+                    if (number && gn) {
+                        const directUrl = await resolveBondwebPdfUrl(number, gn);
+                        if (directUrl) displayUrl = directUrl;
+                    }
+                }
+                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
+              })() : ''}
 
               ${summaryHtml ? `
               <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
