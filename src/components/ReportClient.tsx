@@ -3,11 +3,12 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
 import { marked } from 'marked';
+import he from 'he';
 
 interface Report {
   id: string;
@@ -67,6 +68,14 @@ export default function ReportClient({
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
   const [savingId, setSavingId] = useState<string | null>(null);
 
+  // Detail View State
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
+  const [editInstitution, setEditInstitution] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
@@ -86,6 +95,10 @@ export default function ReportClient({
 
   useEffect(() => {
     localStorage.setItem('report_view_mode', viewMode);
+    if (viewMode === 'recommend') {
+        setSelectedReportId(null);
+        setIsEditing(false);
+    }
   }, [viewMode]);
 
   useEffect(() => {
@@ -211,17 +224,8 @@ export default function ReportClient({
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-
-        const contentDisposition = res.headers.get('Content-Disposition');
-        let filename = report.title + '.pdf';
-        if (contentDisposition && contentDisposition.includes('filename*=')) {
-            const parts = contentDisposition.split("filename* = UTF-8''");
-            if (parts.length > 1) {
-                filename = decodeURIComponent(parts[1]);
-            }
-        }
-
-        a.download = filename;
+        const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_');
+        a.download = safeTitle + '.pdf';
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -240,35 +244,20 @@ export default function ReportClient({
 
     setSavingId(report.id);
     try {
-      // 1. Fetch Gemini settings
       const models = await getGeminiModels();
       const prompts = await getGeminiPrompts();
       const selectedModel = models.find(m => m.is_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.is_default)?.content || prompts[0]?.content;
 
-      // 2. Determine PDF URL
       let pdfUrl = '';
       if (report.scrapPath) {
           pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
       } else if (report.fileId && report.fileNum) {
-          // Note: The download API returns a stream, but we might need a direct URL for Gemini if it's large.
-          // However, we'll try to use the extraction API we just built which fetches and sends as base64.
-          // We need a way to get the actual bondweb file URL or simulate the download.
-          // For now, let's assume we can fetch it via a simulated link or our proxy.
-          // The proxy requires POST. Let's adjust the extract API to handle bondweb params if needed.
-
-          // Actually, let's use a simpler approach:
-          // Use the same logic as handleDownload to get the file, then send to Gemini.
-          // But it's better to do it on the server side in the API.
-          pdfUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}`;
-          // But wait, our extraction API runs on the server. It can't call its own API easily without full URL.
-          // Let's use a full URL if possible.
           pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}`;
       }
 
       if (!pdfUrl) throw new Error('PDF URL not found');
 
-      // 3. Extract via Gemini
       const response = await fetch('/api/report/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,7 +271,6 @@ export default function ReportClient({
       if (!response.ok) throw new Error('Failed to extract details');
       const data = await response.json();
 
-      // 4. Save to database
       const result = await saveReport({
         title: report.title,
         author: report.author,
@@ -316,12 +304,59 @@ export default function ReportClient({
     }
   };
 
-  const handleDeleteSaved = async (id: string) => {
+  const handleDeleteSaved = async (id: string, e?: React.MouseEvent) => {
+      if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+      }
       if (!confirm('정말로 삭제하시겠습니까?')) return;
       const res = await deleteReport(id);
       if (res.success) {
           setSavedReports(prev => prev.filter(r => r.id !== id));
+          if (selectedReportId === id) {
+              setSelectedReportId(null);
+              setIsEditing(false);
+          }
       }
+  };
+
+  const handleStartEdit = (report: SavedReport) => {
+      setEditTitle(report.title);
+      setEditAuthor(report.author || '');
+      setEditInstitution(report.institution || '');
+      setEditSummary(he.decode(report.summary || ''));
+      setIsEditing(true);
+  };
+
+  const handleUpdateReport = async () => {
+    if (!selectedReportId || !selectedReport) return;
+
+    setIsLoading(true);
+    try {
+        const res = await updateReport(selectedReportId, {
+            title: editTitle,
+            author: editAuthor,
+            institution: editInstitution,
+            summary: editSummary,
+            date: selectedReport.date,
+            content: selectedReport.content
+        });
+
+        if (res.success) {
+            setSavedReports(prev => prev.map(r =>
+                r.id === selectedReportId
+                ? { ...r, title: editTitle, author: editAuthor, institution: editInstitution, summary: editSummary }
+                : r
+            ));
+            setIsEditing(false);
+        } else {
+            alert(res.error);
+        }
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   const handleAddTab = async () => {
@@ -375,12 +410,23 @@ export default function ReportClient({
     }
   };
 
+  const selectedReport = savedReports.find(r => r.id === selectedReportId);
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
-        title="리포트"
+        title={selectedReportId ? "리포트 상세" : "리포트"}
+        showBack={!!selectedReportId}
+        onBack={() => {
+            if (isEditing) {
+                setIsEditing(false);
+            } else {
+                setSelectedReportId(null);
+            }
+        }}
         transparent
         rightAction={
+          !selectedReportId && (
           <div className="flex items-center gap-1">
               <button
                 onClick={() => window.location.href = '/settings/gemini'}
@@ -396,8 +442,10 @@ export default function ReportClient({
                 <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
               </button>
           </div>
+          )
         }
       >
+          {!selectedReportId && (
           <ViewModeToggle
             title="리포트"
             viewMode={viewMode}
@@ -405,12 +453,13 @@ export default function ReportClient({
             myLabel="저장"
             recommendLabel="새글"
           />
+          )}
       </Header>
 
       <main className="mt-4 px-4">
         {viewMode === 'recommend' ? (
         <>
-        {/* Tabs */}
+        {/* Recommend View (Existing Logic) */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
             {tabs.map(tab => {
@@ -540,40 +589,144 @@ export default function ReportClient({
           </div>
         )}
         </>
+        ) : selectedReportId && selectedReport ? (
+            /* Saved View Mode - Detail View */
+            <div className="space-y-6 animate-fade-in-up pb-20">
+                {isEditing ? (
+                    /* Edit Mode */
+                    <div className="space-y-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">제목</label>
+                            <input
+                                type="text"
+                                value={editTitle}
+                                onChange={(e) => setEditTitle(e.target.value)}
+                                className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-primary"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">작성자</label>
+                                <input
+                                    type="text"
+                                    value={editAuthor}
+                                    onChange={(e) => setEditAuthor(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-primary"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">기관</label>
+                                <input
+                                    type="text"
+                                    value={editInstitution}
+                                    onChange={(e) => setEditInstitution(e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-primary"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">AI 요약 분석 (Markdown)</label>
+                            <textarea
+                                value={editSummary}
+                                onChange={(e) => setEditSummary(e.target.value)}
+                                className="w-full h-80 rounded-xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-primary resize-none"
+                            />
+                        </div>
+                        <div className="flex gap-2 pt-4">
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="flex-1 py-3 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl font-bold text-sm"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleUpdateReport}
+                                className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20"
+                            >
+                                저장하기
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    /* Read Mode */
+                    <>
+                        <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                                <span className="text-xs font-bold text-primary">{selectedReport.institution}</span>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                                    {selectedReport.title}
+                                </h2>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                    {selectedReport.author} • {selectedReport.date}
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => handleStartEdit(selectedReport)}
+                                    className="text-slate-400 hover:text-primary p-2 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-xl">edit</span>
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteSaved(selectedReport.id)}
+                                    className="text-slate-400 hover:text-red-500 p-2 bg-slate-100 dark:bg-slate-800 rounded-xl transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-xl">delete</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {selectedReport.summary && (
+                            <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                                    AI 요약 분석
+                                </h3>
+                                <div
+                                    className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                                    dangerouslySetInnerHTML={{ __html: marked.parse(selectedReport.summary) }}
+                                />
+                            </div>
+                        )}
+
+                        {selectedReport.url && (
+                             <a
+                                href={selectedReport.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-primary/5 hover:bg-primary/5 transition-colors group"
+                             >
+                                <div className="flex items-center gap-3">
+                                    <span className="material-symbols-outlined text-slate-400 group-hover:text-primary">picture_as_pdf</span>
+                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">원본 PDF 보기</span>
+                                </div>
+                                <span className="material-symbols-outlined text-slate-400 text-sm">open_in_new</span>
+                             </a>
+                        )}
+                    </>
+                )}
+            </div>
         ) : (
-            <div className="space-y-4">
+            /* Saved View Mode - List View */
+            <div className="space-y-3 pb-20">
                 {savedReports.length === 0 ? (
                     <div className="py-20 text-center text-slate-400">저장된 리포트가 없습니다.</div>
                 ) : (
                     savedReports.map(report => (
-                        <div key={report.id} className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up">
+                        <div
+                            key={report.id}
+                            onClick={() => setSelectedReportId(report.id)}
+                            className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up cursor-pointer hover:border-primary/20 transition-colors"
+                        >
                              <div className="flex justify-between items-start mb-2">
                                 <span className="text-xs font-bold text-primary">{report.institution}</span>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={() => handleDeleteSaved(report.id)}
-                                        className="text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
-                                    >
-                                        <span className="material-symbols-outlined text-xl">delete</span>
-                                    </button>
-                                    <span className="text-xs text-slate-400">{report.date}</span>
-                                </div>
+                                <span className="text-xs text-slate-400">{report.date}</span>
                             </div>
-                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-2">{report.title}</h3>
-                            <div className="text-sm text-slate-500 dark:text-slate-400 mb-4">{report.author}</div>
-
-                            {report.summary && (
-                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-primary/5">
-                                    <h4 className="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-1">
-                                        <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                                        AI 요약 분석
-                                    </h4>
-                                    <div
-                                        className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
-                                        dangerouslySetInnerHTML={{ __html: marked.parse(report.summary) }}
-                                    />
-                                </div>
-                            )}
+                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1 line-clamp-1">{report.title}</h3>
+                            <div className="flex justify-between items-center">
+                                <div className="text-[12px] text-slate-500 dark:text-slate-400">{report.author}</div>
+                                <span className="material-symbols-outlined text-slate-300 text-sm font-bold">arrow_forward_ios</span>
+                            </div>
                         </div>
                     ))
                 )}

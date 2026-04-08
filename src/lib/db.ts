@@ -147,6 +147,28 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+export async function updateReport(id: string, report: {
+  title: string;
+  author?: string;
+  institution?: string;
+  date?: string;
+  summary?: string;
+  content?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query(
+      "UPDATE reports SET title = $1, author = $2, institution = $3, date = $4, summary = $5, content = $6 WHERE id = $7 AND (user_id = $8 OR user_id = $9)",
+      [report.title, report.author, report.institution, report.date, report.summary, report.content, id, user.id, user.email]
+    );
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to update report with id ${id}:`, error);
+    return { success: false, error: error.message || '업데이트 중 오류가 발생했습니다.' };
+  }
+}
+
 /**
  * Gmail Integration Helpers
  */
