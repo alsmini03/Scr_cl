@@ -274,21 +274,28 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
     let htmlContent = '';
     let subject = '';
 
-    if (items.length === 1) {
-      // Single item subject
+    // Set subject based on the first item and total count
+    if (items.length > 0) {
       const firstItem = items[0];
+      let firstTitle = '';
       if (firstItem.type === 'youtube') {
         const video = await getYoutubeVideoById(firstItem.id);
-        subject = video?.title || 'YouTube 영상';
+        firstTitle = video?.title || 'YouTube 영상';
       } else if (firstItem.type === 'blog') {
         const blog = await getBlogById(firstItem.id);
-        subject = blog?.title || '블로그 글';
+        firstTitle = blog?.title || '블로그 글';
       } else if (firstItem.type === 'report') {
         const report = await getReportById(firstItem.id);
-        subject = report?.title || '리포트';
+        firstTitle = report?.title || '리포트';
+      }
+
+      if (items.length === 1) {
+        subject = firstTitle;
+      } else {
+        subject = `${firstTitle} (${items.length}개)`;
       }
     } else {
-      subject = `[Book Journal] ${items.length}개의 항목이 공유되었습니다.`;
+      subject = '[Book Journal] 공유된 항목';
     }
 
     for (const item of items) {
