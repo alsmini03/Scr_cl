@@ -3,9 +3,11 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import { marked } from 'marked';
 
 interface Report {
   id: string;
@@ -26,14 +28,29 @@ interface ReportContent {
   content: string;
 }
 
+interface SavedReport {
+    id: string;
+    title: string;
+    author?: string;
+    institution?: string;
+    date?: string;
+    url?: string;
+    summary?: string;
+    content?: string;
+    added_at: string;
+}
+
 export default function ReportClient({
   session,
   initialTabs,
+  initialSavedReports
 }: {
   session: any;
   initialTabs: any[];
+  initialSavedReports: any[];
 }) {
   const [reports, setReports] = useState<Report[]>([]);
+  const [savedReports, setSavedReports] = useState<SavedReport[]>(initialSavedReports);
   const [isLoading, setIsLoading] = useState(true);
   const [isMoreLoading, setIsMoreLoading] = useState(false);
   const [tabs, setTabs] = useState<any[]>(initialTabs);
@@ -47,11 +64,18 @@ export default function ReportClient({
   const [hasMore, setHasMore] = useState(true);
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const savedViewMode = localStorage.getItem('report_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+        setViewMode(savedViewMode);
+    }
+
     const savedTab = localStorage.getItem('report_active_tab');
     if (savedTab && tabs.some(t => t.id === savedTab)) {
         setActiveTabId(savedTab);
@@ -61,13 +85,17 @@ export default function ReportClient({
   }, [tabs]);
 
   useEffect(() => {
-    if (activeTabId) {
+    localStorage.setItem('report_view_mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (viewMode === 'recommend' && activeTabId) {
         localStorage.setItem('report_active_tab', activeTabId);
         fetchReports(true);
-    } else if (tabs.length === 0) {
+    } else if (viewMode === 'recommend' && tabs.length === 0) {
         setIsLoading(false);
     }
-  }, [activeTabId]);
+  }, [activeTabId, viewMode]);
 
   const fetchReports = async (isInitial = false) => {
     if (!activeTabId && tabs.length > 0) return;
@@ -121,7 +149,7 @@ export default function ReportClient({
   };
 
   useEffect(() => {
-    if (isLoading || isMoreLoading || !hasMore) return;
+    if (viewMode !== 'recommend' || isLoading || isMoreLoading || !hasMore) return;
     if (observer.current) observer.current.disconnect();
 
     observer.current = new IntersectionObserver(entries => {
@@ -133,7 +161,7 @@ export default function ReportClient({
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [reports, isLoading, isMoreLoading, hasMore]);
+  }, [reports, isLoading, isMoreLoading, hasMore, viewMode]);
 
   const fetchContent = async (report: Report) => {
     if (viewingContent?.id === report.id) {
@@ -204,6 +232,98 @@ export default function ReportClient({
     }
   };
 
+  const handleSaveReport = async (report: Report) => {
+    if (!session) {
+      alert('로그인이 필요한 서비스입니다.');
+      return;
+    }
+
+    setSavingId(report.id);
+    try {
+      // 1. Fetch Gemini settings
+      const models = await getGeminiModels();
+      const prompts = await getGeminiPrompts();
+      const selectedModel = models.find(m => m.is_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      const selectedPrompt = prompts.find(p => p.is_default)?.content || prompts[0]?.content;
+
+      // 2. Determine PDF URL
+      let pdfUrl = '';
+      if (report.scrapPath) {
+          pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
+      } else if (report.fileId && report.fileNum) {
+          // Note: The download API returns a stream, but we might need a direct URL for Gemini if it's large.
+          // However, we'll try to use the extraction API we just built which fetches and sends as base64.
+          // We need a way to get the actual bondweb file URL or simulate the download.
+          // For now, let's assume we can fetch it via a simulated link or our proxy.
+          // The proxy requires POST. Let's adjust the extract API to handle bondweb params if needed.
+
+          // Actually, let's use a simpler approach:
+          // Use the same logic as handleDownload to get the file, then send to Gemini.
+          // But it's better to do it on the server side in the API.
+          pdfUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}`;
+          // But wait, our extraction API runs on the server. It can't call its own API easily without full URL.
+          // Let's use a full URL if possible.
+          pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}`;
+      }
+
+      if (!pdfUrl) throw new Error('PDF URL not found');
+
+      // 3. Extract via Gemini
+      const response = await fetch('/api/report/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: pdfUrl,
+          model: selectedModel,
+          prompt: selectedPrompt
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to extract details');
+      const data = await response.json();
+
+      // 4. Save to database
+      const result = await saveReport({
+        title: report.title,
+        author: report.author,
+        institution: report.institution,
+        date: report.date,
+        url: pdfUrl,
+        summary: data.result,
+        content: viewingContent?.id === report.id ? viewingContent.content : ''
+      });
+
+      if (result.success && result.id) {
+        alert('리포트가 저장되었습니다.');
+        setSavedReports(prev => [{
+            id: result.id!,
+            title: report.title,
+            author: report.author,
+            institution: report.institution,
+            date: report.date,
+            url: pdfUrl,
+            summary: data.result,
+            added_at: new Date().toISOString()
+        }, ...prev]);
+      } else {
+        alert(`저장 실패: ${result.error}`);
+      }
+    } catch (error: any) {
+      console.error(error);
+      alert(`리포트 저장에 실패했습니다: ${error.message}`);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleDeleteSaved = async (id: string) => {
+      if (!confirm('정말로 삭제하시겠습니까?')) return;
+      const res = await deleteReport(id);
+      if (res.success) {
+          setSavedReports(prev => prev.filter(r => r.id !== id));
+      }
+  };
+
   const handleAddTab = async () => {
     if (!newTabName || !newTabUrl) return;
     setIsAddingTab(true);
@@ -261,16 +381,35 @@ export default function ReportClient({
         title="리포트"
         transparent
         rightAction={
-          <button
-            onClick={() => setShowTabManager(!showTabManager)}
-            className="text-primary p-2"
-          >
-            <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-          </button>
+          <div className="flex items-center gap-1">
+              <button
+                onClick={() => window.location.href = '/profile'}
+                className="text-primary p-2"
+                title="Gemini 설정"
+              >
+                <span className="material-symbols-outlined text-2xl">settings</span>
+              </button>
+              <button
+                onClick={() => setShowTabManager(!showTabManager)}
+                className="text-primary p-2"
+              >
+                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+              </button>
+          </div>
         }
-      />
+      >
+          <ViewModeToggle
+            title="리포트"
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            myLabel="저장"
+            recommendLabel="새글"
+          />
+      </Header>
 
       <main className="mt-4 px-4">
+        {viewMode === 'recommend' ? (
+        <>
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
           <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
@@ -343,7 +482,23 @@ export default function ReportClient({
               >
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs font-bold text-primary">{report.institution}</span>
-                  <span className="text-xs text-slate-400">{report.date}</span>
+                  <div className="flex items-center gap-3">
+                      {report.hasFile && (
+                          <button
+                            onClick={() => handleSaveReport(report)}
+                            disabled={savingId === report.id}
+                            className="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors disabled:opacity-50"
+                            title="AI 분석 및 저장"
+                          >
+                            {savingId === report.id ? (
+                                <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-xl">bookmark_add</span>
+                            )}
+                          </button>
+                      )}
+                      <span className="text-xs text-slate-400">{report.date}</span>
+                  </div>
                 </div>
                 <h3
                   onClick={() => fetchContent(report)}
@@ -383,6 +538,46 @@ export default function ReportClient({
               </div>
             )}
           </div>
+        )}
+        </>
+        ) : (
+            <div className="space-y-4">
+                {savedReports.length === 0 ? (
+                    <div className="py-20 text-center text-slate-400">저장된 리포트가 없습니다.</div>
+                ) : (
+                    savedReports.map(report => (
+                        <div key={report.id} className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up">
+                             <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-primary">{report.institution}</span>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={() => handleDeleteSaved(report.id)}
+                                        className="text-red-500 hover:bg-red-50 p-1 rounded-full transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-xl">delete</span>
+                                    </button>
+                                    <span className="text-xs text-slate-400">{report.date}</span>
+                                </div>
+                            </div>
+                            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-2">{report.title}</h3>
+                            <div className="text-sm text-slate-500 dark:text-slate-400 mb-4">{report.author}</div>
+
+                            {report.summary && (
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 border border-slate-100 dark:border-primary/5">
+                                    <h4 className="text-xs font-bold text-primary uppercase mb-2 flex items-center gap-1">
+                                        <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                                        AI 요약 분석
+                                    </h4>
+                                    <div
+                                        className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                                        dangerouslySetInnerHTML={{ __html: marked.parse(report.summary) }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
         )}
       </main>
 

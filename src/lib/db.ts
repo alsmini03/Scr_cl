@@ -78,6 +78,76 @@ export async function getBooks(): Promise<Book[]> {
 }
 
 /**
+ * Report Database Operations
+ */
+export async function getReports(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      "SELECT * FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('getReports error:', error);
+    return [];
+  }
+}
+
+export async function saveReport(report: {
+  title: string;
+  author?: string;
+  institution?: string;
+  date?: string;
+  url?: string;
+  thumbnail?: string;
+  content?: string;
+  summary?: string;
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const id = randomUUID();
+    const addedAt = new Date().toISOString();
+
+    await query(
+      "INSERT INTO reports (id, title, author, institution, date, url, thumbnail, content, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+      [id, report.title, report.author, report.institution, report.date, report.url, report.thumbnail, report.content, report.summary, user.email || user.id, addedAt]
+    );
+
+    safeRevalidate('/report');
+    return { success: true, id };
+  } catch (error: any) {
+    console.error('Failed to save report:', error);
+    return { success: false, error: error.message || '리포트 정보를 저장하는 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function getReportById(id: string): Promise<any | undefined> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      "SELECT * FROM reports WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
+  } catch (error) {
+    console.error('getReportById error:', error);
+    return undefined;
+  }
+}
+
+export async function deleteReport(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query("DELETE FROM reports WHERE id = $1", [id]);
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {

@@ -97,6 +97,21 @@ CREATE TABLE IF NOT EXISTS report_tabs (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Saved Reports Table
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  author TEXT,
+  institution TEXT,
+  date TEXT,
+  url TEXT,
+  thumbnail TEXT,
+  content TEXT,
+  summary TEXT,
+  user_id TEXT NOT NULL,
+  added_at TEXT NOT NULL
+);
+
 -- Naver Blogs Table
 CREATE TABLE IF NOT EXISTS naver_blogs (
   id TEXT PRIMARY KEY,
