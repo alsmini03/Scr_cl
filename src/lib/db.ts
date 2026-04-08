@@ -295,11 +295,16 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
       subject = '[Book Journal] 공유된 항목';
     }
 
-    let tocHtml = `
-      <div style="margin-bottom: 40px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;">
-        <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #1e293b; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 4px;">목차</h3>
-        <ul style="margin: 0; padding: 0; list-style: none;">
-    `;
+    let tocHtml = '';
+    const showToc = items.length > 1;
+
+    if (showToc) {
+      tocHtml = `
+        <div style="margin-bottom: 40px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #1e293b; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 4px;">목차</h3>
+          <ul style="margin: 0; padding: 0; list-style: none;">
+      `;
+    }
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -309,7 +314,9 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         const video = await getYoutubeVideoById(item.id);
         if (!video) continue;
 
-        tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [YouTube] ${video.title}</a></li>`;
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [YouTube] ${video.title}</a></li>`;
+        }
 
         const summaryHtml = await marked.parse(video.summary || '');
         htmlContent += `
@@ -334,7 +341,9 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         const blog = await getBlogById(item.id);
         if (!blog) continue;
 
-        tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
+        }
 
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
@@ -354,7 +363,9 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         const report = await getReportById(item.id);
         if (!report) continue;
 
-        tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Report] ${report.title}</a></li>`;
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Report] ${report.title}</a></li>`;
+        }
 
         const summaryHtml = report.summary ? await marked.parse(report.summary) : '';
         htmlContent += `
@@ -400,25 +411,17 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
       }
     }
 
-    tocHtml += `
-        </ul>
-      </div>
-    `;
+    if (showToc) {
+      tocHtml += `
+          </ul>
+        </div>
+      `;
+    }
 
     const body = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 680px; margin: 0 auto; background-color: #f4f7f9; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px; padding-top: 10px;">
-          <h1 style="color: #1978e5; margin: 0; font-size: 24px; letter-spacing: -0.5px;">Book Journal</h1>
-          <p style="color: #64748b; font-size: 14px; margin-top: 5px;">당신의 독서 여정을 기록하고 공유하세요</p>
-        </div>
-
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 680px; margin: 0 auto; padding: 20px;">
         ${tocHtml}
         ${htmlContent}
-
-        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
-          <p style="margin: 0;">본 메일은 Book Journal 앱에서 사용자의 요청에 의해 발송되었습니다.</p>
-          <p style="margin: 5px 0 0 0;">&copy; ${new Date().getFullYear()} Book Journal. All rights reserved.</p>
-        </div>
       </div>
     `;
 
