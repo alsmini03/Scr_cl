@@ -361,31 +361,30 @@ export default function YouTubeRecommendClient({
                 <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
                     {selectedIds.length}개 선택됨
                 </p>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                     <button
                         onClick={() => setSelectedIds(selectedIds.length === myVideos.length ? [] : myVideos.map(v => v.id))}
-                        className="px-3 py-1.5 text-xs font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
+                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
                     >
-                        {selectedIds.length === myVideos.length ? '전체 해제' : '전체 선택'}
+                        {selectedIds.length === myVideos.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
                     </button>
                     <button
                         onClick={handleBatchEmail}
                         disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-4 py-1.5 text-xs font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
                     >
                         {isSendingEmail ? (
                             <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
-                            <span className="material-symbols-outlined text-[14px]">mail</span>
+                            <>메일<br/>발송</>
                         )}
-                        메일 발송
                     </button>
                     <button
                         onClick={handleBatchDelete}
                         disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-4 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
+                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
                     >
-                        삭제하기
+                        삭제
                     </button>
                 </div>
             </div>
