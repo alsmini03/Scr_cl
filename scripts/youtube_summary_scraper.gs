@@ -30,12 +30,6 @@ function main() {
 
     let emailHtml = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-        <h1 style="color: #1978e5; border-bottom: 2px solid #1978e5; padding-bottom: 10px;">
-          최신 유튜브 영상 요약 분석 보고서
-        </h1>
-        <p style="color: #666; font-size: 0.9em;">채널: <b>@understanding.</b></p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-    `;
 
     for (const video of videoData) {
       console.log(`Analyzing video: ${video.title}`);
@@ -59,9 +53,6 @@ function main() {
     }
 
     emailHtml += `
-        <div style="text-align: center; color: #999; font-size: 0.8em; padding-top: 20px;">
-          본 메일은 Google Apps Script를 통해 자동 생성되었습니다.
-        </div>
       </div>
     `;
 
