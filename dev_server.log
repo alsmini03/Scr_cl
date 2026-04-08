@@ -238,3 +238,5 @@ executed query {
     at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
  GET /api/auth/session 500 in 32ms
  POST /api/report 200 in 10411ms
+ ✓ Compiled in 8.8s (855 modules)
+ ✓ Compiled in 1675ms (855 modules)

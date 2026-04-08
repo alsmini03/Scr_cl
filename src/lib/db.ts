@@ -215,12 +215,14 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (account.expires_at && account.expires_at > now + 60) {
+  const expiresAt = account.expires_at ? Number(account.expires_at) : 0;
+
+  if (expiresAt > now + 60) {
     return account.access_token;
   }
 
   if (!account.refresh_token) {
-    throw new Error('재인증이 필요합니다. 로그아웃 후 다시 로그인하여 Gmail 권한을 허용해 주세요.');
+    throw new Error('재인증이 필요합니다. 로그아웃 후 다시 로그인하여 Gmail 권한을 허용해 주세요. (Refresh Token 누락)');
   }
 
   try {
@@ -238,7 +240,7 @@ export async function getValidAccessToken(userId: string): Promise<string> {
     const tokens = await response.json();
     if (!response.ok) {
         console.error("Google Token Refresh Error:", tokens);
-        throw new Error('토큰 갱신에 실패했습니다. 다시 로그인해 주세요.');
+        throw new Error(`토큰 갱신 실패 (${tokens.error || 'unknown'}): ${tokens.error_description || '다시 로그인해 주세요.'}`);
     }
 
     await updateAccountTokens(userId, {
