@@ -70,6 +70,7 @@ export default function ReportClient({
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [selectedRecommendReport, setSelectedRecommendReport] = useState<Report | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editAuthor, setEditAuthor] = useState('');
@@ -95,10 +96,10 @@ export default function ReportClient({
 
   useEffect(() => {
     localStorage.setItem('report_view_mode', viewMode);
-    if (viewMode === 'recommend') {
-        setSelectedReportId(null);
-        setIsEditing(false);
-    }
+    // Reset selection when changing tabs
+    setSelectedReportId(null);
+    setSelectedRecommendReport(null);
+    setIsEditing(false);
   }, [viewMode]);
 
   useEffect(() => {
@@ -162,7 +163,7 @@ export default function ReportClient({
   };
 
   useEffect(() => {
-    if (viewMode !== 'recommend' || isLoading || isMoreLoading || !hasMore) return;
+    if (viewMode !== 'recommend' || selectedRecommendReport || isLoading || isMoreLoading || !hasMore) return;
     if (observer.current) observer.current.disconnect();
 
     observer.current = new IntersectionObserver(entries => {
@@ -174,11 +175,10 @@ export default function ReportClient({
     if (lastElementRef.current) {
       observer.current.observe(lastElementRef.current);
     }
-  }, [reports, isLoading, isMoreLoading, hasMore, viewMode]);
+  }, [reports, isLoading, isMoreLoading, hasMore, viewMode, selectedRecommendReport]);
 
   const fetchContent = async (report: Report) => {
     if (viewingContent?.id === report.id) {
-        setViewingContent(null);
         return;
     }
 
@@ -197,6 +197,11 @@ export default function ReportClient({
     } finally {
         setIsContentLoading(false);
     }
+  };
+
+  const handleRecommendClick = (report: Report) => {
+      setSelectedRecommendReport(report);
+      fetchContent(report);
   };
 
   const handleDownload = async (report: Report) => {
@@ -291,8 +296,12 @@ export default function ReportClient({
             date: report.date,
             url: pdfUrl,
             summary: data.result,
+            content: viewingContent?.id === report.id ? viewingContent.content : '',
             added_at: new Date().toISOString()
         }, ...prev]);
+        // Go back to list after save
+        setSelectedRecommendReport(null);
+        setViewMode('my');
       } else {
         alert(`저장 실패: ${result.error}`);
       }
@@ -411,22 +420,24 @@ export default function ReportClient({
   };
 
   const selectedReport = savedReports.find(r => r.id === selectedReportId);
+  const isDetailView = !!selectedReportId || !!selectedRecommendReport;
 
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
-        title={selectedReportId ? "리포트 상세" : "리포트"}
-        showBack={!!selectedReportId}
+        title={isDetailView ? "리포트 상세" : "리포트"}
+        showBack={isDetailView}
         onBack={() => {
             if (isEditing) {
                 setIsEditing(false);
             } else {
                 setSelectedReportId(null);
+                setSelectedRecommendReport(null);
             }
         }}
         transparent
         rightAction={
-          !selectedReportId && (
+          !isDetailView && (
           <div className="flex items-center gap-1">
               <button
                 onClick={() => window.location.href = '/settings/gemini'}
@@ -445,7 +456,7 @@ export default function ReportClient({
           )
         }
       >
-          {!selectedReportId && (
+          {!isDetailView && (
           <ViewModeToggle
             title="리포트"
             viewMode={viewMode}
@@ -459,134 +470,167 @@ export default function ReportClient({
       <main className="mt-4 px-4">
         {viewMode === 'recommend' ? (
         <>
-        {/* Recommend View (Existing Logic) */}
-        <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-          <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
-            {tabs.map(tab => {
-                const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
-                return (
-                    <div
-                        key={tab.id}
-                        className="relative flex-shrink-0 group transition-all"
-                        {...longPressHandlers}
-                    >
-                        <button
-                            onClick={() => setActiveTabId(tab.id)}
-                            className={cn(
-                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                            )}
-                        >
-                            {tab.name}
-                        </button>
+        {selectedRecommendReport ? (
+            /* Recommend Detail View */
+            <div className="space-y-6 animate-fade-in-up pb-20">
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                        <span className="text-xs font-bold text-primary">{selectedRecommendReport.institution}</span>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                            {selectedRecommendReport.title}
+                        </h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {selectedRecommendReport.author} • {selectedRecommendReport.date}
+                        </p>
                     </div>
-                );
-            })}
-          </div>
-        </div>
-
-        {showTabManager && (
-          <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">리포트 URL 추가</p>
-            <input
-              type="text"
-              value={newTabName}
-              onChange={(e) => setNewTabName(e.target.value)}
-              placeholder="탭 이름 (예: 채권)"
-              className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
-            />
-            <input
-              type="text"
-              value={newTabUrl}
-              onChange={(e) => setNewTabUrl(e.target.value)}
-              placeholder="리포트 Ajax URL"
-              className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
-            />
-            <button
-              onClick={handleAddTab}
-              disabled={isAddingTab || !newTabName || !newTabUrl}
-              className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
-            >
-              {isAddingTab ? '추가 중...' : '탭 추가하기'}
-            </button>
-          </div>
-        )}
-
-        {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl h-32 w-full animate-skeleton" />
-            ))}
-          </div>
-        ) : reports.length === 0 ? (
-          <div className="text-center py-20 text-slate-400 dark:text-slate-600">
-            <p>{tabs.length === 0 ? '탭을 추가해 주세요.' : '리포트 정보가 없습니다.'}</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {reports.map((report, idx) => (
-              <div
-                key={report.id + idx}
-                className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-bold text-primary">{report.institution}</span>
-                  <div className="flex items-center gap-3">
-                      {report.hasFile && (
-                          <button
-                            onClick={() => handleSaveReport(report)}
-                            disabled={savingId === report.id}
-                            className="text-primary hover:bg-primary/10 p-1 rounded-full transition-colors disabled:opacity-50"
-                            title="AI 분석 및 저장"
-                          >
-                            {savingId === report.id ? (
-                                <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <span className="material-symbols-outlined text-xl">bookmark_add</span>
-                            )}
-                          </button>
-                      )}
-                      <span className="text-xs text-slate-400">{report.date}</span>
-                  </div>
                 </div>
-                <h3
-                  onClick={() => fetchContent(report)}
-                  className="text-base font-bold text-slate-900 dark:text-slate-100 mb-3 leading-snug line-clamp-2 cursor-pointer hover:text-primary transition-colors"
-                >
-                  {report.title}
-                </h3>
 
-                {viewingContent?.id === report.id && (
-                    <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl overflow-hidden">
+                {isContentLoading ? (
+                    <div className="p-10 flex flex-col items-center justify-center gap-4 text-slate-400">
+                        <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-sm">내용을 불러오는 중...</p>
+                    </div>
+                ) : viewingContent?.id === selectedRecommendReport.id ? (
+                    <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm">
                         <div
-                            className="prose prose-sm dark:prose-invert max-w-none break-words bg-white p-4"
+                            className="prose prose-sm dark:prose-invert max-w-none break-words p-6"
                             dangerouslySetInnerHTML={{ __html: viewingContent.content }}
                         />
                     </div>
+                ) : (
+                    <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
                 )}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-500 dark:text-slate-400">{report.author}</span>
-                  {report.hasFile && (
-                    <button
-                      onClick={() => handleDownload(report)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-bold hover:bg-primary hover:text-white transition-all active:scale-95"
-                    >
-                      <span className="material-symbols-outlined text-lg">download</span>
-                      {report.fileSize || '다운로드'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
 
-            {hasMore && (
-              <div ref={lastElementRef} className="h-20 flex items-center justify-center">
-                  {isMoreLoading && (
-                      <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  )}
-              </div>
+                <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
+                    <div className="max-w-2xl mx-auto flex gap-3">
+                        {selectedRecommendReport.hasFile && (
+                             <button
+                                onClick={() => handleDownload(selectedRecommendReport)}
+                                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm"
+                            >
+                                <span className="material-symbols-outlined text-xl">download</span>
+                                PDF 다운로드
+                            </button>
+                        )}
+                        <button
+                            onClick={() => handleSaveReport(selectedRecommendReport)}
+                            disabled={savingId === selectedRecommendReport.id}
+                            className="flex-[2] flex items-center justify-center gap-2 py-3 px-6 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 disabled:opacity-50"
+                        >
+                            {savingId === selectedRecommendReport.id ? (
+                                <div className="size-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <>
+                                    <span className="material-symbols-outlined text-xl">auto_awesome</span>
+                                    AI 분석 및 저장하기
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        ) : (
+            /* Recommend List View */
+            <>
+            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
+            <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
+                {tabs.map(tab => {
+                    const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
+                    return (
+                        <div
+                            key={tab.id}
+                            className="relative flex-shrink-0 group transition-all"
+                            {...longPressHandlers}
+                        >
+                            <button
+                                onClick={() => setActiveTabId(tab.id)}
+                                className={cn(
+                                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                                    activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                                )}
+                            >
+                                {tab.name}
+                            </button>
+                        </div>
+                    );
+                })}
+            </div>
+            </div>
+
+            {showTabManager && (
+            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">리포트 URL 추가</p>
+                <input
+                type="text"
+                value={newTabName}
+                onChange={(e) => setNewTabName(e.target.value)}
+                placeholder="탭 이름 (예: 채권)"
+                className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                />
+                <input
+                type="text"
+                value={newTabUrl}
+                onChange={(e) => setNewTabUrl(e.target.value)}
+                placeholder="리포트 Ajax URL"
+                className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                />
+                <button
+                onClick={handleAddTab}
+                disabled={isAddingTab || !newTabName || !newTabUrl}
+                className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
+                >
+                {isAddingTab ? '추가 중...' : '탭 추가하기'}
+                </button>
+            </div>
             )}
-          </div>
+
+            {isLoading ? (
+            <div className="space-y-4">
+                {[...Array(5)].map((_, i) => (
+                <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl h-32 w-full animate-skeleton" />
+                ))}
+            </div>
+            ) : reports.length === 0 ? (
+            <div className="text-center py-20 text-slate-400 dark:text-slate-600">
+                <p>{tabs.length === 0 ? '탭을 추가해 주세요.' : '리포트 정보가 없습니다.'}</p>
+            </div>
+            ) : (
+            <div className="space-y-3">
+                {reports.map((report, idx) => (
+                <div
+                    key={report.id + idx}
+                    onClick={() => handleRecommendClick(report)}
+                    className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up cursor-pointer hover:border-primary/20 transition-colors"
+                >
+                    <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs font-bold text-primary">{report.institution}</span>
+                        <span className="text-xs text-slate-400">{report.date}</span>
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-2 leading-snug line-clamp-2">
+                        {report.title}
+                    </h3>
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">{report.author}</span>
+                        <div className="flex items-center gap-2">
+                             {report.hasFile && (
+                                <span className="material-symbols-outlined text-slate-400 text-base">picture_as_pdf</span>
+                            )}
+                            <span className="material-symbols-outlined text-slate-300 text-sm font-bold">arrow_forward_ios</span>
+                        </div>
+                    </div>
+                </div>
+                ))}
+
+                {hasMore && (
+                <div ref={lastElementRef} className="h-20 flex items-center justify-center">
+                    {isMoreLoading && (
+                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    )}
+                </div>
+                )}
+            </div>
+            )}
+            </>
         )}
         </>
         ) : selectedReportId && selectedReport ? (

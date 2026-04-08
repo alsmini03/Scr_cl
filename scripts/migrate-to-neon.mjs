@@ -30,8 +30,12 @@ async function migrateTable(airtableTableName, postgresTableName = airtableTable
     try {
       await client.query('BEGIN');
 
-      // Clear existing data to avoid duplicates
-      await client.query(`DELETE FROM ${postgresTableName}`);
+      // Clear existing data to avoid duplicates (using CASCADE for users/accounts etc)
+      if (['users', 'accounts', 'sessions', 'verification_token'].includes(postgresTableName)) {
+        await client.query(`TRUNCATE TABLE ${postgresTableName} CASCADE`);
+      } else {
+        await client.query(`DELETE FROM ${postgresTableName}`);
+      }
 
       for (const record of records) {
         const fields = record.fields;
