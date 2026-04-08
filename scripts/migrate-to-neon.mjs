@@ -79,7 +79,7 @@ async function run() {
     { airtable: 'users', postgres: 'users' },
     { airtable: 'accounts', postgres: 'accounts' },
     { airtable: 'sessions', postgres: 'sessions' },
-    { airtable: 'verification_token', postgres: 'verification_token' },
+    { airtable: 'verification_tokens', postgres: 'verification_token' },
     { airtable: 'books', postgres: 'books' },
     { airtable: 'naver_blogs', postgres: 'naver_blogs' },
     { airtable: 'youtube_videos', postgres: 'youtube_videos' },

@@ -383,11 +383,11 @@ export default function ReportClient({
         rightAction={
           <div className="flex items-center gap-1">
               <button
-                onClick={() => window.location.href = '/profile'}
+                onClick={() => window.location.href = '/settings/gemini'}
                 className="text-primary p-2"
                 title="Gemini 설정"
               >
-                <span className="material-symbols-outlined text-2xl">settings</span>
+                <span className="material-symbols-outlined text-2xl">settings_suggest</span>
               </button>
               <button
                 onClick={() => setShowTabManager(!showTabManager)}
