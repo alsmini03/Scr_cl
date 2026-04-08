@@ -21,14 +21,16 @@ import { useRouter } from 'next/navigation';
 interface GeminiModel {
   id: string;
   name: string;
-  is_default: boolean;
+  youtube_default: boolean;
+  report_default: boolean;
 }
 
 interface GeminiPrompt {
   id: string;
   name: string;
   content: string;
-  is_default: boolean;
+  youtube_default: boolean;
+  report_default: boolean;
 }
 
 export default function GeminiSettingsPage() {
@@ -204,22 +206,24 @@ export default function GeminiSettingsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 pt-2">
-                    {models.map(m => (
+                    {models.map(m => {
+                        const isDefault = category === 'report' ? m.report_default : m.youtube_default;
+                        return (
                         <div key={m.id} className={cn(
                             "flex items-center gap-2 border px-4 py-2 rounded-full text-sm transition-all",
-                            m.is_default ? "bg-primary text-white border-primary shadow-md" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-primary/10"
+                            isDefault ? "bg-primary text-white border-primary shadow-md" : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-primary/10"
                         )}>
                             <button onClick={() => handleSetDefaultModel(m.id)} className="font-bold hover:underline">{m.name}</button>
                             <div className="w-px h-3 bg-current opacity-20 mx-1"></div>
                             <button onClick={() => startEditModel(m)} className="opacity-60 hover:opacity-100"><span className="material-symbols-outlined text-[16px]">edit</span></button>
                             <button onClick={() => handleDeleteModel(m.id)} className={cn(
                                 "hover:text-red-500 flex items-center",
-                                m.is_default ? "text-white/70" : "text-slate-400"
+                                isDefault ? "text-white/70" : "text-slate-400"
                             )}>
                                 <span className="material-symbols-outlined text-[16px]">close</span>
                             </button>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </section>
@@ -266,10 +270,12 @@ export default function GeminiSettingsPage() {
                 <div className="space-y-3 pt-4 border-t border-slate-50 dark:border-primary/5">
                     <label className="text-xs font-bold text-slate-400 uppercase ml-1">저장된 프롬프트 목록</label>
                     <div className="grid gap-3">
-                        {prompts.map((p) => (
+                        {prompts.map((p) => {
+                            const isDefault = category === 'report' ? p.report_default : p.youtube_default;
+                            return (
                             <div key={p.id} className={cn(
                                 "group relative p-4 rounded-2xl border transition-all",
-                                p.is_default ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5"
+                                isDefault ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5"
                             )}>
                                 <div className="flex justify-between items-start mb-2">
                                     <button
@@ -277,10 +283,10 @@ export default function GeminiSettingsPage() {
                                         className="text-left"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <span className={cn("text-sm font-bold", p.is_default ? "text-primary" : "text-slate-900 dark:text-slate-100")}>
+                                            <span className={cn("text-sm font-bold", isDefault ? "text-primary" : "text-slate-900 dark:text-slate-100")}>
                                                 {p.name}
                                             </span>
-                                            {p.is_default && (
+                                            {isDefault && (
                                                 <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-bold">DEFAULT</span>
                                             )}
                                         </div>
@@ -298,7 +304,7 @@ export default function GeminiSettingsPage() {
                                     {p.content}
                                 </p>
                             </div>
-                        ))}
+                        )})}
                         {prompts.length === 0 && (
                             <div className="py-10 text-center text-slate-400 text-sm italic">저장된 프롬프트가 없습니다.</div>
                         )}

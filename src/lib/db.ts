@@ -840,7 +840,8 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
 export async function setDefaultGeminiModel(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_models SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3) AND category = $4", [id, user.id, user.email, category]);
+    const column = category === 'report' ? 'report_default' : 'youtube_default';
+    await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -888,7 +889,8 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
 export async function setDefaultGeminiPrompt(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_prompts SET is_default = (id = $1) WHERE (user_id = $2 OR user_id = $3) AND category = $4", [id, user.id, user.email, category]);
+    const column = category === 'report' ? 'report_default' : 'youtube_default';
+    await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

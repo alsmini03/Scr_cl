@@ -145,8 +145,8 @@ export default function YouTubeRecommendClient({
       // 1. Fetch Gemini settings
       const models = await getGeminiModels('youtube');
       const prompts = await getGeminiPrompts('youtube');
-      const selectedModel = models.find(m => m.is_default)?.name || models[0]?.name || "gemini-1.5-flash";
-      const selectedPrompt = prompts.find(p => p.is_default)?.content || prompts[0]?.content;
+      const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
 
       // 2. Use existing extract API
       const response = await fetch('/api/youtube/extract', {

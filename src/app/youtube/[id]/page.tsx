@@ -197,8 +197,8 @@ export default function YoutubeDetailPage() {
       const dbModels = await getGeminiModels('youtube');
       const dbPrompts = await getGeminiPrompts('youtube');
 
-      const defaultModel = dbModels.find(m => m.is_default) || dbModels[0];
-      const defaultPrompt = dbPrompts.find(p => p.is_default) || dbPrompts[0];
+      const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
+      const defaultPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];
 
       const response = await fetch('/api/youtube/extract', {
         method: 'POST',

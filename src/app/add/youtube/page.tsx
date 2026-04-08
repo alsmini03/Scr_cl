@@ -29,14 +29,16 @@ interface YouTubeMetadata {
 interface GeminiModel {
   id: string;
   name: string;
-  is_default: boolean;
+  youtube_default: boolean;
+  report_default: boolean;
 }
 
 interface GeminiPrompt {
   id: string;
   name: string;
   content: string;
-  is_default: boolean;
+  youtube_default: boolean;
+  report_default: boolean;
 }
 
 export default function AddYouTubePage() {
@@ -67,11 +69,11 @@ export default function AddYouTubePage() {
     const dbPrompts = await getGeminiPrompts('youtube');
 
     setModels(dbModels);
-    const defaultModel = dbModels.find(m => m.is_default) || dbModels[0];
+    const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
     if (defaultModel) setSelectedModel(defaultModel.name);
 
     setPrompts(dbPrompts);
-    const defaultPrompt = dbPrompts.find(p => p.is_default) || dbPrompts[0];
+    const defaultPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];
     if (defaultPrompt) setSelectedPromptId(defaultPrompt.id);
   };
 
