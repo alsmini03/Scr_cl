@@ -258,7 +258,8 @@ export default function ReportClient({
       if (report.scrapPath) {
           pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
       } else if (report.fileId && report.fileNum) {
-          pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}`;
+          const encodedTitle = encodeURIComponent(report.title);
+          pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
       }
 
       if (!pdfUrl) throw new Error('PDF URL not found');
@@ -735,7 +736,11 @@ export default function ReportClient({
 
                         {selectedReport.url && (
                              <a
-                                href={selectedReport.url}
+                                href={
+                                    selectedReport.url.includes('/api/report/download') && !selectedReport.url.includes('&title=')
+                                    ? `${selectedReport.url}&title=${encodeURIComponent(selectedReport.title)}`
+                                    : selectedReport.url
+                                }
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-primary/5 hover:bg-primary/5 transition-colors group"
