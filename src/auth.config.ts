@@ -43,18 +43,15 @@ export default {
         return Response.redirect(new URL('/login', nextUrl));
       }
 
-      if (isLoggedIn && isAuthPage) {
+      // Only redirect to home if both logged in AND approved
+      if (isLoggedIn && isApproved && isAuthPage) {
         return Response.redirect(new URL('/', nextUrl));
       }
 
-      // If logged in but not approved, and not on login page, we should restrict
-      // but standard authorized callback might not be the best place for "Approval" check
-      // if we want to show a specific "unapproved" state.
-      // For now, we strictly require isApproved for all non-auth pages if logged in.
+      // If logged in but not approved, and trying to access a protected page
       if (isLoggedIn && !isApproved && !isAuthPage) {
-        // We could redirect to a /pending page, but per request "only approved can use",
-        // so we treat unapproved as "unauthorized".
-        return false;
+        // Redirect to login page with an error parameter
+        return Response.redirect(new URL('/login?error=unapproved', nextUrl));
       }
 
       return true;
