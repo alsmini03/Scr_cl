@@ -207,18 +207,43 @@ export default function ReportClient({
       fetchContent(report);
   };
 
-  const handleDownload = async (report: Report) => {
-    if (report.scrapPath) {
+  const handleCopyUrl = (url?: string) => {
+      if (!url) return;
+      navigator.clipboard.writeText(url).then(() => {
+          alert('URL이 복사되었습니다.');
+      }).catch(err => {
+          console.error('Copy failed:', err);
+          alert('URL 복사에 실패했습니다.');
+      });
+  };
+
+  const handleDownload = async (report: Report | SavedReport) => {
+    let downloadUrl = '';
+
+    if ('scrapPath' in report && report.scrapPath) {
         window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
         return;
     }
 
-    if (!report.fileId || !report.fileNum) return;
+    if ('url' in report && report.url) {
+        downloadUrl = report.url;
+        if (downloadUrl.includes('/api/report/download') && !downloadUrl.includes('&title=')) {
+            downloadUrl += `&title=${encodeURIComponent(report.title)}`;
+        }
+    } else if ('fileId' in report && report.fileId && 'fileNum' in report && report.fileNum) {
+        const encodedTitle = encodeURIComponent(report.title);
+        downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
+    }
+
+    if (!downloadUrl) return;
+
+    // For external bondweb links, just open in new tab
+    if (downloadUrl.includes('bondweb.co.kr')) {
+        window.open(downloadUrl, '_blank');
+        return;
+    }
 
     try {
-        const encodedTitle = encodeURIComponent(report.title);
-        const downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
-
         const res = await fetch(downloadUrl, {
             method: 'GET'
         });
@@ -544,6 +569,50 @@ export default function ReportClient({
         {selectedRecommendReport ? (
             /* Recommend Detail View */
             <div className="space-y-6 animate-fade-in-up pb-20">
+                <div className="grid grid-cols-3 gap-2">
+                    <button
+                        onClick={() => {
+                            let url = '';
+                            if (selectedRecommendReport.scrapPath) {
+                                url = 'https://www.bondweb.co.kr' + selectedRecommendReport.scrapPath;
+                            } else if (selectedRecommendReport.fileId && selectedRecommendReport.fileNum) {
+                                url = `${window.location.origin}/api/report/download?number=${selectedRecommendReport.fileId}&gn=${selectedRecommendReport.fileNum}&title=${encodeURIComponent(selectedRecommendReport.title)}`;
+                            }
+                            handleCopyUrl(url);
+                        }}
+                        className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px]"
+                    >
+                        <span className="material-symbols-outlined text-lg">content_copy</span>
+                        URL 복사
+                    </button>
+                    {selectedRecommendReport.hasFile && (
+                            <button
+                            onClick={() => handleDownload(selectedRecommendReport)}
+                            className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px]"
+                        >
+                            <span className="material-symbols-outlined text-lg">download</span>
+                            PDF
+                        </button>
+                    )}
+                    <button
+                        onClick={() => handleSaveReport(selectedRecommendReport)}
+                        disabled={savingId === selectedRecommendReport.id}
+                        className={cn(
+                            "flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl font-bold text-[12px] shadow-lg shadow-primary/10 disabled:opacity-50",
+                            !selectedRecommendReport.hasFile && "col-span-2"
+                        )}
+                    >
+                        {savingId === selectedRecommendReport.id ? (
+                            <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                                저장
+                            </>
+                        )}
+                    </button>
+                </div>
+
                 <div className="flex justify-between items-start">
                     <div className="space-y-1">
                         <span className="text-xs font-bold text-primary">{selectedRecommendReport.institution}</span>
@@ -571,34 +640,6 @@ export default function ReportClient({
                 ) : (
                     <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
                 )}
-
-                <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
-                    <div className="max-w-2xl mx-auto flex gap-3">
-                        {selectedRecommendReport.hasFile && (
-                             <button
-                                onClick={() => handleDownload(selectedRecommendReport)}
-                                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm"
-                            >
-                                <span className="material-symbols-outlined text-xl">download</span>
-                                PDF
-                            </button>
-                        )}
-                        <button
-                            onClick={() => handleSaveReport(selectedRecommendReport)}
-                            disabled={savingId === selectedRecommendReport.id}
-                            className="flex-[2] flex items-center justify-center gap-2 py-3 px-6 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 disabled:opacity-50"
-                        >
-                            {savingId === selectedRecommendReport.id ? (
-                                <div className="size-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined text-xl">auto_awesome</span>
-                                    저장
-                                </>
-                            )}
-                        </button>
-                    </div>
-                </div>
             </div>
         ) : (
             /* Recommend List View */
@@ -790,6 +831,31 @@ export default function ReportClient({
                 ) : (
                     /* Read Mode */
                     <>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => {
+                                    let url = selectedReport.url || '';
+                                    if (url.includes('/api/report/download') && !url.includes('&title=')) {
+                                        url += `&title=${encodeURIComponent(selectedReport.title)}`;
+                                    }
+                                    handleCopyUrl(url);
+                                }}
+                                className="flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm"
+                            >
+                                <span className="material-symbols-outlined text-xl">content_copy</span>
+                                URL 복사
+                            </button>
+                            {selectedReport.url && (
+                                <button
+                                    onClick={() => handleDownload(selectedReport)}
+                                    className="flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm"
+                                >
+                                    <span className="material-symbols-outlined text-xl">picture_as_pdf</span>
+                                    PDF 보기
+                                </button>
+                            )}
+                        </div>
+
                         <div className="flex justify-between items-start">
                             <div className="space-y-1">
                                 <span className="text-xs font-bold text-primary">{selectedReport.institution}</span>
@@ -815,25 +881,6 @@ export default function ReportClient({
                                 </button>
                             </div>
                         </div>
-
-                        {selectedReport.url && (
-                             <a
-                                href={
-                                    selectedReport.url.includes('/api/report/download') && !selectedReport.url.includes('&title=')
-                                    ? `${selectedReport.url}&title=${encodeURIComponent(selectedReport.title)}`
-                                    : selectedReport.url
-                                }
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-slate-100 dark:border-primary/5 hover:bg-primary/5 transition-colors group"
-                             >
-                                <div className="flex items-center gap-3">
-                                    <span className="material-symbols-outlined text-slate-400 group-hover:text-primary">picture_as_pdf</span>
-                                    <span className="text-sm font-medium text-slate-600 dark:text-slate-400">원본 PDF 보기</span>
-                                </div>
-                                <span className="material-symbols-outlined text-slate-400 text-sm">open_in_new</span>
-                             </a>
-                        )}
 
                         {selectedReport.summary && (
                             <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
