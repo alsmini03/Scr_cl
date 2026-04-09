@@ -36,7 +36,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.email = token.email as string;
+        session.user.email = (token.email as string)?.toLowerCase();
+
+        // Ensure session isApproved mirrors the token (which includes our admin check)
         session.user.isApproved = !!token.isApproved;
       }
       return session;

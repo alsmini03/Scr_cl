@@ -21,16 +21,23 @@ export default {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id!; // Use actual database ID (UUID)
-        token.email = user.email!;
+        token.email = user.email!.toLowerCase();
+
         // Use more robust parsing for isApproved
         const rawApproved = (user as any).isApproved ?? (user as any).is_approved;
-        token.isApproved = rawApproved === true || rawApproved === 'true' || user.email === 'alsmini03@gmail.com';
+        // Hardcoded admin bypass with lowercase check
+        const isAdmin = token.email === 'alsmini03@gmail.com';
+
+        token.isApproved = rawApproved === true || rawApproved === 'true' || isAdmin;
       }
       return token;
     },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isApproved = (auth?.user as any)?.isApproved;
+      const userEmail = auth?.user?.email?.toLowerCase();
+      const isAdmin = userEmail === 'alsmini03@gmail.com';
+      const isApproved = !!((auth?.user as any)?.isApproved) || isAdmin;
+
       const isAuthPage = nextUrl.pathname.startsWith('/login');
       const isApiAuth = nextUrl.pathname.startsWith('/api/auth');
       const isPublicAsset = nextUrl.pathname.startsWith('/_next') ||
