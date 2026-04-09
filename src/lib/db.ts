@@ -148,6 +148,47 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
+  try {
+    if (params.fileId && params.fileNum) {
+      const directUrl = await resolveBondwebPdfUrl(params.fileId, params.fileNum);
+      if (directUrl) return directUrl;
+    }
+
+    if (params.url) {
+      // If it's already a direct Data link
+      if (params.url.includes('/Data/')) return params.url;
+
+      // If it's a download proxy link
+      if (params.url.includes('/api/report/download')) {
+        const urlObj = new URL(params.url, 'http://localhost');
+        const number = urlObj.searchParams.get('number');
+        const gn = urlObj.searchParams.get('gn');
+        if (number && gn) {
+          const directUrl = await resolveBondwebPdfUrl(number, gn);
+          if (directUrl) return directUrl;
+        }
+      }
+
+      // If it's a standard Bondweb download link
+      if (params.url.includes('DownloadPage.asp')) {
+        const urlObj = new URL(params.url);
+        const number = urlObj.searchParams.get('number');
+        const gn = urlObj.searchParams.get('gn');
+        if (number && gn) {
+          const directUrl = await resolveBondwebPdfUrl(number, gn);
+          if (directUrl) return directUrl;
+        }
+      }
+    }
+
+    return params.url || null;
+  } catch (e) {
+    console.error('getResolvedReportUrlAction error:', e);
+    return params.url || null;
+  }
+}
+
 export async function updateReport(id: string, report: {
   title: string;
   author?: string;

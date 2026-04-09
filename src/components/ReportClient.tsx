@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport, sendBatchEmailAction } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport, sendBatchEmailAction, getResolvedReportUrlAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -70,6 +70,7 @@ export default function ReportClient({
   const [isContentLoading, setIsContentLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [isCopying, setIsCopying] = useState(false);
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -571,20 +572,27 @@ export default function ReportClient({
             <div className="space-y-6 animate-fade-in-up pb-20">
                 <div className="grid grid-cols-3 gap-2">
                     <button
-                        onClick={() => {
-                            let url = '';
-                            if (selectedRecommendReport.scrapPath) {
-                                url = 'https://www.bondweb.co.kr' + selectedRecommendReport.scrapPath;
-                            } else if (selectedRecommendReport.fileId && selectedRecommendReport.fileNum) {
-                                // Direct Bondweb download link instead of internal API proxy
-                                url = `https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp?number=${selectedRecommendReport.fileId}&gn=${selectedRecommendReport.fileNum}`;
-                            }
-                            handleCopyUrl(url);
+                        onClick={async () => {
+                            setIsCopying(true);
+                            const directUrl = await getResolvedReportUrlAction({
+                                fileId: selectedRecommendReport.fileId,
+                                fileNum: selectedRecommendReport.fileNum,
+                                url: selectedRecommendReport.scrapPath ? 'https://www.bondweb.co.kr' + selectedRecommendReport.scrapPath : undefined
+                            });
+                            handleCopyUrl(directUrl || '');
+                            setIsCopying(false);
                         }}
-                        className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px]"
+                        disabled={isCopying}
+                        className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px] disabled:opacity-50"
                     >
-                        <span className="material-symbols-outlined text-lg">content_copy</span>
-                        URL 복사
+                        {isCopying ? (
+                            <div className="size-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>
+                                <span className="material-symbols-outlined text-lg">content_copy</span>
+                                URL 복사
+                            </>
+                        )}
                     </button>
                     {selectedRecommendReport.hasFile && (
                             <button
@@ -835,21 +843,24 @@ export default function ReportClient({
                         <div className="grid grid-cols-2 gap-2">
                             <button
                                 onClick={async () => {
-                                    let url = selectedReport.url || '';
-                                    if (url.includes('/api/report/download')) {
-                                        const urlObj = new URL(url, window.location.origin);
-                                        const number = urlObj.searchParams.get('number');
-                                        const gn = urlObj.searchParams.get('gn');
-                                        if (number && gn) {
-                                            url = `https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp?number=${number}&gn=${gn}`;
-                                        }
-                                    }
-                                    handleCopyUrl(url);
+                                    setIsCopying(true);
+                                    const directUrl = await getResolvedReportUrlAction({
+                                        url: selectedReport.url
+                                    });
+                                    handleCopyUrl(directUrl || '');
+                                    setIsCopying(false);
                                 }}
-                                className="flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm"
+                                disabled={isCopying}
+                                className="flex items-center justify-center gap-2 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-sm disabled:opacity-50"
                             >
-                                <span className="material-symbols-outlined text-xl">content_copy</span>
-                                URL 복사
+                                {isCopying ? (
+                                    <div className="size-5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        <span className="material-symbols-outlined text-xl">content_copy</span>
+                                        URL 복사
+                                    </>
+                                )}
                             </button>
                             {selectedReport.url && (
                                 <button
