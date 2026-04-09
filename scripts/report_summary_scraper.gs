@@ -30,7 +30,7 @@ function main() {
     }
 
     let emailHtml = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
+      <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto;">
     `;
 
     for (let i = 0; i < reports.length; i++) {
