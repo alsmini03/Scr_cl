@@ -7,6 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
 import { getBookById, updateBook, softDeleteBook } from '@/lib/db';
+import { showToast } from '@/components/Toast';
 
 export default function BookDetailPage() {
   const params = useParams();
@@ -50,11 +51,11 @@ export default function BookDetailPage() {
       };
 
       await updateBook(updatedBook);
-      alert('기록이 저장되었습니다.');
+      showToast('기록이 저장되었습니다.');
       router.push('/');
     } catch (error) {
       console.error('Failed to update book:', error);
-      alert('저장에 실패했습니다.');
+      showToast('저장에 실패했습니다.', 'error');
     }
   };
 
@@ -64,11 +65,11 @@ export default function BookDetailPage() {
     if (confirm('정말로 이 책을 삭제하시겠습니까?')) {
       try {
         await softDeleteBook(book.id);
-        alert('책이 삭제되었습니다.');
+        showToast('책이 삭제되었습니다.');
         router.push('/');
       } catch (error) {
         console.error('Failed to delete book:', error);
-        alert('삭제에 실패했습니다.');
+        showToast('삭제에 실패했습니다.', 'error');
       }
     }
   };

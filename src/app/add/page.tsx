@@ -7,6 +7,7 @@ import { cn, isThumbnailInContent } from '@/lib/utils';
 import { saveBook, saveBlog } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
+import { showToast } from '@/components/Toast';
 
 interface ExtractedBook {
   title: string;
@@ -105,7 +106,7 @@ function AddContent() {
       });
 
       if (result.success) {
-        if (showSuccessAlert) alert('새 책이 서재에 추가되었습니다.');
+        if (showSuccessAlert) showToast('내 서재에 추가되었습니다.');
         router.push('/');
         return { success: true };
       } else {
@@ -153,7 +154,7 @@ function AddContent() {
           published_at: extractedBlog.published_at
       });
       if (res.success) {
-          alert('블로그 글이 저장되었습니다.');
+          showToast('내 서재에 추가되었습니다.');
           router.push('/blog');
       } else {
           alert(res.error);
@@ -198,7 +199,7 @@ function AddContent() {
       });
 
       if (saveResult.success) {
-        alert('자동 추가되었습니다.');
+        showToast('내 서재에 추가되었습니다.');
         router.push('/');
       } else {
         alert(`자동 저장 실패: ${saveResult.error}`);

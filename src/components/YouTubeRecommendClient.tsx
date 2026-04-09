@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
 import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, sendBatchEmailAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
@@ -126,8 +127,11 @@ export default function YouTubeRecommendClient({
   }, [activeTabId, tabs, viewMode]);
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url).catch(err => {
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('URL이 복사되었습니다.');
+    }).catch(err => {
       console.error('Copy failed:', err);
+      showToast('URL 복사에 실패했습니다.', 'error');
     });
   };
 
@@ -174,7 +178,7 @@ export default function YouTubeRecommendClient({
       });
 
       if (result.success && result.id) {
-        alert('유튜브 영상이 내 서재에 추가되었습니다.');
+        showToast('내 서재에 추가되었습니다.');
         setMyVideos(prev => [{
             id: result.id,
             title: data.title || video.title,
@@ -297,7 +301,7 @@ export default function YouTubeRecommendClient({
       const items = selectedIds.map(id => ({ type: 'youtube' as const, id }));
       const res = await sendBatchEmailAction(items, email);
       if (res.success) {
-        alert(`${selectedIds.length}개의 영상 정보가 메일로 발송되었습니다.`);
+        showToast('메일이 발송되었습니다.');
         setIsEditMode(false);
         setSelectedIds([]);
       } else {

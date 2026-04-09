@@ -8,6 +8,7 @@ import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 
 interface ClientLibraryProps {
   session: { user?: { name?: string | null, email?: string | null, image?: string | null } } | null;
@@ -63,7 +64,7 @@ export default function ClientLibrary({
       const result = await actions.batchDeleteBooks(selectedIds);
 
       if (result.success) {
-        alert('삭제되었습니다.');
+        showToast('삭제되었습니다.');
         setSelectedIds([]);
         setIsEditMode(false);
         router.refresh();

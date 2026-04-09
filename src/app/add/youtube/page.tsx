@@ -13,6 +13,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import rehypeRaw from 'rehype-raw';
 import { cn } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 import he from 'he';
 import ReactMarkdown from 'react-markdown';
 
@@ -143,7 +144,7 @@ export default function AddYouTubePage() {
       });
 
       if (result.success) {
-        if (showSuccessAlert) alert('유튜브 영상 정보가 저장되었습니다.');
+        if (showSuccessAlert) showToast('내 서재에 추가되었습니다.');
         return { success: true };
       } else {
         if (showSuccessAlert) alert(`저장에 실패했습니다: ${result.error}`);
@@ -201,7 +202,7 @@ export default function AddYouTubePage() {
       });
 
       if (saveResult.success) {
-        alert('자동 추가되었습니다.');
+        showToast('내 서재에 추가되었습니다.');
         router.push('/');
       } else {
         alert(`자동 저장 실패: ${saveResult.error}`);

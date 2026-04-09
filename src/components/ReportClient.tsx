@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
 import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, deleteReport, updateReport, sendBatchEmailAction, getResolvedReportUrlAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
 import { marked } from 'marked';
@@ -211,10 +212,10 @@ export default function ReportClient({
   const handleCopyUrl = (url?: string) => {
       if (!url) return;
       navigator.clipboard.writeText(url).then(() => {
-          alert('URL이 복사되었습니다.');
+          showToast('URL이 복사되었습니다.');
       }).catch(err => {
           console.error('Copy failed:', err);
-          alert('URL 복사에 실패했습니다.');
+          showToast('URL 복사에 실패했습니다.', 'error');
       });
   };
 
@@ -314,7 +315,7 @@ export default function ReportClient({
       });
 
       if (result.success && result.id) {
-        alert('리포트가 저장되었습니다.');
+        showToast('내 서재에 추가되었습니다.');
         setSavedReports(prev => [{
             id: result.id!,
             title: report.title,
@@ -402,7 +403,7 @@ export default function ReportClient({
       const items = selectedIds.map(id => ({ type: 'report' as const, id }));
       const res = await sendBatchEmailAction(items, email);
       if (res.success) {
-        alert(`${selectedIds.length}개의 리포트 정보가 메일로 발송되었습니다.`);
+        showToast('메일이 발송되었습니다.');
         setIsEditMode(false);
         setSelectedIds([]);
       } else {

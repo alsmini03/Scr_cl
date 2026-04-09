@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useMemo } from 'react';
 import { saveBook, addYes24Tab, deleteYes24Tab, updateYes24TabOrder } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
@@ -152,7 +153,7 @@ export default function BestClient({
       });
 
       if (saveRes.success && saveRes.data) {
-        alert(`'${book.title}'이(가) 상세 정보와 함께 서재에 추가되었습니다.`);
+        showToast('내 서재에 추가되었습니다.');
         setMyBooks(prev => [saveRes.data!, ...prev]);
       }
     } catch (error) {
@@ -190,7 +191,7 @@ export default function BestClient({
       const result = await actions.batchDeleteBooks(selectedIds);
 
       if (result.success) {
-        alert('삭제되었습니다.');
+        showToast('삭제되었습니다.');
         setMyBooks(prev => prev.filter(b => !selectedIds.includes(b.id)));
         setSelectedIds([]);
         setIsEditMode(false);
