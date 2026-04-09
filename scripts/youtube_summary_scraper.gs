@@ -43,7 +43,7 @@ function main() {
             <div style="font-size: 0.8em; color: #888; margin-bottom: 15px;">
               <a href="${video.url}" target="_blank" style="color: #1978e5; text-decoration: none;">유튜브에서 보기</a>
             </div>
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+            <div style="padding: 15px; border-radius: 8px;">
               <h3 style="margin-top: 0; font-size: 0.9em; color: #1978e5; text-transform: uppercase;">AI 요약 분석</h3>
               <div style="font-size: 0.95em; white-space: pre-wrap;">${summary}</div>
             </div>

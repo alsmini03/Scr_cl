@@ -330,7 +330,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
                 <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
                 <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
               </p>
-              <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+              <div style="padding: 15px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
                 <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
               </div>
@@ -393,7 +393,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               })() : ''}
 
               ${summaryHtml ? `
-              <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+              <div style="padding: 15px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
                 <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
               </div>

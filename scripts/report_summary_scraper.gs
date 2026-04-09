@@ -54,7 +54,7 @@ function main() {
             <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
               <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
             </p>
-            <div style="background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid #1978e5;">
+            <div style="padding: 15px; border-radius: 8px;">
               <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 리포트 분석</h3>
               <div style="font-size: 14px; color: #444; line-height: 1.6; white-space: pre-wrap;">${summary}</div>
             </div>
