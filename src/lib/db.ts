@@ -810,7 +810,7 @@ export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; 
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_models SET name = $1 WHERE id = $2", [name, id]);
+    await query("UPDATE gemini_models SET name = $1 WHERE id = $2 AND (user_id = $3 OR user_id = $4)", [name, id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -830,7 +830,7 @@ export async function deleteGeminiModel(id: string): Promise<{ success: boolean;
 export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query("UPDATE gemini_prompts SET name = $1, content = $2 WHERE id = $3", [name, content, id]);
+    await query("UPDATE gemini_prompts SET name = $1, content = $2 WHERE id = $3 AND (user_id = $4 OR user_id = $5)", [name, content, id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

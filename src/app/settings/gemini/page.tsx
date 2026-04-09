@@ -35,7 +35,7 @@ interface GeminiPrompt {
 
 export default function GeminiSettingsPage() {
   const router = useRouter();
-  const [category, setCategory] = useState<'youtube' | 'report'>('youtube');
+  const [activeTab, setActiveTab] = useState<'youtube' | 'report'>('youtube');
   const [models, setModels] = useState<GeminiModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
@@ -92,7 +92,7 @@ export default function GeminiSettingsPage() {
   };
 
   const handleSetDefaultModel = async (id: string) => {
-    const res = await setDefaultGeminiModel(id, category);
+    const res = await setDefaultGeminiModel(id, activeTab);
     if (res.success) {
       await loadSettings();
     }
@@ -136,7 +136,7 @@ export default function GeminiSettingsPage() {
   };
 
   const handleSetDefaultPrompt = async (id: string) => {
-    const res = await setDefaultGeminiPrompt(id, category);
+    const res = await setDefaultGeminiPrompt(id, activeTab);
     if (res.success) {
       await loadSettings();
     }
@@ -148,23 +148,23 @@ export default function GeminiSettingsPage() {
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-10">
 
-        {/* Category Toggle */}
+        {/* Tab Picker */}
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-primary/10">
             <button
-                onClick={() => setCategory('youtube')}
+                onClick={() => setActiveTab('youtube')}
                 className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
-                    category === 'youtube' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    activeTab === 'youtube' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 )}
             >
                 <span className="material-symbols-outlined text-lg">smart_display</span>
-                유튜브
+                유튜브 디폴트 설정
             </button>
             <button
-                onClick={() => setCategory('report')}
+                onClick={() => setActiveTab('report')}
                 className={cn(
                     "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
-                    category === 'report' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                    activeTab === 'report' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 )}
             >
                 <span className="material-symbols-outlined text-lg">description</span>
@@ -207,7 +207,7 @@ export default function GeminiSettingsPage() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                     {models.map(m => {
-                        const isDefault = category === 'report' ? m.report_default : m.youtube_default;
+                        const isDefault = activeTab === 'report' ? m.report_default : m.youtube_default;
                         return (
                         <div key={m.id} className={cn(
                             "flex items-center gap-2 border px-4 py-2 rounded-full text-sm transition-all",
@@ -271,7 +271,7 @@ export default function GeminiSettingsPage() {
                     <label className="text-xs font-bold text-slate-400 uppercase ml-1">저장된 프롬프트 목록</label>
                     <div className="grid gap-3">
                         {prompts.map((p) => {
-                            const isDefault = category === 'report' ? p.report_default : p.youtube_default;
+                            const isDefault = activeTab === 'report' ? p.report_default : p.youtube_default;
                             return (
                             <div key={p.id} className={cn(
                                 "group relative p-4 rounded-2xl border transition-all",

@@ -300,9 +300,7 @@ export default function ReportClient({
             content: viewingContent?.id === report.id ? viewingContent.content : '',
             added_at: new Date().toISOString()
         }, ...prev]);
-        // Go back to list after save
-        setSelectedRecommendReport(null);
-        setViewMode('my');
+        // Stay in recommendation list after save
       } else {
         alert(`저장 실패: ${result.error}`);
       }
@@ -818,19 +816,6 @@ export default function ReportClient({
                             </div>
                         </div>
 
-                        {selectedReport.summary && (
-                            <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
-                                <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
-                                    <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                                    AI 요약 분석
-                                </h3>
-                                <div
-                                    className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
-                                    dangerouslySetInnerHTML={{ __html: marked.parse(selectedReport.summary) }}
-                                />
-                            </div>
-                        )}
-
                         {selectedReport.url && (
                              <a
                                 href={
@@ -848,6 +833,19 @@ export default function ReportClient({
                                 </div>
                                 <span className="material-symbols-outlined text-slate-400 text-sm">open_in_new</span>
                              </a>
+                        )}
+
+                        {selectedReport.summary && (
+                            <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
+                                <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                                    AI 요약 분석
+                                </h3>
+                                <div
+                                    className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                                    dangerouslySetInnerHTML={{ __html: marked.parse(selectedReport.summary) }}
+                                />
+                            </div>
                         )}
                     </>
                 )}

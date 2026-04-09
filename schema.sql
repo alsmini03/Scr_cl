@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS gemini_models (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
-  category TEXT DEFAULT 'youtube',
   youtube_default BOOLEAN DEFAULT FALSE,
   report_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -55,7 +54,6 @@ CREATE TABLE IF NOT EXISTS gemini_prompts (
   user_id TEXT NOT NULL,
   name TEXT NOT NULL,
   content TEXT NOT NULL,
-  category TEXT DEFAULT 'youtube',
   youtube_default BOOLEAN DEFAULT FALSE,
   report_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
