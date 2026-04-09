@@ -576,7 +576,8 @@ export default function ReportClient({
                             if (selectedRecommendReport.scrapPath) {
                                 url = 'https://www.bondweb.co.kr' + selectedRecommendReport.scrapPath;
                             } else if (selectedRecommendReport.fileId && selectedRecommendReport.fileNum) {
-                                url = `${window.location.origin}/api/report/download?number=${selectedRecommendReport.fileId}&gn=${selectedRecommendReport.fileNum}&title=${encodeURIComponent(selectedRecommendReport.title)}`;
+                                // Direct Bondweb download link instead of internal API proxy
+                                url = `https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp?number=${selectedRecommendReport.fileId}&gn=${selectedRecommendReport.fileNum}`;
                             }
                             handleCopyUrl(url);
                         }}
@@ -833,10 +834,15 @@ export default function ReportClient({
                     <>
                         <div className="grid grid-cols-2 gap-2">
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     let url = selectedReport.url || '';
-                                    if (url.includes('/api/report/download') && !url.includes('&title=')) {
-                                        url += `&title=${encodeURIComponent(selectedReport.title)}`;
+                                    if (url.includes('/api/report/download')) {
+                                        const urlObj = new URL(url, window.location.origin);
+                                        const number = urlObj.searchParams.get('number');
+                                        const gn = urlObj.searchParams.get('gn');
+                                        if (number && gn) {
+                                            url = `https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/DownloadPage.asp?number=${number}&gn=${gn}`;
+                                        }
                                     }
                                     handleCopyUrl(url);
                                 }}

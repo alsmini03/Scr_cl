@@ -30,16 +30,14 @@ export default {
     },
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
+      const isApproved = (auth?.user as any)?.isApproved;
       const isAuthPage = nextUrl.pathname.startsWith('/login');
       const isApiAuth = nextUrl.pathname.startsWith('/api/auth');
       const isPublicAsset = nextUrl.pathname.startsWith('/_next') ||
                           nextUrl.pathname.startsWith('/favicon.ico') ||
                           nextUrl.pathname.startsWith('/icons/');
-      const isHome = nextUrl.pathname === '/';
-      const isDev = process.env.NODE_ENV === 'development';
 
       if (isApiAuth || isPublicAsset) return true;
-      if (isHome || (isDev && nextUrl.pathname.startsWith('/add'))) return true;
 
       if (!isLoggedIn && !isAuthPage) {
         return Response.redirect(new URL('/login', nextUrl));
@@ -47,6 +45,16 @@ export default {
 
       if (isLoggedIn && isAuthPage) {
         return Response.redirect(new URL('/', nextUrl));
+      }
+
+      // If logged in but not approved, and not on login page, we should restrict
+      // but standard authorized callback might not be the best place for "Approval" check
+      // if we want to show a specific "unapproved" state.
+      // For now, we strictly require isApproved for all non-auth pages if logged in.
+      if (isLoggedIn && !isApproved && !isAuthPage) {
+        // We could redirect to a /pending page, but per request "only approved can use",
+        // so we treat unapproved as "unauthorized".
+        return false;
       }
 
       return true;
