@@ -61,24 +61,33 @@ export async function POST(req: NextRequest) {
     const mnuMatch = /SubDiv=Sub(\d+)/.exec(url);
     const nwMnu = mnuMatch ? mnuMatch[1].substring(0, 2) : '04';
 
-    const params = new URLSearchParams();
-    params.append('selMnuT', selMnuT);
-    params.append('selMnuB', selMnuB);
-    params.append('lstNumN', '0');
-    params.append('lstNumO', lstNumO);
-    params.append('actNum', actNum);
-    params.append('srhDate', srhDate);
-    params.append('srhItem', srhItem);
-    params.append('srhWord', srhWord);
-    params.append('BoardLink', '');
-    params.append('NWMnu', nwMnu);
+    // IMPORTANT: Bondweb uses EUC-KR encoding for search words.
+    // URLSearchParams automatically encodes in UTF-8, so we must manually construct the body.
+    const encodeEucKr = (val: string) => {
+        const buffer = iconv.encode(val, 'euc-kr');
+        return Array.from(buffer).map(b => '%' + b.toString(16).toUpperCase()).join('');
+    };
+
+    const bodyParts = [
+        `selMnuT=${encodeURIComponent(selMnuT)}`,
+        `selMnuB=${encodeURIComponent(selMnuB)}`,
+        `lstNumN=0`,
+        `lstNumO=${lstNumO}`,
+        `actNum=${actNum}`,
+        `srhDate=${srhDate}`,
+        `srhItem=${srhItem}`,
+        `srhWord=${encodeEucKr(srhWord)}`,
+        `BoardLink=`,
+        `NWMnu=${nwMnu}`,
+        `DATA_CYCLE=`
+    ];
+
     if (!isAllReport) {
-        params.append('HotClick', '1');
-        params.append('HotClickSearchDate', '0');
+        bodyParts.push('HotClick=1');
+        bodyParts.push('HotClickSearchDate=0');
     } else {
-        params.append('HcCnt', '5');
+        bodyParts.push('HcCnt=5');
     }
-    params.append('DATA_CYCLE', '');
 
     const response = await fetch(ajaxUrl, {
       method: 'POST',
@@ -86,7 +95,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
-      body: params.toString(),
+      body: bodyParts.join('&'),
     });
 
     const buffer = await response.arrayBuffer();

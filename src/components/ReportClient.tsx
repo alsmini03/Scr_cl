@@ -72,25 +72,7 @@ export default function ReportClient({
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
   // Search State
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [searchWord, setSearchWord] = useState('');
-
-  useEffect(() => {
-      const today = new Date();
-      const threeYearsAgo = new Date();
-      threeYearsAgo.setFullYear(today.getFullYear() - 3);
-
-      const formatDate = (d: Date) => {
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-      };
-
-      setStartDate(formatDate(threeYearsAgo));
-      setEndDate(formatDate(today));
-  }, []);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
 
@@ -154,10 +136,6 @@ export default function ReportClient({
       const activeTab = tabs.find(t => t.id === activeTabId);
       const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400';
 
-      const srhDate = (startDate && endDate)
-          ? `${startDate.replace(/-/g, '')}-${endDate.replace(/-/g, '')}`
-          : '';
-
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,7 +143,7 @@ export default function ReportClient({
             url,
             lstNumO: isInitial ? '0' : lastId,
             actNum: isInitial ? '0' : '2',
-            srhDate,
+            srhDate: '',
             srhWord: searchWord
         })
       });
@@ -690,21 +668,6 @@ export default function ReportClient({
             <div className="flex flex-col flex-1 gap-3">
             {/* Search Bar */}
             <div className="flex flex-col gap-2 p-1">
-                <div className="flex gap-2">
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[11px] font-bold p-2 outline-none text-slate-600 dark:text-slate-300"
-                    />
-                    <div className="flex items-center text-slate-400">~</div>
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[11px] font-bold p-2 outline-none text-slate-600 dark:text-slate-300"
-                    />
-                </div>
                 <div className="flex gap-2">
                     <div className="flex-1 relative">
                         <input
