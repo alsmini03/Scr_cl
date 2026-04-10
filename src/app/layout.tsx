@@ -11,7 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Book Journal",
+  title: "Scrap",
   description: "Record your reading journey",
 };
 

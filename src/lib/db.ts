@@ -333,7 +333,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
 
       subject = `${firstTitle} (${items.length}개)`;
     } else {
-      subject = '[Book Journal] 공유된 항목';
+      subject = '[Scrap] 공유된 항목';
     }
 
     let tocHtml = '';

@@ -15,7 +15,7 @@ function LoginContent() {
         <div className="size-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <span className="material-symbols-outlined text-5xl text-primary">menu_book</span>
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Book Journal</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Scrap</h1>
         <p className="text-slate-500 dark:text-slate-400">나만의 독서 기록장을 시작해 보세요</p>
       </div>
 
@@ -41,7 +41,7 @@ function LoginContent() {
       </div>
 
       <div className="mt-12 text-slate-400 text-xs">
-        <p>© 2026 Book Journal. All rights reserved.</p>
+        <p>© 2026 Scrap. All rights reserved.</p>
       </div>
     </div>
   );
