@@ -64,9 +64,14 @@ export async function POST(req: NextRequest) {
     // IMPORTANT: Bondweb uses EUC-KR encoding for search words.
     // URLSearchParams automatically encodes in UTF-8, so we must manually construct the body.
     const encodeEucKr = (val: string) => {
+        if (!val) return '';
         const buffer = iconv.encode(val, 'euc-kr');
-        return Array.from(buffer).map(b => '%' + b.toString(16).toUpperCase()).join('');
+        // Correctly pad hex values with leading zeros
+        return Array.from(buffer).map(b => '%' + b.toString(16).padStart(2, '0').toUpperCase()).join('');
     };
+
+    // If search word is provided, we might need a wide date range for results to appear
+    const finalSrhDate = (srhWord && !srhDate) ? '19900101-20991231' : srhDate;
 
     const bodyParts = [
         `selMnuT=${encodeURIComponent(selMnuT)}`,
@@ -74,7 +79,7 @@ export async function POST(req: NextRequest) {
         `lstNumN=0`,
         `lstNumO=${lstNumO}`,
         `actNum=${actNum}`,
-        `srhDate=${srhDate}`,
+        `srhDate=${finalSrhDate}`,
         `srhItem=${srhItem}`,
         `srhWord=${encodeEucKr(srhWord)}`,
         `BoardLink=`,
@@ -82,11 +87,19 @@ export async function POST(req: NextRequest) {
         `DATA_CYCLE=`
     ];
 
-    if (!isAllReport) {
+    if (!isAllReport && !srhWord) {
         bodyParts.push('HotClick=1');
         bodyParts.push('HotClickSearchDate=0');
-    } else {
+    } else if (isAllReport) {
         bodyParts.push('HcCnt=5');
+    }
+
+    if (process.env.NODE_ENV === 'development') {
+        console.log('Bondweb Search Request:', {
+            ajaxUrl,
+            body: bodyParts.join('&'),
+            srhWord
+        });
     }
 
     const response = await fetch(ajaxUrl, {
