@@ -124,7 +124,7 @@ export default function BestClient({
     e.stopPropagation();
 
     if (!session) {
-      alert('로그인이 필요한 서비스입니다.');
+      showToast('로그인이 필요한 서비스입니다.', 'info');
       return;
     }
 
@@ -155,10 +155,12 @@ export default function BestClient({
       if (saveRes.success && saveRes.data) {
         showToast('내 서재에 추가되었습니다.');
         setMyBooks(prev => [saveRes.data!, ...prev]);
+      } else {
+        showToast(saveRes.error || '저장 실패', 'error');
       }
     } catch (error) {
       console.error(error);
-      alert('서재 추가에 실패했습니다.');
+      showToast('서재 추가에 실패했습니다.', 'error');
     } finally {
       setAddingId(null);
     }
@@ -196,11 +198,11 @@ export default function BestClient({
         setSelectedIds([]);
         setIsEditMode(false);
       } else {
-        alert(`삭제 실패: ${result.error}`);
+        showToast(`삭제 실패: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Batch delete error:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      showToast('삭제 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -211,12 +213,15 @@ export default function BestClient({
     setIsAddingTab(true);
     const res = await addYes24Tab(newTabName, newTabUrl);
     if (res.success && res.id) {
+      const newTab = { id: res.id, name: newTabName, url: newTabUrl, position: tabs.length };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(res.id);
       setNewTabName('');
       setNewTabUrl('');
-      localStorage.setItem('yes24_active_tab', res.id);
-      window.location.reload();
+      setShowTabManager(false);
+      showToast('탭이 추가되었습니다.');
     } else {
-      alert(res.error);
+      showToast(res.error || '탭 추가 실패', 'error');
     }
     setIsAddingTab(false);
   };
@@ -228,6 +233,9 @@ export default function BestClient({
     if (res.success) {
       if (activeTabId === id) setActiveTabId(tabs.find(t => t.id !== id)?.id || null);
       setTabs(prev => prev.filter(t => t.id !== id));
+      showToast('탭이 삭제되었습니다.');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
     }
   };
 

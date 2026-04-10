@@ -198,7 +198,7 @@ export default function ReportClient({
         setViewingContent({ id: report.id, content: html });
     } catch (err) {
         console.error(err);
-        alert('내용을 불러오는 중 오류가 발생했습니다.');
+        showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
     } finally {
         setIsContentLoading(false);
     }
@@ -264,13 +264,13 @@ export default function ReportClient({
         window.URL.revokeObjectURL(url);
     } catch (error) {
         console.error('Download error:', error);
-        alert('다운로드 중 오류가 발생했습니다.');
+        showToast('다운로드 중 오류가 발생했습니다.', 'error');
     }
   };
 
   const handleSaveReport = async (report: Report) => {
     if (!session) {
-      alert('로그인이 필요한 서비스입니다.');
+      showToast('로그인이 필요한 서비스입니다.', 'info');
       return;
     }
 
@@ -329,11 +329,11 @@ export default function ReportClient({
         }, ...prev]);
         // Stay in recommendation list after save
       } else {
-        alert(`저장 실패: ${result.error}`);
+        showToast(`저장 실패: ${result.error}`, 'error');
       }
     } catch (error: any) {
       console.error(error);
-      alert(`리포트 저장에 실패했습니다: ${error.message}`);
+      showToast(`리포트 저장에 실패했습니다: ${error.message}`, 'error');
     } finally {
       setSavingId(null);
     }
@@ -407,10 +407,10 @@ export default function ReportClient({
         setIsEditMode(false);
         setSelectedIds([]);
       } else {
-        alert(res.error);
+        showToast(res.error || '발송 실패', 'error');
       }
     } catch (err: any) {
-      alert(`발송 실패: ${err.message}`);
+      showToast(`발송 실패: ${err.message}`, 'error');
     } finally {
       setIsSendingEmail(false);
     }
@@ -445,8 +445,9 @@ export default function ReportClient({
                 : r
             ));
             setIsEditing(false);
+            showToast('수정되었습니다.');
         } else {
-            alert(res.error);
+            showToast(res.error || '수정 실패', 'error');
         }
     } catch (err) {
         console.error(err);
@@ -462,12 +463,13 @@ export default function ReportClient({
     if (res.success && res.id) {
       setNewTabName('');
       setNewTabUrl('');
-      const newTabs = [...tabs, { id: res.id, name: newTabName, url: newTabUrl }];
-      setTabs(newTabs);
+      const newTab = { id: res.id, name: newTabName, url: newTabUrl, position: tabs.length };
+      setTabs(prev => [...prev, newTab]);
       setActiveTabId(res.id);
       setShowTabManager(false);
+      showToast('탭이 추가되었습니다.');
     } else {
-      alert(res.error);
+      showToast(res.error || '탭 추가 실패', 'error');
     }
     setIsAddingTab(false);
   };
@@ -482,6 +484,9 @@ export default function ReportClient({
       if (activeTabId === id) {
           setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
       }
+      showToast('탭이 삭제되었습니다.');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
     }
   };
 

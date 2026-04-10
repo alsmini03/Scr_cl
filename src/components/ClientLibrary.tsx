@@ -69,11 +69,11 @@ export default function ClientLibrary({
         setIsEditMode(false);
         router.refresh();
       } else {
-        alert(`삭제 실패: ${result.error}`);
+        showToast(`삭제 실패: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Batch delete error:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      showToast('삭제 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsDeleting(false);
     }

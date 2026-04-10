@@ -140,7 +140,7 @@ export default function YouTubeRecommendClient({
     e.stopPropagation();
 
     if (!session) {
-      alert('로그인이 필요한 서비스입니다.');
+      showToast('로그인이 필요한 서비스입니다.', 'info');
       return;
     }
 
@@ -189,11 +189,11 @@ export default function YouTubeRecommendClient({
             added_at: new Date().toISOString()
         }, ...prev]);
       } else {
-        alert(`추가 실패: ${result.error}`);
+        showToast(`추가 실패: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error(error);
-      alert('유튜브 영상 추가에 실패했습니다.');
+      showToast('유튜브 영상 추가에 실패했습니다.', 'error');
     } finally {
       setAddingId(null);
     }
@@ -204,12 +204,15 @@ export default function YouTubeRecommendClient({
     setIsAddingTab(true);
     const res = await addYoutubeTab(newTabName, newTabUrl);
     if (res.success && res.id) {
+      const newTab = { id: res.id, name: newTabName, url: newTabUrl, position: tabs.length };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(res.id);
       setNewTabName('');
       setNewTabUrl('');
-      localStorage.setItem('youtube_recommend_tab_v2', res.id);
-      window.location.reload();
+      setShowTabManager(false);
+      showToast('탭이 추가되었습니다.');
     } else {
-      alert(res.error);
+      showToast(res.error || '탭 추가 실패', 'error');
     }
     setIsAddingTab(false);
   };
@@ -221,6 +224,9 @@ export default function YouTubeRecommendClient({
     if (res.success) {
       if (activeTabId === id) setActiveTabId('all');
       setTabs(prev => prev.filter(t => t.id !== id));
+      showToast('탭이 삭제되었습니다.');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
     }
   };
 
@@ -281,8 +287,9 @@ export default function YouTubeRecommendClient({
         setIsEditMode(false);
         setMyVideos(prev => prev.filter(v => !selectedIds.includes(v.id)));
         setSelectedIds([]);
+        showToast('삭제되었습니다.');
     } else {
-        alert(res.error);
+        showToast(res.error || '삭제 실패', 'error');
     }
     setIsLoading(false);
   };
@@ -305,10 +312,10 @@ export default function YouTubeRecommendClient({
         setIsEditMode(false);
         setSelectedIds([]);
       } else {
-        alert(res.error);
+        showToast(res.error || '발송 실패', 'error');
       }
     } catch (err: any) {
-      alert(`발송 실패: ${err.message}`);
+      showToast(`발송 실패: ${err.message}`, 'error');
     } finally {
       setIsSendingEmail(false);
     }

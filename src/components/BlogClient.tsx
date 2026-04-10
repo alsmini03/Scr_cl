@@ -104,7 +104,7 @@ export default function BlogClient({
 
   const handleAddBlog = async (post: any) => {
     if (!session) {
-      alert('로그인이 필요합니다.');
+      showToast('로그인이 필요합니다.', 'info');
       return;
     }
 
@@ -139,10 +139,10 @@ export default function BlogClient({
             added_at: new Date().toISOString()
         }, ...prev]);
       } else {
-        alert(saveRes.error);
+        showToast(saveRes.error || '저장 실패', 'error');
       }
     } catch (err) {
-      alert('저장에 실패했습니다.');
+      showToast('저장에 실패했습니다.', 'error');
     } finally {
       setAddingUrl(null);
     }
@@ -207,10 +207,10 @@ export default function BlogClient({
         setIsEditMode(false);
         setSelectedIds([]);
       } else {
-        alert(res.error);
+        showToast(res.error || '발송 실패', 'error');
       }
     } catch (err: any) {
-      alert(`발송 실패: ${err.message}`);
+      showToast(`발송 실패: ${err.message}`, 'error');
     } finally {
       setIsSendingEmail(false);
     }
@@ -221,12 +221,15 @@ export default function BlogClient({
     setIsAddingTab(true);
     const res = await addBlogTab(newTabName, newTabUrl);
     if (res.success && res.id) {
+      const newTab = { id: res.id, name: newTabName, url: newTabUrl, position: tabs.length };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(res.id);
       setNewTabName('');
       setNewTabUrl('');
-      localStorage.setItem('blog_recommend_tab', res.id);
-      window.location.reload();
+      setShowTabManager(false);
+      showToast('탭이 추가되었습니다.');
     } else {
-      alert(res.error);
+      showToast(res.error || '탭 추가 실패', 'error');
     }
     setIsAddingTab(false);
   };
@@ -238,6 +241,9 @@ export default function BlogClient({
     if (res.success) {
       if (activeTabId === id) setActiveTabId('all');
       setTabs(prev => prev.filter(t => t.id !== id));
+      showToast('탭이 삭제되었습니다.');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
     }
   };
 

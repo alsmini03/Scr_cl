@@ -17,6 +17,7 @@ import {
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/components/Toast';
 
 interface GeminiModel {
   id: string;
@@ -71,8 +72,9 @@ export default function GeminiSettingsPage() {
         setNewModelName('');
         setEditingModelId(null);
         await loadSettings();
+        showToast(editingModelId ? '모델이 수정되었습니다.' : '모델이 추가되었습니다.');
       } else {
-        alert(res.error);
+        showToast(res.error || '실패', 'error');
       }
     }
   };
@@ -112,8 +114,9 @@ export default function GeminiSettingsPage() {
         setNewPromptText('');
         setEditingPromptId(null);
         await loadSettings();
+        showToast(editingPromptId ? '프롬프트가 수정되었습니다.' : '프롬프트가 추가되었습니다.');
       } else {
-        alert(res.error);
+        showToast(res.error || '실패', 'error');
       }
     }
   };
