@@ -70,6 +70,27 @@ export default function ReportClient({
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
+
+  // Search State
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchWord, setSearchWord] = useState('');
+
+  useEffect(() => {
+      const today = new Date();
+      const threeYearsAgo = new Date();
+      threeYearsAgo.setFullYear(today.getFullYear() - 3);
+
+      const formatDate = (d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+      };
+
+      setStartDate(formatDate(threeYearsAgo));
+      setEndDate(formatDate(today));
+  }, []);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
 
@@ -133,13 +154,19 @@ export default function ReportClient({
       const activeTab = tabs.find(t => t.id === activeTabId);
       const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400';
 
+      const srhDate = (startDate && endDate)
+          ? `${startDate.replace(/-/g, '')}-${endDate.replace(/-/g, '')}`
+          : '';
+
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             url,
             lstNumO: isInitial ? '0' : lastId,
-            actNum: isInitial ? '0' : '2'
+            actNum: isInitial ? '0' : '2',
+            srhDate,
+            srhWord: searchWord
         })
       });
 
@@ -507,7 +534,7 @@ export default function ReportClient({
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateReportTabOrder(orders);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || '저장 실패', 'error');
     }
   };
 
@@ -660,7 +687,46 @@ export default function ReportClient({
             /* Recommend List View */
             <>
             <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-            <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap">
+            <div className="flex flex-col flex-1 gap-3">
+            {/* Search Bar */}
+            <div className="flex flex-col gap-2 p-1">
+                <div className="flex gap-2">
+                    <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[11px] font-bold p-2 outline-none text-slate-600 dark:text-slate-300"
+                    />
+                    <div className="flex items-center text-slate-400">~</div>
+                    <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="flex-1 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-[11px] font-bold p-2 outline-none text-slate-600 dark:text-slate-300"
+                    />
+                </div>
+                <div className="flex gap-2">
+                    <div className="flex-1 relative">
+                        <input
+                            type="text"
+                            value={searchWord}
+                            onChange={(e) => setSearchWord(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchReports(true)}
+                            placeholder="검색어 입력..."
+                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs p-3 pl-9 outline-none text-slate-700 dark:text-slate-200"
+                        />
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                    </div>
+                    <button
+                        onClick={() => fetchReports(true)}
+                        className="bg-primary text-white font-bold px-5 rounded-xl text-xs shadow-md active:scale-95 transition-all"
+                    >
+                        검색
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap border-t border-slate-100 dark:border-primary/5 pt-3 mt-1">
                 {tabs.map(tab => {
                     const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                     return (
@@ -681,6 +747,7 @@ export default function ReportClient({
                         </div>
                     );
                 })}
+            </div>
             </div>
             </div>
 
