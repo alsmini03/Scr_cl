@@ -10,6 +10,7 @@ import TabManagementModal from '@/components/TabManagementModal';
 import ViewModeToggle from '@/components/ViewModeToggle';
 import { marked } from 'marked';
 import he from 'he';
+import { useSearchParams } from 'next/navigation';
 
 interface Report {
   id: string;
@@ -71,6 +72,8 @@ export default function ReportClient({
   const [isContentLoading, setIsContentLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
+  const searchParams = useSearchParams();
+
   // Search State
   const [searchWord, setSearchWord] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -90,7 +93,13 @@ export default function ReportClient({
 
   useEffect(() => {
     const savedViewMode = localStorage.getItem('report_view_mode');
-    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+
+    // Check for ID in URL first (direct navigation from Saved items)
+    const urlId = searchParams.get('id');
+    if (urlId) {
+        setViewMode('my');
+        setSelectedReportId(urlId);
+    } else if (savedViewMode === 'my' || savedViewMode === 'recommend') {
         setViewMode(savedViewMode);
     }
 
