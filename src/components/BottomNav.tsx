@@ -14,8 +14,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
   const handleTabClick = (e: React.MouseEvent, tab: string) => {
     if (activeTab === tab) {
       e.preventDefault();
-      router.refresh();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.location.reload();
     }
   };
 
