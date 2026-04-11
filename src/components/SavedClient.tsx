@@ -121,12 +121,20 @@ export default function SavedClient({
       <Header
         title="저장된 항목"
         rightAction={
-            isEditMode && (
+            isEditMode ? (
                 <button
                     onClick={() => { setIsEditMode(false); setSelectedItems([]); }}
                     className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
                 >
                     취소
+                </button>
+            ) : (
+                <button
+                    onClick={() => window.location.href = '/add'}
+                    className="text-primary p-2"
+                    title="가져오기"
+                >
+                    <span className="material-symbols-outlined text-2xl">add_circle</span>
                 </button>
             )
         }
