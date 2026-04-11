@@ -651,7 +651,7 @@ export default function ReportClient({
   );
 }
 
-const SkeletonReportItem = memo(() => (
+export const SkeletonReportItem = memo(() => (
     <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm space-y-3">
         <div className="flex justify-between items-center">
             <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />

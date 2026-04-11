@@ -386,7 +386,7 @@ export default function YouTubeRecommendClient({
   );
 }
 
-const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
+export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
   <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3">
     <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-skeleton" />
     <div className="space-y-2">

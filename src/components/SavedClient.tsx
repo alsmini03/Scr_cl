@@ -8,6 +8,16 @@ import Link from 'next/link';
 import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 
+export const SkeletonSavedItem = memo(() => (
+  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-3 flex items-center gap-3">
+    <div className="size-12 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+    <div className="flex-1 space-y-2">
+      <div className="h-3 w-16 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      <div className="h-4 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+    </div>
+  </div>
+));
+
 export default function SavedClient({
   session,
   initialItems
@@ -128,7 +138,7 @@ export default function SavedClient({
   ];
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
         title="저장된 항목"
         rightAction={

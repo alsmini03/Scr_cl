@@ -313,7 +313,7 @@ export default function BlogClient({
   );
 }
 
-const SkeletonBlogItem = memo(() => (
+export const SkeletonBlogItem = memo(() => (
   <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3">
       <div className="flex-1 p-4 space-y-3">
           <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />

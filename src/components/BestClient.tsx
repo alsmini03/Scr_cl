@@ -23,6 +23,20 @@ interface BestBook {
   yes24Url: string;
 }
 
+export const SkeletonBestItem = memo(() => (
+  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3 flex items-center gap-4">
+    <div className="w-20 h-28 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton shrink-0" />
+    <div className="flex-1 space-y-3">
+      <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
+      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/2" />
+      <div className="flex gap-2">
+          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
+          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
+      </div>
+    </div>
+  </div>
+));
+
 export default function BestClient({
   session,
   initialTabs,
