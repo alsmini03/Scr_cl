@@ -16,7 +16,7 @@ export default function BlogClient({
   initialTabs: any[];
 }) {
   const [recommendPosts, setRecommendPosts] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
@@ -30,6 +30,7 @@ export default function BlogClient({
   const fetchRecommend = async () => {
     if (tabs.length === 0 && activeTabId === 'all') {
       setRecommendPosts([]);
+      setIsLoading(false);
       return;
     }
 
@@ -279,7 +280,7 @@ export default function BlogClient({
             {isLoading ? (
                 <div className="space-y-3">
                   {[...Array(5)].map((_, i) => (
-                    <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl h-24 w-full animate-skeleton" />
+                    <SkeletonBlogItem key={i} />
                   ))}
                 </div>
             ) : (
@@ -311,6 +312,19 @@ export default function BlogClient({
     </div>
   );
 }
+
+const SkeletonBlogItem = memo(() => (
+  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3">
+      <div className="flex-1 p-4 space-y-3">
+          <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
+          <div className="flex justify-between items-center">
+              <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
+              <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
+          </div>
+      </div>
+      <div className="size-10 shrink-0 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+  </div>
+));
 
 const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
   <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3 animate-fade-in-up">

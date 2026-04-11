@@ -363,7 +363,7 @@ export default function ReportClient({
   }, [selectedReportId]);
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
+    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
         title={isDetailView ? "리포트 상세" : "리포트"}
         showBack={isDetailView}
@@ -564,7 +564,7 @@ export default function ReportClient({
             {isLoading ? (
             <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-slate-100 dark:bg-slate-800 rounded-2xl h-32 w-full animate-skeleton" />
+                <SkeletonReportItem key={i} />
                 ))}
             </div>
             ) : reports.length === 0 ? (
@@ -650,3 +650,20 @@ export default function ReportClient({
     </div>
   );
 }
+
+const SkeletonReportItem = memo(() => (
+    <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm space-y-3">
+        <div className="flex justify-between items-center">
+            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
+            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
+        </div>
+        <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
+        <div className="flex justify-between items-center pt-1">
+            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/6" />
+            <div className="flex gap-2">
+                <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
+                <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
+            </div>
+        </div>
+    </div>
+));

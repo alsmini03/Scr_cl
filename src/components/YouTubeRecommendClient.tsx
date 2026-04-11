@@ -26,7 +26,7 @@ export default function YouTubeRecommendClient({
   initialTabs: any[];
 }) {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [cols, setCols] = useState<1 | 2>(1);
 
@@ -67,6 +67,7 @@ export default function YouTubeRecommendClient({
   const fetchVideos = async () => {
     if (tabs.length === 0 && activeTabId === 'all') {
       setVideos([]);
+      setIsLoading(false);
       return;
     }
 
