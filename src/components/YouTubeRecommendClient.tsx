@@ -3,12 +3,10 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, deleteYoutubeVideo, batchDeleteYoutubeVideosAction as batchDeleteYoutubeVideos, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, sendBatchEmailAction } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
-import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
-import ViewModeToggle from '@/components/ViewModeToggle';
 
 interface RecommendedVideo {
   videoId: string;
@@ -22,26 +20,18 @@ interface RecommendedVideo {
 
 export default function YouTubeRecommendClient({
   session,
-  initialVideos,
   initialTabs,
 }: {
   session: any;
-  initialVideos: any[];
   initialTabs: any[];
 }) {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
-  const [myVideos, setMyVideos] = useState<any[]>(initialVideos);
   const [isLoading, setIsLoading] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [cols, setCols] = useState<1 | 2>(1);
-  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
-
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Tab Management
   const [showTabManager, setShowTabManager] = useState(false);
@@ -56,11 +46,6 @@ export default function YouTubeRecommendClient({
       setActiveTabId(savedTab);
     } else {
       setActiveTabId('all');
-    }
-
-    const savedViewMode = localStorage.getItem('youtube_view_mode');
-    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
-      setViewMode(savedViewMode);
     }
 
     const savedCols = localStorage.getItem('youtube_recommend_cols');
@@ -78,10 +63,6 @@ export default function YouTubeRecommendClient({
       localStorage.setItem('youtube_recommend_tab_v2', activeTabId);
     }
   }, [activeTabId]);
-
-  useEffect(() => {
-    localStorage.setItem('youtube_view_mode', viewMode);
-  }, [viewMode]);
 
   const fetchVideos = async () => {
     if (tabs.length === 0 && activeTabId === 'all') {
@@ -121,10 +102,10 @@ export default function YouTubeRecommendClient({
   };
 
   useEffect(() => {
-    if (viewMode === 'recommend' && activeTabId) {
+    if (activeTabId) {
         fetchVideos();
     }
-  }, [activeTabId, tabs, viewMode]);
+  }, [activeTabId, tabs]);
 
   const handleCopyUrl = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -146,13 +127,11 @@ export default function YouTubeRecommendClient({
 
     setAddingId(video.videoId);
     try {
-      // 1. Fetch Gemini settings
       const models = await getGeminiModels();
       const prompts = await getGeminiPrompts();
       const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
 
-      // 2. Use existing extract API
       const response = await fetch('/api/youtube/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -166,7 +145,6 @@ export default function YouTubeRecommendClient({
       if (!response.ok) throw new Error('Failed to extract details');
       const data = await response.json();
 
-      // 3. Save to database
       const result = await saveYoutubeVideo({
         title: data.title || video.title,
         url: video.url,
@@ -179,15 +157,6 @@ export default function YouTubeRecommendClient({
 
       if (result.success && result.id) {
         showToast('내 서재에 추가되었습니다.');
-        setMyVideos(prev => [{
-            id: result.id,
-            title: data.title || video.title,
-            url: video.url,
-            thumbnail: data.thumbnail || video.thumbnail,
-            duration: data.duration || video.duration,
-            published_at: data.publishDate || new Date().toISOString().split('T')[0],
-            added_at: new Date().toISOString()
-        }, ...prev]);
       } else {
         showToast(`추가 실패: ${result.error}`, 'error');
       }
@@ -252,74 +221,6 @@ export default function YouTubeRecommendClient({
     }
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!confirm('정말로 삭제하시겠습니까?')) return;
-      const res = await deleteYoutubeVideo(id);
-      if (res.success) {
-          setMyVideos(prev => prev.filter(v => v.id !== id));
-          showToast('삭제되었습니다.');
-      } else {
-          showToast(res.error || '삭제 실패', 'error');
-      }
-  };
-
-  const toggleSelect = (id: string, e?: React.MouseEvent) => {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    setSelectedIds(prev =>
-        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleLongPress = (id: string) => {
-    setIsEditMode(true);
-    setSelectedIds([id]);
-  };
-
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`선택한 ${selectedIds.length}개의 영상을 삭제하시겠습니까?`)) return;
-
-    setIsLoading(true);
-    const res = await batchDeleteYoutubeVideos(selectedIds);
-    if (res.success) {
-        setIsEditMode(false);
-        setMyVideos(prev => prev.filter(v => !selectedIds.includes(v.id)));
-        setSelectedIds([]);
-        showToast('삭제되었습니다.');
-    } else {
-        showToast(res.error || '삭제 실패', 'error');
-    }
-    setIsLoading(false);
-  };
-
-  const handleBatchEmail = async () => {
-    if (selectedIds.length === 0) return;
-
-    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-
-    setIsSendingEmail(true);
-    try {
-      const items = selectedIds.map(id => ({ type: 'youtube' as const, id }));
-      const res = await sendBatchEmailAction(items, email);
-      if (res.success) {
-        showToast('메일이 발송되었습니다.');
-        setIsEditMode(false);
-        setSelectedIds([]);
-      } else {
-        showToast(res.error || '발송 실패', 'error');
-      }
-    } catch (err: any) {
-      showToast(`발송 실패: ${err.message}`, 'error');
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
-
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
@@ -327,15 +228,6 @@ export default function YouTubeRecommendClient({
         transparent
         rightAction={
           <div className="flex items-center gap-1">
-            {isEditMode ? (
-                <button
-                    onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
-                    className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
-                >
-                    취소
-                </button>
-            ) : (
-              <>
                 <button
                     onClick={() => window.location.href = '/add/youtube'}
                     className="text-primary p-2"
@@ -350,58 +242,11 @@ export default function YouTubeRecommendClient({
                     {cols === 1 ? 'grid_view' : 'view_stream'}
                   </span>
                 </button>
-              </>
-            )}
           </div>
         }
-      >
-          <ViewModeToggle
-            title="유튜브"
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            myLabel="저장"
-            recommendLabel="새글"
-          />
-      </Header>
+      />
 
       <main className="mt-4 px-4">
-
-        {isEditMode && viewMode === 'my' && (
-            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
-                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
-                    {selectedIds.length}개 선택됨
-                </p>
-                <div className="flex gap-1.5">
-                    <button
-                        onClick={() => setSelectedIds(selectedIds.length === myVideos.length ? [] : myVideos.map(v => v.id))}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                    >
-                        {selectedIds.length === myVideos.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
-                    </button>
-                    <button
-                        onClick={handleBatchEmail}
-                        disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                    >
-                        {isSendingEmail ? (
-                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>메일<br/>발송</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleBatchDelete}
-                        disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
-                    >
-                        삭제
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {viewMode === 'recommend' ? (
-        <>
         {/* Source Tabs */}
         <div className={cn(
           "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10"
@@ -523,28 +368,6 @@ export default function YouTubeRecommendClient({
             ))}
           </div>
         )}
-        </>
-        ) : (
-            myVideos.length === 0 ? (
-                <div className="py-20 text-center text-slate-400">저장된 영상이 없습니다.</div>
-            ) : (
-                <div className={cn(
-                    "grid gap-4 pb-20",
-                    cols === 1 ? "grid-cols-1" : "grid-cols-2"
-                )}>
-                    {myVideos.map((video) => (
-                      <MyVideoItem
-                        key={video.id}
-                        video={video}
-                        isEditMode={isEditMode}
-                        isSelected={selectedIds.includes(video.id)}
-                        onLongPress={handleLongPress}
-                        onToggleSelect={toggleSelect}
-                      />
-                    ))}
-                </div>
-            )
-        )}
       </main>
 
       <BottomNav activeTab="youtube" />
@@ -584,6 +407,7 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
   return (
     <div
       className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up"
+      onContextMenu={(e) => e.preventDefault()}
       {...longPressHandlers}
     >
       <a
@@ -638,48 +462,6 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
           </div>
         </div>
       </a>
-    </div>
-  );
-});
-
-const MyVideoItem = memo(({ video, isEditMode, isSelected, onLongPress, onToggleSelect }: any) => {
-  const longPressHandlers = getLongPressHandlers(() => onLongPress(video.id), 500);
-
-  return (
-    <div className="relative animate-fade-in-up">
-        <Link
-            href={isEditMode ? '#' : `/youtube/${video.id}`}
-            onClick={(e) => isEditMode && onToggleSelect(video.id, e)}
-            {...longPressHandlers}
-            className={cn(
-                "flex flex-col bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
-                isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
-            )}
-        >
-            <div className="aspect-video relative w-full overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
-                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                    {video.duration}
-                </div>
-                {isEditMode && (
-                    <div className="absolute top-2 right-2">
-                        <div className={cn(
-                            "size-6 rounded-full border-2 flex items-center justify-center transition-all",
-                            isSelected ? "bg-primary border-primary" : "border-white/50 bg-black/20"
-                        )}>
-                            {isSelected && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
-                        </div>
-                    </div>
-                )}
-            </div>
-            <div className="p-3 flex-1 flex flex-col justify-between">
-                <div>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-1 text-sm">{video.title}</h3>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{video.published_at}</p>
-                </div>
-            </div>
-        </Link>
     </div>
   );
 });

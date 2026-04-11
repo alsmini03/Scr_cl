@@ -22,21 +22,6 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-6 pt-2">
       <div className="flex gap-2 max-w-lg mx-auto">
-        {/* Saved Items */}
-        <Link
-          href="/saved"
-          onClick={(e) => handleTabClick(e, 'saved')}
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
-            activeTab === 'saved' ? "text-primary" : "text-slate-400 dark:text-slate-500"
-          )}
-        >
-          <div className="flex h-8 items-center justify-center">
-            <span className={cn("material-symbols-outlined", activeTab === 'saved' && "fill-1")}>bookmark</span>
-          </div>
-          <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'saved' ? "font-bold" : "font-medium")}>저장</p>
-        </Link>
-
         {/* Yes24 */}
         <Link
           href="/best"
@@ -95,6 +80,21 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
             <span className={cn("material-symbols-outlined", activeTab === 'report' && "fill-1")}>description</span>
           </div>
           <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'report' ? "font-bold" : "font-medium")}>리포트</p>
+        </Link>
+
+        {/* Saved Items */}
+        <Link
+          href="/saved"
+          onClick={(e) => handleTabClick(e, 'saved')}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeTab === 'saved' ? "text-primary" : "text-slate-400 dark:text-slate-500"
+          )}
+        >
+          <div className="flex h-8 items-center justify-center">
+            <span className={cn("material-symbols-outlined", activeTab === 'saved' && "fill-1")}>bookmark</span>
+          </div>
+          <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'saved' ? "font-bold" : "font-medium")}>저장</p>
         </Link>
 
         {/* Profile */}

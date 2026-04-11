@@ -3,27 +3,21 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveBlog, deleteBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, batchDeleteBlogsAction as batchDeleteBlogs, sendBatchEmailAction } from '@/lib/db';
+import { saveBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder } from '@/lib/db';
 import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
-import Link from 'next/link';
 import TabManagementModal from '@/components/TabManagementModal';
-import ViewModeToggle from '@/components/ViewModeToggle';
 
 export default function BlogClient({
   session,
-  initialBlogs,
   initialTabs,
 }: {
   session: any;
-  initialBlogs: any[];
   initialTabs: any[];
 }) {
-  const [blogs, setBlogs] = useState<any[]>(initialBlogs);
   const [recommendPosts, setRecommendPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -32,10 +26,6 @@ export default function BlogClient({
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fetchRecommend = async () => {
     if (tabs.length === 0 && activeTabId === 'all') {
@@ -79,28 +69,14 @@ export default function BlogClient({
     } else {
       setActiveTabId('all');
     }
-
-    const savedViewMode = localStorage.getItem('blog_view_mode');
-    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
-      setViewMode(savedViewMode);
-    }
   }, [tabs]);
 
   useEffect(() => {
     if (activeTabId) {
       localStorage.setItem('blog_recommend_tab', activeTabId);
+      fetchRecommend();
     }
-  }, [activeTabId]);
-
-  useEffect(() => {
-    localStorage.setItem('blog_view_mode', viewMode);
-  }, [viewMode]);
-
-  useEffect(() => {
-    if (viewMode === 'recommend' && activeTabId) {
-        fetchRecommend();
-    }
-  }, [activeTabId, tabs, viewMode]);
+  }, [activeTabId, tabs]);
 
   const handleAddBlog = async (post: any) => {
     if (!session) {
@@ -128,16 +104,6 @@ export default function BlogClient({
 
       if (saveRes.success && saveRes.id) {
         showToast('내 서재에 추가되었습니다.');
-        // Refresh library locally
-        setBlogs(prev => [{
-            id: saveRes.id,
-            title: data.title || post.title,
-            author: data.author || post.author,
-            url: post.url,
-            thumbnail: data.thumbnail || post.thumbnail,
-            published_at: data.published_at || post.published_at,
-            added_at: new Date().toISOString()
-        }, ...prev]);
       } else {
         showToast(saveRes.error || '저장 실패', 'error');
       }
@@ -145,74 +111,6 @@ export default function BlogClient({
       showToast('저장에 실패했습니다.', 'error');
     } finally {
       setAddingUrl(null);
-    }
-  };
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (!confirm('정말로 삭제하시겠습니까?')) return;
-      const res = await deleteBlog(id);
-      if (res.success) {
-          setBlogs(prev => prev.filter(b => b.id !== id));
-          showToast('삭제되었습니다.');
-      } else {
-          showToast(res.error || '삭제 실패', 'error');
-      }
-  };
-
-  const toggleSelect = (id: string, e?: React.MouseEvent) => {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    setSelectedIds(prev =>
-        prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const handleLongPress = (id: string) => {
-    setIsEditMode(true);
-    setSelectedIds([id]);
-  };
-
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`선택한 ${selectedIds.length}개의 글을 삭제하시겠습니까?`)) return;
-
-    setIsLoading(true);
-    const res = await batchDeleteBlogs(selectedIds);
-    if (res.success) {
-        setIsEditMode(false);
-        setBlogs(prev => prev.filter(b => !selectedIds.includes(b.id)));
-        setSelectedIds([]);
-        showToast('삭제되었습니다.');
-    } else {
-        showToast(res.error || '삭제 실패', 'error');
-    }
-    setIsLoading(false);
-  };
-
-  const handleBatchEmail = async () => {
-    if (selectedIds.length === 0) return;
-
-    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-
-    setIsSendingEmail(true);
-    try {
-      const items = selectedIds.map(id => ({ type: 'blog' as const, id }));
-      const res = await sendBatchEmailAction(items, email);
-      if (res.success) {
-        showToast('메일이 발송되었습니다.');
-        setIsEditMode(false);
-        setSelectedIds([]);
-      } else {
-        showToast(res.error || '발송 실패', 'error');
-      }
-    } catch (err: any) {
-      showToast(`발송 실패: ${err.message}`, 'error');
-    } finally {
-      setIsSendingEmail(false);
     }
   };
 
@@ -275,71 +173,17 @@ export default function BlogClient({
         title="블로그"
         rightAction={
             <div className="flex items-center gap-1">
-                {isEditMode ? (
-                    <button
-                        onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
-                        className="text-slate-500 font-bold px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg mr-2"
-                    >
-                        취소
-                    </button>
-                ) : (
-                    <>
-                        <button
-                            onClick={() => window.location.href = '/add?tab=blog'}
-                            className="text-primary p-2"
-                        >
-                            <span className="material-symbols-outlined text-2xl">add_circle</span>
-                        </button>
-                    </>
-                )}
+                <button
+                    onClick={() => window.location.href = '/add?tab=blog'}
+                    className="text-primary p-2"
+                >
+                    <span className="material-symbols-outlined text-2xl">add_circle</span>
+                </button>
             </div>
         }
-      >
-          <ViewModeToggle
-            title="블로그"
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
-      </Header>
+      />
 
       <main className="mt-4 px-4">
-
-        {isEditMode && viewMode === 'my' && (
-            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
-                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
-                    {selectedIds.length}개 선택됨
-                </p>
-                <div className="flex gap-1.5">
-                    <button
-                        onClick={() => setSelectedIds(selectedIds.length === blogs.length ? [] : blogs.map(b => b.id))}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                    >
-                        {selectedIds.length === blogs.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
-                    </button>
-                    <button
-                        onClick={handleBatchEmail}
-                        disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                    >
-                        {isSendingEmail ? (
-                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>메일<br/>발송</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleBatchDelete}
-                        disabled={selectedIds.length === 0 || isSendingEmail}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
-                    >
-                        삭제
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {viewMode === 'recommend' ? (
-            <>
             {/* Blog Source Tabs */}
             <div className={cn(
                 "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20"
@@ -349,6 +193,7 @@ export default function BlogClient({
                 )}>
                     <div
                         className="relative flex-shrink-0 group transition-all"
+                        onContextMenu={(e) => e.preventDefault()}
                         {...getLongPressHandlers(() => handleTabLongPress('all'))}
                     >
                         <button
@@ -375,6 +220,7 @@ export default function BlogClient({
                                 className={cn(
                                     "relative flex-shrink-0 group transition-all"
                                 )}
+                                onContextMenu={(e) => e.preventDefault()}
                                 {...longPressHandlers}
                             >
                                 <button
@@ -449,26 +295,6 @@ export default function BlogClient({
                 </div>
             )
             }
-            </>
-        ) : (
-            blogs.length === 0 ? (
-                <div className="py-20 text-center text-slate-400">저장된 글이 없습니다.</div>
-            ) : (
-                <div className="space-y-3 pb-20">
-                    {blogs.map((blog) => (
-                      <MyBlogItem
-                        key={blog.id}
-                        blog={blog}
-                        isEditMode={isEditMode}
-                        isSelected={selectedIds.includes(blog.id)}
-                        onLongPress={handleLongPress}
-                        onToggleSelect={toggleSelect}
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                </div>
-            )
-        )}
       </main>
 
       <BottomNav activeTab="blog" />
@@ -508,48 +334,3 @@ const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
       </button>
   </div>
 ));
-
-const MyBlogItem = memo(({ blog, isEditMode, isSelected, onLongPress, onToggleSelect, onDelete }: any) => {
-  const longPressHandlers = getLongPressHandlers(() => onLongPress(blog.id), 500);
-
-  return (
-      <div className="relative animate-fade-in-up">
-          <Link
-              href={isEditMode ? '#' : `/blog/${blog.id}`}
-              onClick={(e) => isEditMode && onToggleSelect(blog.id, e)}
-              {...longPressHandlers}
-              className={cn(
-                  "flex bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
-                  isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
-              )}
-          >
-              <div className="flex-1 p-4">
-                  <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">{blog.title}</h3>
-                  <div className="flex justify-between items-center mt-1">
-                      {blog.author && <p className="text-[10px] text-primary font-bold mr-2 truncate">{blog.author}</p>}
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                        {formatDateToYMD(blog.published_at)}
-                      </p>
-                  </div>
-              </div>
-              <div className="flex items-center pr-3">
-                  {isEditMode ? (
-                      <div className={cn(
-                          "size-6 rounded-full border-2 flex items-center justify-center transition-all",
-                          isSelected ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
-                      )}>
-                          {isSelected && <span className="material-symbols-outlined text-white text-sm font-bold">check</span>}
-                      </div>
-                  ) : (
-                      <button
-                          onClick={(e) => onDelete(blog.id, e)}
-                          className="size-10 text-slate-300 hover:text-red-500 transition-colors"
-                      >
-                          <span className="material-symbols-outlined">delete</span>
-                      </button>
-                  )}
-              </div>
-          </Link>
-      </div>
-  );
-});
