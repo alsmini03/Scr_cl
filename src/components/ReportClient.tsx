@@ -397,11 +397,7 @@ export default function ReportClient({
   const handleBatchEmail = async () => {
     if (selectedIds.length === 0) return;
 
-    const lastEmail = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-    const email = window.prompt('보내실 이메일 주소를 입력해 주세요:', lastEmail);
-
-    if (!email) return;
-    localStorage.setItem('last_blog_email', email);
+    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
     setIsSendingEmail(true);
     try {

@@ -257,7 +257,7 @@ export default function BestClient({
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateYes24TabOrder(orders);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || '저장 실패', 'error');
     }
   };
 

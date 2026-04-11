@@ -248,7 +248,7 @@ export default function YouTubeRecommendClient({
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateYoutubeTabOrder(orders);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || '저장 실패', 'error');
     }
   };
 
@@ -259,6 +259,9 @@ export default function YouTubeRecommendClient({
       const res = await deleteYoutubeVideo(id);
       if (res.success) {
           setMyVideos(prev => prev.filter(v => v.id !== id));
+          showToast('삭제되었습니다.');
+      } else {
+          showToast(res.error || '삭제 실패', 'error');
       }
   };
 
@@ -297,11 +300,7 @@ export default function YouTubeRecommendClient({
   const handleBatchEmail = async () => {
     if (selectedIds.length === 0) return;
 
-    const lastEmail = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-    const email = window.prompt('보내실 이메일 주소를 입력해 주세요:', lastEmail);
-
-    if (!email) return;
-    localStorage.setItem('last_blog_email', email);
+    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
     setIsSendingEmail(true);
     try {

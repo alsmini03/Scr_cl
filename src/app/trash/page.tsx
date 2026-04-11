@@ -6,6 +6,7 @@ import { Book } from '@/types/book';
 import { getDeletedBooks, restoreBook, permanentlyDeleteBook } from '@/lib/db';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { showToast } from '@/components/Toast';
 
 export default function TrashPage() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -30,9 +31,9 @@ export default function TrashPage() {
     try {
       await restoreBook(id);
       setBooks(books.filter(b => b.id !== id));
-      alert('도서가 복구되었습니다.');
+      showToast('도서가 복구되었습니다.');
     } catch (error) {
-      alert('복구에 실패했습니다.');
+      showToast('복구에 실패했습니다.', 'error');
     }
   };
 
@@ -41,9 +42,9 @@ export default function TrashPage() {
       try {
         await permanentlyDeleteBook(id);
         setBooks(books.filter(b => b.id !== id));
-        alert('영구 삭제되었습니다.');
+        showToast('영구 삭제되었습니다.');
       } catch (error) {
-        alert('삭제에 실패했습니다.');
+        showToast('삭제에 실패했습니다.', 'error');
       }
     }
   };

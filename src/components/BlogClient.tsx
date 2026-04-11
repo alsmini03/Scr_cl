@@ -155,6 +155,9 @@ export default function BlogClient({
       const res = await deleteBlog(id);
       if (res.success) {
           setBlogs(prev => prev.filter(b => b.id !== id));
+          showToast('삭제되었습니다.');
+      } else {
+          showToast(res.error || '삭제 실패', 'error');
       }
   };
 
@@ -183,8 +186,9 @@ export default function BlogClient({
         setIsEditMode(false);
         setBlogs(prev => prev.filter(b => !selectedIds.includes(b.id)));
         setSelectedIds([]);
+        showToast('삭제되었습니다.');
     } else {
-        alert(res.error);
+        showToast(res.error || '삭제 실패', 'error');
     }
     setIsLoading(false);
   };
@@ -192,11 +196,7 @@ export default function BlogClient({
   const handleBatchEmail = async () => {
     if (selectedIds.length === 0) return;
 
-    const lastEmail = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-    const email = window.prompt('보내실 이메일 주소를 입력해 주세요:', lastEmail);
-
-    if (!email) return;
-    localStorage.setItem('last_blog_email', email);
+    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
     setIsSendingEmail(true);
     try {
@@ -265,7 +265,7 @@ export default function BlogClient({
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateBlogTabOrder(orders);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || '저장 실패', 'error');
     }
   };
 
