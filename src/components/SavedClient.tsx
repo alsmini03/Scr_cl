@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useState, memo, useMemo } from 'react';
+import { useState, memo, useMemo, useEffect } from 'react';
 import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import Link from 'next/link';
 import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
@@ -20,6 +20,17 @@ export default function SavedClient({
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report'>('all');
+
+  useEffect(() => {
+    const savedFilter = localStorage.getItem('saved_active_filter');
+    if (savedFilter && ['all', 'youtube', 'blog', 'report'].includes(savedFilter)) {
+        setActiveFilter(savedFilter as any);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('saved_active_filter', activeFilter);
+  }, [activeFilter]);
 
   const filteredItems = useMemo(() => {
       if (activeFilter === 'all') return items;

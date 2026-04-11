@@ -13,7 +13,8 @@ import { resolveBondwebPdfUrl } from './utils';
 // Configure marked
 marked.use(gfmHeadingId());
 
-async function getSessionUser() {
+async function getSessionUser(prefetchedUser?: any) {
+  if (prefetchedUser) return prefetchedUser;
   const session = await auth();
   if (!session?.user?.id) {
     if (process.env.NODE_ENV === 'development') {
@@ -64,9 +65,9 @@ function safeRevalidate(path: string) {
   }
 }
 
-export async function getBooks(): Promise<Book[]> {
+export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(prefetchedUser);
     const res = await query(
       "SELECT * FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
       [user.id, user.email]
@@ -81,11 +82,11 @@ export async function getBooks(): Promise<Book[]> {
 /**
  * Report Database Operations
  */
-export async function getReports(): Promise<any[]> {
+export async function getReports(prefetchedUser?: any): Promise<any[]> {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT * FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, author, institution, date, url, thumbnail, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -695,11 +696,11 @@ export async function saveBlog(blog: {
   }
 }
 
-export async function getBlogs(): Promise<any[]> {
+export async function getBlogs(prefetchedUser?: any): Promise<any[]> {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT * FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -1145,11 +1146,11 @@ export async function saveYoutubeVideo(video: {
   }
 }
 
-export async function getYoutubeVideos(): Promise<any[]> {
+export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
   try {
-    const user = await getSessionUser();
+    const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT * FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;

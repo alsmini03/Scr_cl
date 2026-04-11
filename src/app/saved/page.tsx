@@ -3,11 +3,13 @@ import { auth } from '@/auth';
 import SavedClient from '@/components/SavedClient';
 
 export default async function SavedPage() {
-  const [session, blogs, youtubeVideos, reports] = await Promise.all([
-    auth(),
-    getBlogs(),
-    getYoutubeVideos(),
-    getReports()
+  const session = await auth();
+  const user = session?.user;
+
+  const [blogs, youtubeVideos, reports] = await Promise.all([
+    getBlogs(user),
+    getYoutubeVideos(user),
+    getReports(user)
   ]);
 
   // Transform and combine items
