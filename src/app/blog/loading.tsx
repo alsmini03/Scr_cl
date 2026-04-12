@@ -10,7 +10,7 @@ export default function BlogLoading() {
       <Header title="블로그" />
       <main className="mt-4 px-4">
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 py-2">
-            <div className="h-9 w-16 bg-slate-200 dark:bg-black/30 rounded-full animate-skeleton" />
+            <div className="h-9 w-20 bg-slate-200 dark:bg-black/30 rounded-full animate-skeleton" />
             <div className="h-9 w-20 bg-slate-200 dark:bg-black/30 rounded-full animate-skeleton" />
         </div>
         <div className="space-y-3">

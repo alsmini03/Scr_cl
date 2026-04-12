@@ -28,7 +28,7 @@ export default function BlogClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchRecommend = async () => {
-    if (tabs.length === 0 && activeTabId === 'all') {
+    if (!activeTabId) {
       setRecommendPosts([]);
       setIsLoading(false);
       return;
@@ -37,20 +37,13 @@ export default function BlogClient({
     setIsLoading(true);
     try {
       let fetchUrl = '/api/blog/list';
-      if (activeTabId === 'all') {
-        const allSources = tabs.map(t => t.url).join(',');
-        if (allSources) {
-          fetchUrl += `?blogId=${encodeURIComponent(allSources)}`;
-        } else {
-            setRecommendPosts([]);
-            setIsLoading(false);
-            return;
-        }
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab) {
+        fetchUrl += `?blogId=${encodeURIComponent(activeTab.url)}`;
       } else {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if (activeTab) {
-          fetchUrl += `?blogId=${encodeURIComponent(activeTab.url)}`;
-        }
+          setRecommendPosts([]);
+          setIsLoading(false);
+          return;
       }
 
       const res = await fetch(fetchUrl);
@@ -67,8 +60,8 @@ export default function BlogClient({
     const savedTab = localStorage.getItem('blog_recommend_tab');
     if (savedTab && tabs.some(t => t.id === savedTab)) {
       setActiveTabId(savedTab);
-    } else {
-      setActiveTabId('all');
+    } else if (tabs.length > 0) {
+      setActiveTabId(tabs[0].id);
     }
   }, [tabs]);
 
@@ -138,8 +131,11 @@ export default function BlogClient({
     if (!confirm('탭을 삭제하시겠습니까?')) return;
     const res = await deleteBlogTab(id);
     if (res.success) {
-      if (activeTabId === id) setActiveTabId('all');
-      setTabs(prev => prev.filter(t => t.id !== id));
+      const remainingTabs = tabs.filter(t => t.id !== id);
+      setTabs(remainingTabs);
+      if (activeTabId === id) {
+          setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
+      }
       showToast('탭이 삭제되었습니다.');
     } else {
       showToast(res.error || '삭제 실패', 'error');
@@ -192,27 +188,6 @@ export default function BlogClient({
                 <div className={cn(
                     "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
                 )}>
-                    <div
-                        className="relative flex-shrink-0 group transition-all"
-                        onContextMenu={(e) => e.preventDefault()}
-                        {...getLongPressHandlers(() => handleTabLongPress('all'))}
-                    >
-                        <button
-                            onClick={() => {
-                                if (activeTabId === 'all') {
-                                    fetchRecommend();
-                                } else {
-                                    setActiveTabId('all');
-                                }
-                            }}
-                            className={cn(
-                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                            )}
-                        >
-                            전체
-                        </button>
-                    </div>
                     {tabs.map(tab => {
                         const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                         return (

@@ -44,8 +44,8 @@ export default function YouTubeRecommendClient({
     const savedTab = localStorage.getItem('youtube_recommend_tab_v2');
     if (savedTab && tabs.some(t => t.id === savedTab)) {
       setActiveTabId(savedTab);
-    } else {
-      setActiveTabId('all');
+    } else if (tabs.length > 0) {
+      setActiveTabId(tabs[0].id);
     }
 
     const savedCols = localStorage.getItem('youtube_recommend_cols');
@@ -65,7 +65,7 @@ export default function YouTubeRecommendClient({
   }, [activeTabId]);
 
   const fetchVideos = async () => {
-    if (tabs.length === 0 && activeTabId === 'all') {
+    if (!activeTabId) {
       setVideos([]);
       setIsLoading(false);
       return;
@@ -74,20 +74,13 @@ export default function YouTubeRecommendClient({
     setIsLoading(true);
     try {
       let fetchUrl = '/api/youtube/recommend';
-      if (activeTabId === 'all') {
-        const allUrls = tabs.map(t => t.url).join(',');
-        if (allUrls) {
-          fetchUrl += `?url=${encodeURIComponent(allUrls)}`;
-        } else {
-          setVideos([]);
-          setIsLoading(false);
-          return;
-        }
+      const activeTab = tabs.find(t => t.id === activeTabId);
+      if (activeTab) {
+        fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
       } else {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if (activeTab) {
-          fetchUrl += `?url=${encodeURIComponent(activeTab.url)}`;
-        }
+        setVideos([]);
+        setIsLoading(false);
+        return;
       }
 
       const res = await fetch(fetchUrl);
@@ -192,8 +185,11 @@ export default function YouTubeRecommendClient({
     if (!confirm('탭을 삭제하시겠습니까?')) return;
     const res = await deleteYoutubeTab(id);
     if (res.success) {
-      if (activeTabId === id) setActiveTabId('all');
-      setTabs(prev => prev.filter(t => t.id !== id));
+      const remainingTabs = tabs.filter(t => t.id !== id);
+      setTabs(remainingTabs);
+      if (activeTabId === id) {
+          setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
+      }
       showToast('탭이 삭제되었습니다.');
     } else {
       showToast(res.error || '삭제 실패', 'error');
@@ -255,26 +251,6 @@ export default function YouTubeRecommendClient({
           <div className={cn(
             "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
           )}>
-            <div
-                className="relative flex-shrink-0 group transition-all"
-                {...getLongPressHandlers(() => handleTabLongPress('all'))}
-            >
-                <button
-                onClick={() => {
-                    if (activeTabId === 'all') {
-                    fetchVideos();
-                    } else {
-                    setActiveTabId('all');
-                    }
-                }}
-                className={cn(
-                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                    activeTabId === 'all' ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                )}
-                >
-                전체
-                </button>
-            </div>
             {tabs.map(tab => {
               const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
               return (
