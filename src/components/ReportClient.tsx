@@ -55,7 +55,6 @@ export default function ReportClient({
   const searchParams = useSearchParams();
 
   // Search State
-  const [searchWord, setSearchWord] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
 
@@ -114,7 +113,7 @@ export default function ReportClient({
             lstNumO: isInitial ? '0' : lastId,
             actNum: isInitial ? '0' : '2',
             srhDate: '',
-            srhWord: searchWord
+            srhWord: ''
         })
       });
 
@@ -485,30 +484,7 @@ export default function ReportClient({
             <>
             <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
             <div className="flex flex-col flex-1 gap-3">
-            {/* Search Bar */}
-            <div className="flex flex-col gap-2 p-1">
-                <div className="flex gap-2">
-                    <div className="flex-1 relative">
-                        <input
-                            type="text"
-                            value={searchWord}
-                            onChange={(e) => setSearchWord(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && fetchReports(true)}
-                            placeholder="검색어 입력..."
-                            className="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-xs p-3 pl-9 outline-none text-slate-700 dark:text-slate-200"
-                        />
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-                    </div>
-                    <button
-                        onClick={() => fetchReports(true)}
-                        className="bg-primary text-white font-bold px-5 rounded-xl text-xs shadow-md active:scale-95 transition-all"
-                    >
-                        검색
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap border-t border-slate-100 dark:border-primary/5 pt-3 mt-1">
+            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap pt-3 mt-1">
                 {tabs.map(tab => {
                     const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                     return (
