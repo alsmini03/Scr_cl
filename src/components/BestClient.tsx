@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useMemo } from 'react';
 import { saveBook, addYes24Tab, deleteYes24Tab, updateYes24TabOrder } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import BookGrid from '@/components/BookGrid';
 import { Book } from '@/types/book';
@@ -21,6 +22,20 @@ interface BestBook {
   coverImage: string;
   yes24Url: string;
 }
+
+export const SkeletonBestItem = memo(() => (
+  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3 flex items-center gap-4">
+    <div className="w-20 h-28 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton shrink-0" />
+    <div className="flex-1 space-y-3">
+      <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
+      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/2" />
+      <div className="flex gap-2">
+          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
+          <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
+      </div>
+    </div>
+  </div>
+));
 
 export default function BestClient({
   session,
@@ -123,7 +138,7 @@ export default function BestClient({
     e.stopPropagation();
 
     if (!session) {
-      alert('로그인이 필요한 서비스입니다.');
+      showToast('로그인이 필요한 서비스입니다.', 'info');
       return;
     }
 
@@ -152,12 +167,14 @@ export default function BestClient({
       });
 
       if (saveRes.success && saveRes.data) {
-        alert(`'${book.title}'이(가) 상세 정보와 함께 서재에 추가되었습니다.`);
+        showToast('내 서재에 추가되었습니다.');
         setMyBooks(prev => [saveRes.data!, ...prev]);
+      } else {
+        showToast(saveRes.error || '저장 실패', 'error');
       }
     } catch (error) {
       console.error(error);
-      alert('서재 추가에 실패했습니다.');
+      showToast('서재 추가에 실패했습니다.', 'error');
     } finally {
       setAddingId(null);
     }
@@ -190,16 +207,16 @@ export default function BestClient({
       const result = await actions.batchDeleteBooks(selectedIds);
 
       if (result.success) {
-        alert('삭제되었습니다.');
+        showToast('삭제되었습니다.');
         setMyBooks(prev => prev.filter(b => !selectedIds.includes(b.id)));
         setSelectedIds([]);
         setIsEditMode(false);
       } else {
-        alert(`삭제 실패: ${result.error}`);
+        showToast(`삭제 실패: ${result.error}`, 'error');
       }
     } catch (error) {
       console.error('Batch delete error:', error);
-      alert('삭제 중 오류가 발생했습니다.');
+      showToast('삭제 중 오류가 발생했습니다.', 'error');
     } finally {
       setIsDeleting(false);
     }
@@ -210,12 +227,15 @@ export default function BestClient({
     setIsAddingTab(true);
     const res = await addYes24Tab(newTabName, newTabUrl);
     if (res.success && res.id) {
+      const newTab = { id: res.id, name: newTabName, url: newTabUrl, position: tabs.length };
+      setTabs(prev => [...prev, newTab]);
+      setActiveTabId(res.id);
       setNewTabName('');
       setNewTabUrl('');
-      localStorage.setItem('yes24_active_tab', res.id);
-      window.location.reload();
+      setShowTabManager(false);
+      showToast('탭이 추가되었습니다.');
     } else {
-      alert(res.error);
+      showToast(res.error || '탭 추가 실패', 'error');
     }
     setIsAddingTab(false);
   };
@@ -227,6 +247,9 @@ export default function BestClient({
     if (res.success) {
       if (activeTabId === id) setActiveTabId(tabs.find(t => t.id !== id)?.id || null);
       setTabs(prev => prev.filter(t => t.id !== id));
+      showToast('탭이 삭제되었습니다.');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
     }
   };
 
@@ -248,7 +271,7 @@ export default function BestClient({
     const orders = tabs.map((tab, index) => ({ id: tab.id, position: index }));
     const res = await updateYes24TabOrder(orders);
     if (!res.success) {
-      alert(res.error);
+      showToast(res.error || '저장 실패', 'error');
     }
   };
 

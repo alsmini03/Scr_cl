@@ -1,20 +1,30 @@
 'use client';
 
 import { signIn } from "next-auth/react";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function LoginPage() {
+function LoginContent() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+  const isUnapproved = error === "unapproved";
+
   return (
     <div className="font-display min-h-screen bg-background-light dark:bg-background-dark flex flex-col items-center justify-center p-6 text-center">
       <div className="mb-12">
         <div className="size-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
           <span className="material-symbols-outlined text-5xl text-primary">menu_book</span>
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Book Journal</h1>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Scrap</h1>
         <p className="text-slate-500 dark:text-slate-400">나만의 독서 기록장을 시작해 보세요</p>
       </div>
 
       <div className="w-full max-w-sm space-y-4">
+        {isUnapproved && (
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/30 rounded-2xl text-sm text-red-600 dark:text-red-400 font-medium">
+                로그인은 완료되었으나, 서비스 이용을 위한 승인이 대기 중입니다. 관리자에게 문의해 주세요.
+            </div>
+        )}
         <button
           onClick={() => signIn("google", { callbackUrl: "/" })}
           className="w-full py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-primary/20 text-slate-700 dark:text-slate-200 font-bold rounded-2xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
@@ -31,8 +41,16 @@ export default function LoginPage() {
       </div>
 
       <div className="mt-12 text-slate-400 text-xs">
-        <p>© 2026 Book Journal. All rights reserved.</p>
+        <p>© 2026 Scrap. All rights reserved.</p>
       </div>
     </div>
   );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-background-light dark:bg-background-dark" />}>
+            <LoginContent />
+        </Suspense>
+    );
 }

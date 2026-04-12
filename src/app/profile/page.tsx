@@ -14,11 +14,18 @@ export default function ProfilePage() {
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const [recipientEmail, setRecipientEmail] = useState('');
 
   // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
+    setRecipientEmail(localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com');
   }, []);
+
+  const handleUpdateEmail = (val: string) => {
+      setRecipientEmail(val);
+      localStorage.setItem('last_blog_email', val);
+  };
 
   if (status === "unauthenticated") {
     router.push("/login");
@@ -109,9 +116,37 @@ export default function ProfilePage() {
           </section>
         )}
 
+        {/* Email Settings Section */}
+        <section className="space-y-3">
+          <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1">메일 수신인 설정</h3>
+          <div className="relative">
+            <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => handleUpdateEmail(e.target.value)}
+                placeholder="수신할 이메일 주소"
+                className="w-full rounded-2xl border border-slate-200 dark:border-primary/20 bg-white dark:bg-slate-900 p-4 text-sm text-slate-900 dark:text-slate-100 outline-none focus:border-primary shadow-sm pl-11"
+            />
+            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg">mail</span>
+          </div>
+        </section>
+
         {/* Menu Section */}
         <section className="space-y-2">
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1 mb-3">설정 및 관리</h3>
+
+          <Link
+            href="/settings/gemini"
+            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 active:scale-[0.98] transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined">settings_suggest</span>
+              </div>
+              <span className="font-bold text-slate-700 dark:text-slate-200">제미나이 설정</span>
+            </div>
+            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+          </Link>
 
           <Link
             href="/trash"

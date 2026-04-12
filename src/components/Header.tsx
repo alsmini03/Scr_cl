@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation';
 interface HeaderProps {
   title: string;
   showBack?: boolean;
+  onBack?: () => void;
   rightAction?: React.ReactNode;
   transparent?: boolean;
   children?: React.ReactNode;
 }
 
-export default function Header({ title, showBack, rightAction, transparent, children }: HeaderProps) {
+export default function Header({ title, showBack, onBack, rightAction, transparent, children }: HeaderProps) {
   const router = useRouter();
 
   return (
@@ -24,7 +25,7 @@ export default function Header({ title, showBack, rightAction, transparent, chil
       <div className="flex size-10 shrink-0 items-center justify-center">
         {showBack ? (
           <button
-            onClick={() => router.back()}
+            onClick={() => onBack ? onBack() : router.back()}
             className="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center hover:bg-primary/10 rounded-full transition-colors"
           >
             <span className="material-symbols-outlined">arrow_back</span>

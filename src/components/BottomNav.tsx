@@ -14,8 +14,7 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
   const handleTabClick = (e: React.MouseEvent, tab: string) => {
     if (activeTab === tab) {
       e.preventDefault();
-      router.refresh();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.location.reload();
     }
   };
 
@@ -80,6 +79,21 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
             <span className={cn("material-symbols-outlined", activeTab === 'report' && "fill-1")}>description</span>
           </div>
           <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'report' ? "font-bold" : "font-medium")}>리포트</p>
+        </Link>
+
+        {/* Saved Items */}
+        <Link
+          href="/saved"
+          onClick={(e) => handleTabClick(e, 'saved')}
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+            activeTab === 'saved' ? "text-primary" : "text-slate-400 dark:text-slate-500"
+          )}
+        >
+          <div className="flex h-8 items-center justify-center">
+            <span className={cn("material-symbols-outlined", activeTab === 'saved' && "fill-1")}>bookmark</span>
+          </div>
+          <p className={cn("text-xs leading-normal tracking-wide", activeTab === 'saved' ? "font-bold" : "font-medium")}>저장</p>
         </Link>
 
         {/* Profile */}

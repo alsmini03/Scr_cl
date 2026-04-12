@@ -6,13 +6,15 @@ import { auth } from '@/auth';
 import { sendGmail } from './gmail';
 import { marked } from 'marked';
 import { gfmHeadingId } from "marked-gfm-heading-id";
-import { findRecord, findRecords, createRecord, updateRecord, deleteRecord, batchDeleteRecords, batchUpdateRecords, escapeFormula } from './airtable';
+import { query } from './pg';
+import { randomUUID } from "node:crypto";
+import { resolveBondwebPdfUrl } from './utils';
 
 // Configure marked
 marked.use(gfmHeadingId());
-import { randomUUID } from "node:crypto";
 
-async function getSessionUser() {
+async function getSessionUser(prefetchedUser?: any) {
+  if (prefetchedUser) return prefetchedUser;
   const session = await auth();
   if (!session?.user?.id) {
     if (process.env.NODE_ENV === 'development') {
@@ -31,27 +33,27 @@ async function ensureApproved() {
   return user;
 }
 
-function mapRecordToBook(record: any): Book {
+function mapRowToBook(row: any): Book {
   return {
-    id: record.id,
-    title: record.title,
-    author: record.author || '',
-    coverImage: record.cover_image || '',
-    category: record.category,
-    publishDate: record.published_date,
-    price: record.price,
-    description: record.description,
-    readingStatus: record.status as 'READING' | 'FINISHED',
-    progress: record.progress,
-    rating: record.rating,
-    notes: record.notes,
-    createdAt: record.added_at,
-    intro: record.intro,
-    toc: record.toc,
-    authorIntro: record.author_intro,
-    inside: record.inside,
-    publisherReview: record.publisher_review,
-    yes24Url: record.yes24_url,
+    id: row.id,
+    title: row.title,
+    author: row.author || '',
+    coverImage: row.cover_image || '',
+    category: row.category,
+    publishDate: row.published_date,
+    price: row.price,
+    description: row.description,
+    readingStatus: row.status as 'READING' | 'FINISHED',
+    progress: row.progress,
+    rating: row.rating,
+    notes: row.notes,
+    createdAt: row.added_at,
+    intro: row.intro,
+    toc: row.toc,
+    authorIntro: row.author_intro,
+    inside: row.inside,
+    publisherReview: row.publisher_review,
+    yes24Url: row.yes24_url,
   };
 }
 
@@ -63,16 +65,150 @@ function safeRevalidate(path: string) {
   }
 }
 
-export async function getBooks(): Promise<Book[]> {
+export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
+  try {
+    const user = await getSessionUser(prefetchedUser);
+    const res = await query(
+      "SELECT * FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows.map(mapRowToBook);
+  } catch (error) {
+    console.error('getBooks error:', error);
+    return [];
+  }
+}
+
+/**
+ * Report Database Operations
+ */
+export async function getReports(prefetchedUser?: any): Promise<any[]> {
+  try {
+    const user = await getSessionUser(prefetchedUser);
+    const res = await query(
+      "SELECT id, title, author, institution, date, url, thumbnail, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('getReports error:', error);
+    return [];
+  }
+}
+
+export async function saveReport(report: {
+  title: string;
+  author?: string;
+  institution?: string;
+  date?: string;
+  url?: string;
+  thumbnail?: string;
+  content?: string;
+  summary?: string;
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const id = randomUUID();
+    const addedAt = new Date().toISOString();
+
+    await query(
+      "INSERT INTO reports (id, title, author, institution, date, url, thumbnail, content, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+      [id, report.title, report.author, report.institution, report.date, report.url, report.thumbnail, report.content, report.summary, user.email || user.id, addedAt]
+    );
+
+    safeRevalidate('/report');
+    return { success: true, id };
+  } catch (error: any) {
+    console.error('Failed to save report:', error);
+    return { success: false, error: error.message || '리포트 정보를 저장하는 중 오류가 발생했습니다.' };
+  }
+}
+
+export async function getReportById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    const records = await findRecords('books', {
-      filterByFormula: `AND({deleted_at} = BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
-    return records.map(mapRecordToBook);
+    const res = await query(
+      "SELECT * FROM reports WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
   } catch (error) {
-    return [];
+    console.error('getReportById error:', error);
+    return undefined;
+  }
+}
+
+export async function deleteReport(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query("DELETE FROM reports WHERE id = $1", [id]);
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
+  try {
+    if (params.fileId && params.fileNum) {
+      const directUrl = await resolveBondwebPdfUrl(params.fileId, params.fileNum);
+      if (directUrl) return directUrl;
+    }
+
+    if (params.url) {
+      // If it's already a direct Data link
+      if (params.url.includes('/Data/')) return params.url;
+
+      // If it's a download proxy link
+      if (params.url.includes('/api/report/download')) {
+        const urlObj = new URL(params.url, 'http://localhost');
+        const number = urlObj.searchParams.get('number');
+        const gn = urlObj.searchParams.get('gn');
+        if (number && gn) {
+          const directUrl = await resolveBondwebPdfUrl(number, gn);
+          if (directUrl) return directUrl;
+        }
+      }
+
+      // If it's a standard Bondweb download link
+      if (params.url.includes('DownloadPage.asp')) {
+        const urlObj = new URL(params.url);
+        const number = urlObj.searchParams.get('number');
+        const gn = urlObj.searchParams.get('gn');
+        if (number && gn) {
+          const directUrl = await resolveBondwebPdfUrl(number, gn);
+          if (directUrl) return directUrl;
+        }
+      }
+    }
+
+    return params.url || null;
+  } catch (e) {
+    console.error('getResolvedReportUrlAction error:', e);
+    return params.url || null;
+  }
+}
+
+export async function updateReport(id: string, report: {
+  title: string;
+  author?: string;
+  institution?: string;
+  date?: string;
+  summary?: string;
+  content?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query(
+      "UPDATE reports SET title = $1, author = $2, institution = $3, date = $4, summary = $5, content = $6 WHERE id = $7 AND (user_id = $8 OR user_id = $9)",
+      [report.title, report.author, report.institution, report.date, report.summary, report.content, id, user.id, user.email]
+    );
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to update report with id ${id}:`, error);
+    return { success: false, error: error.message || '업데이트 중 오류가 발생했습니다.' };
   }
 }
 
@@ -80,13 +216,19 @@ export async function getBooks(): Promise<Book[]> {
  * Gmail Integration Helpers
  */
 export async function getUserAccount(userId: string) {
-  const escapedUserId = escapeFormula(userId);
-  const account = await findRecord('accounts', `AND({userId} = '${escapedUserId}', {provider} = 'google')`);
-  if (account) return account;
+  const res = await query(
+    'SELECT * FROM accounts WHERE "userId" = $1 AND provider = $2',
+    [userId, 'google']
+  );
+  if (res.rows.length > 0) return res.rows[0];
 
-  const user = await findRecord('users', `{email} = '${escapedUserId}'`);
-  if (user) {
-    return await findRecord('accounts', `AND({userId} = '${escapeFormula(user.id)}', {provider} = 'google')`);
+  const userRes = await query('SELECT * FROM users WHERE email = $1', [userId]);
+  if (userRes.rows.length > 0) {
+    const accountRes = await query(
+      'SELECT * FROM accounts WHERE "userId" = $1 AND provider = $2',
+      [userRes.rows[0].id, 'google']
+    );
+    return accountRes.rows[0] || null;
   }
 
   return null;
@@ -96,15 +238,17 @@ export async function updateAccountTokens(userId: string, tokens: { access_token
   const account = await getUserAccount(userId);
   if (!account) throw new Error('Account not found for token update');
 
-  const fields: any = {
-    access_token: tokens.access_token,
-    expires_at: tokens.expires_at
-  };
   if (tokens.refresh_token) {
-    fields.refresh_token = tokens.refresh_token;
+    await query(
+      'UPDATE accounts SET access_token = $1, expires_at = $2, refresh_token = $3 WHERE id = $4',
+      [tokens.access_token, tokens.expires_at, tokens.refresh_token, account.id]
+    );
+  } else {
+    await query(
+      'UPDATE accounts SET access_token = $1, expires_at = $2 WHERE id = $3',
+      [tokens.access_token, tokens.expires_at, account.id]
+    );
   }
-
-  await updateRecord('accounts', account.id, fields);
 }
 
 export async function getValidAccessToken(userId: string): Promise<string> {
@@ -114,12 +258,14 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  if (account.expires_at && account.expires_at > now + 60) {
+  const expiresAt = account.expires_at ? Number(account.expires_at) : 0;
+
+  if (expiresAt > now + 60) {
     return account.access_token;
   }
 
   if (!account.refresh_token) {
-    throw new Error('재인증이 필요합니다. 로그아웃 후 다시 로그인하여 Gmail 권한을 허용해 주세요.');
+    throw new Error('재인증이 필요합니다. 로그아웃 후 다시 로그인하여 Gmail 권한을 허용해 주세요. (Refresh Token 누락)');
   }
 
   try {
@@ -137,7 +283,7 @@ export async function getValidAccessToken(userId: string): Promise<string> {
     const tokens = await response.json();
     if (!response.ok) {
         console.error("Google Token Refresh Error:", tokens);
-        throw new Error('토큰 갱신에 실패했습니다. 다시 로그인해 주세요.');
+        throw new Error(`토큰 갱신 실패 (${tokens.error || 'unknown'}): ${tokens.error_description || '다시 로그인해 주세요.'}`);
     }
 
     await updateAccountTokens(userId, {
@@ -154,69 +300,177 @@ export async function getValidAccessToken(userId: string): Promise<string> {
 }
 
 export async function sendBlogEmailAction(blogId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await getSessionUser();
-    if (!user.id) throw new Error('Unauthorized');
-
-    const accessToken = await getValidAccessToken(user.id);
-
-    const blog = await getBlogById(blogId);
-    if (!blog) throw new Error('Blog post not found');
-
-    const subject = `${blog.title}`;
-    const body = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #1978e5;">${blog.title}</h2>
-        <p><b>작성자:</b> ${blog.author || '알 수 없음'}</p>
-        <p><b>원본 URL:</b> <a href="${blog.url}">${blog.url}</a></p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="white-space: pre-wrap;">${blog.content}</div>
-      </div>
-    `;
-
-    await sendGmail(accessToken, toEmail, subject, body);
-    return { success: true };
-  } catch (error: any) {
-    console.error('sendBlogEmailAction error:', error);
-    return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
-  }
+  return sendBatchEmailAction([{ type: 'blog', id: blogId }], toEmail);
 }
 
 export async function sendYoutubeEmailAction(videoId: string, toEmail: string): Promise<{ success: boolean; error?: string }> {
+  return sendBatchEmailAction([{ type: 'youtube', id: videoId }], toEmail);
+}
+
+export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     if (!user.id) throw new Error('Unauthorized');
 
     const accessToken = await getValidAccessToken(user.id);
 
-    const video = await getYoutubeVideoById(videoId);
-    if (!video) throw new Error('Video not found');
+    let htmlContent = '';
+    let subject = '';
 
-    const subject = `${video.title}`;
-    const summaryHtml = await marked.parse(video.summary || '');
-    const body = `
-      <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #1978e5; font-size: 20px; margin-bottom: 15px;">${video.title}</h2>
-        <p style="margin: 5px 0;"><b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a></p>
-        <p style="margin: 5px 0;"><b>게시일:</b> ${video.published_at || '-'}</p>
-        <p style="margin: 5px 0;"><b>재생시간:</b> ${video.duration || '-'}</p>
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
-        <div style="background: #f9f9f9; padding: 20px; border-radius: 12px; border: 1px solid #eee;">
-          <h3 style="margin-top: 0; color: #444; font-size: 18px; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 5px; margin-bottom: 15px;">AI 요약 분석</h3>
-          <div style="word-break: break-word; color: #444;">
-            ${summaryHtml}
+    // Set subject based on the first item and total count
+    if (items.length > 0) {
+      const firstItem = items[0];
+      let firstTitle = '';
+      if (firstItem.type === 'youtube') {
+        const video = await getYoutubeVideoById(firstItem.id);
+        firstTitle = video?.title || 'YouTube 영상';
+      } else if (firstItem.type === 'blog') {
+        const blog = await getBlogById(firstItem.id);
+        firstTitle = blog?.title || '블로그 글';
+      } else if (firstItem.type === 'report') {
+        const report = await getReportById(firstItem.id);
+        firstTitle = report?.title || '리포트';
+      }
+
+      subject = `${firstTitle} (${items.length}개)`;
+    } else {
+      subject = '[Scrap] 공유된 항목';
+    }
+
+    let tocHtml = '';
+    const showToc = items.length > 1;
+
+    if (showToc) {
+      tocHtml = `
+        <div style="margin-bottom: 40px; padding: 20px; background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <h3 style="margin: 0 0 15px 0; font-size: 16px; color: #1e293b; border-bottom: 2px solid #1978e5; display: inline-block; padding-bottom: 4px;">목차</h3>
+          <ul style="margin: 0; padding: 0; list-style: none;">
+      `;
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const itemId = `item-${i}`;
+
+      if (item.type === 'youtube') {
+        const video = await getYoutubeVideoById(item.id);
+        if (!video) continue;
+
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [YouTube] ${video.title}</a></li>`;
+        }
+
+        const summaryHtml = await marked.parse(video.summary || '');
+        htmlContent += `
+          <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #ff0000; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">YOUTUBE</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${video.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+                <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
+                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
+              </p>
+              <div style="padding: 15px; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
+              </div>
+            </div>
           </div>
+        `;
+      } else if (item.type === 'blog') {
+        const blog = await getBlogById(item.id);
+        if (!blog) continue;
+
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
+        }
+
+        htmlContent += `
+          <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #19ce60; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">BLOG</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${blog.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666;">
+                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a>
+              </p>
+              <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
+            </div>
+          </div>
+        `;
+      } else if (item.type === 'report') {
+        const report = await getReportById(item.id);
+        if (!report) continue;
+
+        if (showToc) {
+          tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Report] ${report.title}</a></li>`;
+        }
+
+        const summaryHtml = report.summary ? await marked.parse(report.summary) : '';
+        htmlContent += `
+          <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+              <span style="display: inline-block; background: #6366f1; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">REPORT</span>
+              <h2 style="margin: 0; font-size: 18px; color: #111;">${report.title}</h2>
+            </div>
+            <div style="padding: 20px;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
+              </p>
+              ${report.url ? await (async () => {
+                let displayUrl = report.url;
+                if (report.url.includes('/api/report/download')) {
+                    const urlObj = new URL(report.url, 'http://localhost');
+                    const number = urlObj.searchParams.get('number');
+                    const gn = urlObj.searchParams.get('gn');
+                    if (number && gn) {
+                        const directUrl = await resolveBondwebPdfUrl(number, gn);
+                        if (directUrl) displayUrl = directUrl;
+                    }
+                }
+                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
+              })() : ''}
+
+              ${summaryHtml ? `
+              <div style="padding: 15px; border-radius: 8px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
+              </div>
+              ` : ''}
+
+              ${report.content ? `
+              <div style="margin-top: 20px; font-size: 13px; color: #555; line-height: 1.6; border-top: 1px dashed #eee; padding-top: 15px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">추출된 텍스트 내용</h3>
+                <div style="max-height: 300px; overflow-y: auto; background: #fcfcfc; padding: 10px;">${report.content}</div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    if (showToc) {
+      tocHtml += `
+          </ul>
         </div>
-        <footer style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
-          본 메일은 Book Journal 앱에서 발송되었습니다.
-        </footer>
+      `;
+    }
+
+    const body = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px;">
+        ${tocHtml}
+        ${htmlContent}
       </div>
     `;
 
     await sendGmail(accessToken, toEmail, subject, body);
     return { success: true };
   } catch (error: any) {
-    console.error('sendYoutubeEmailAction error:', error);
+    console.error('sendBatchEmailAction error:', error);
     return { success: false, error: error.message || '이메일 발송에 실패했습니다.' };
   }
 }
@@ -224,11 +478,13 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
 export async function getBlogTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('blog_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM blog_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getBlogTabs error:', error);
     return [];
   }
 }
@@ -241,14 +497,10 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
     const tabs = await getBlogTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('blog_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO blog_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/blog');
     return { success: true, id };
   } catch (error: any) {
@@ -262,11 +514,13 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('report_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getReportTabs error:', error);
     return [];
   }
 }
@@ -279,14 +533,10 @@ export async function addReportTab(name: string, url: string): Promise<{ success
     const tabs = await getReportTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('report_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO report_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/report');
     return { success: true, id };
   } catch (error: any) {
@@ -297,7 +547,9 @@ export async function addReportTab(name: string, url: string): Promise<{ success
 export async function updateReportTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('report_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE report_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -308,7 +560,7 @@ export async function updateReportTabOrder(tabOrders: { id: string; position: nu
 export async function deleteReportTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('report_tabs', id);
+    await query("DELETE FROM report_tabs WHERE id = $1", [id]);
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
@@ -321,7 +573,7 @@ export async function batchDeleteBlogsAction(ids: string[]): Promise<{ success: 
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    await batchDeleteRecords('naver_blogs', ids);
+    await query("DELETE FROM naver_blogs WHERE id = ANY($1)", [ids]);
 
     safeRevalidate('/blog');
     return { success: true };
@@ -337,11 +589,13 @@ export async function batchDeleteBlogsAction(ids: string[]): Promise<{ success: 
 export async function getYes24Tabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('yes24_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM yes24_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYes24Tabs error:', error);
     return [];
   }
 }
@@ -354,14 +608,10 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
     const tabs = await getYes24Tabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('yes24_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO yes24_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/best');
     return { success: true, id };
   } catch (error: any) {
@@ -372,7 +622,9 @@ export async function addYes24Tab(name: string, url: string): Promise<{ success:
 export async function updateYes24TabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('yes24_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE yes24_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -383,7 +635,7 @@ export async function updateYes24TabOrder(tabOrders: { id: string; position: num
 export async function deleteYes24Tab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('yes24_tabs', id);
+    await query("DELETE FROM yes24_tabs WHERE id = $1", [id]);
     safeRevalidate('/best');
     return { success: true };
   } catch (error: any) {
@@ -394,7 +646,9 @@ export async function deleteYes24Tab(id: string): Promise<{ success: boolean; er
 export async function updateBlogTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('blog_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE blog_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -405,7 +659,7 @@ export async function updateBlogTabOrder(tabOrders: { id: string; position: numb
 export async function deleteBlogTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('blog_tabs', id);
+    await query("DELETE FROM blog_tabs WHERE id = $1", [id]);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -429,17 +683,10 @@ export async function saveBlog(blog: {
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await createRecord('naver_blogs', {
-      id,
-      title: blog.title,
-      author: blog.author,
-      url: blog.url,
-      thumbnail: blog.thumbnail,
-      content: blog.content,
-      published_at: blog.published_at,
-      user_id: user.email || user.id,
-      added_at: addedAt
-    });
+    await query(
+      "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+      [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt]
+    );
 
     safeRevalidate('/blog');
     return { success: true, id };
@@ -449,13 +696,14 @@ export async function saveBlog(blog: {
   }
 }
 
-export async function getBlogs(): Promise<any[]> {
+export async function getBlogs(prefetchedUser?: any): Promise<any[]> {
   try {
-    const user = await getSessionUser();
-    return await findRecords('naver_blogs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
+    const user = await getSessionUser(prefetchedUser);
+    const res = await query(
+      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
     console.error('getBlogs error:', error);
     return [];
@@ -465,8 +713,13 @@ export async function getBlogs(): Promise<any[]> {
 export async function getBlogById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    return await findRecord('naver_blogs', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
+    const res = await query(
+      "SELECT * FROM naver_blogs WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
   } catch (error) {
+    console.error('getBlogById error:', error);
     return undefined;
   }
 }
@@ -474,7 +727,7 @@ export async function getBlogById(id: string): Promise<any | undefined> {
 export async function deleteBlog(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('naver_blogs', id);
+    await query("DELETE FROM naver_blogs WHERE id = $1", [id]);
     safeRevalidate('/blog');
     return { success: true };
   } catch (error: any) {
@@ -492,14 +745,10 @@ export async function updateYoutubeVideo(id: string, video: {
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
-    await updateRecord('youtube_videos', id, {
-      title: video.title,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      published_at: video.published_at,
-      summary: video.summary,
-      description: video.description
-    });
+    await query(
+      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, description = $6 WHERE id = $7",
+      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.description, id]
+    );
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
     return { success: true };
@@ -515,11 +764,13 @@ export async function updateYoutubeVideo(id: string, video: {
 export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('gemini_models', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getGeminiModels error:', error);
     return [];
   }
 }
@@ -528,12 +779,10 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
   try {
     const user = await ensureApproved();
     const id = randomUUID();
-    await createRecord('gemini_models', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO gemini_models (id, user_id, name, created_at) VALUES ($1, $2, $3, $4)",
+      [id, user.email || user.id, name, new Date().toISOString()]
+    );
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -546,11 +795,13 @@ export async function addGeminiModel(name: string): Promise<{ success: boolean; 
 export async function getYoutubeTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('youtube_tabs', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'position', direction: 'asc' }, { field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM youtube_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYoutubeTabs error:', error);
     return [];
   }
 }
@@ -563,14 +814,10 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
     const tabs = await getYoutubeTabs();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
-    await createRecord('youtube_tabs', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      url,
-      position: nextPos,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO youtube_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+      [id, user.email || user.id, name, url, nextPos, new Date().toISOString()]
+    );
     safeRevalidate('/youtube/recommend');
     return { success: true, id };
   } catch (error: any) {
@@ -581,7 +828,9 @@ export async function addYoutubeTab(name: string, url: string): Promise<{ succes
 export async function updateYoutubeTabOrder(tabOrders: { id: string; position: number }[]): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await batchUpdateRecords('youtube_tabs', tabOrders.map(item => ({ id: item.id, fields: { position: item.position } })));
+    for (const item of tabOrders) {
+      await query("UPDATE youtube_tabs SET position = $1 WHERE id = $2", [item.position, item.id]);
+    }
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -592,7 +841,7 @@ export async function updateYoutubeTabOrder(tabOrders: { id: string; position: n
 export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('youtube_tabs', id);
+    await query("DELETE FROM youtube_tabs WHERE id = $1", [id]);
     safeRevalidate('/youtube/recommend');
     return { success: true };
   } catch (error: any) {
@@ -603,7 +852,7 @@ export async function deleteYoutubeTab(id: string): Promise<{ success: boolean; 
 export async function updateGeminiModel(id: string, name: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await updateRecord('gemini_models', id, { name });
+    await query("UPDATE gemini_models SET name = $1 WHERE id = $2 AND (user_id = $3 OR user_id = $4)", [name, id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -613,7 +862,7 @@ export async function updateGeminiModel(id: string, name: string): Promise<{ suc
 export async function deleteGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('gemini_models', id);
+    await query("DELETE FROM gemini_models WHERE id = $1", [id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -623,18 +872,18 @@ export async function deleteGeminiModel(id: string): Promise<{ success: boolean;
 export async function updateGeminiPrompt(id: string, name: string, content: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await updateRecord('gemini_prompts', id, { name, content });
+    await query("UPDATE gemini_prompts SET name = $1, content = $2 WHERE id = $3 AND (user_id = $4 OR user_id = $5)", [name, content, id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function setDefaultGeminiModel(id: string): Promise<{ success: boolean; error?: string }> {
+export async function setDefaultGeminiModel(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const models = await getGeminiModels();
-    await batchUpdateRecords('gemini_models', models.map(m => ({ id: m.id, fields: { is_default: m.id === id } })));
+    const column = category === 'report' ? 'report_default' : 'youtube_default';
+    await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -644,11 +893,13 @@ export async function setDefaultGeminiModel(id: string): Promise<{ success: bool
 export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    return await findRecords('gemini_prompts', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'created_at', direction: 'asc' }]
-    });
+    const res = await query(
+      "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getGeminiPrompts error:', error);
     return [];
   }
 }
@@ -657,13 +908,10 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
   try {
     const user = await ensureApproved();
     const id = randomUUID();
-    await createRecord('gemini_prompts', {
-      id,
-      user_id: user.email || user.id,
-      name,
-      content,
-      created_at: new Date().toISOString()
-    });
+    await query(
+      "INSERT INTO gemini_prompts (id, user_id, name, content, created_at) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, name, content, new Date().toISOString()]
+    );
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -673,18 +921,18 @@ export async function addGeminiPrompt(name: string, content: string): Promise<{ 
 export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('gemini_prompts', id);
+    await query("DELETE FROM gemini_prompts WHERE id = $1", [id]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
 }
 
-export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boolean; error?: string }> {
+export async function setDefaultGeminiPrompt(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const prompts = await getGeminiPrompts();
-    await batchUpdateRecords('gemini_prompts', prompts.map(p => ({ id: p.id, fields: { is_default: p.id === id } })));
+    const column = category === 'report' ? 'report_default' : 'youtube_default';
+    await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -694,7 +942,7 @@ export async function setDefaultGeminiPrompt(id: string): Promise<{ success: boo
 export async function deleteYoutubeVideo(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await deleteRecord('youtube_videos', id);
+    await query("DELETE FROM youtube_videos WHERE id = $1", [id]);
     safeRevalidate('/');
     return { success: true };
   } catch (error: any) {
@@ -708,7 +956,7 @@ export async function batchDeleteYoutubeVideosAction(ids: string[]): Promise<{ s
     const user = await ensureApproved();
     if (ids.length === 0) return { success: true };
 
-    await batchDeleteRecords('youtube_videos', ids);
+    await query("DELETE FROM youtube_videos WHERE id = ANY($1)", [ids]);
 
     safeRevalidate('/');
     return { success: true };
@@ -721,8 +969,13 @@ export async function batchDeleteYoutubeVideosAction(ids: string[]): Promise<{ s
 export async function getYoutubeVideoById(id: string): Promise<any | undefined> {
   try {
     const user = await getSessionUser();
-    return await findRecord('youtube_videos', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
+    const res = await query(
+      "SELECT * FROM youtube_videos WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    return res.rows[0];
   } catch (error) {
+    console.error('getYoutubeVideoById error:', error);
     return undefined;
   }
 }
@@ -730,12 +983,13 @@ export async function getYoutubeVideoById(id: string): Promise<any | undefined> 
 export async function getDeletedBooks(): Promise<Book[]> {
   try {
     const user = await getSessionUser();
-    const records = await findRecords('books', {
-      filterByFormula: `AND({deleted_at} != BLANK(), OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`,
-      sort: [{ field: 'deleted_at', direction: 'desc' }]
-    });
-    return records.map(mapRecordToBook);
+    const res = await query(
+      "SELECT * FROM books WHERE deleted_at IS NOT NULL AND (user_id = $1 OR user_id = $2) ORDER BY deleted_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows.map(mapRowToBook);
   } catch (error) {
+    console.error('getDeletedBooks error:', error);
     return [];
   }
 }
@@ -743,10 +997,14 @@ export async function getDeletedBooks(): Promise<Book[]> {
 export async function getBookById(id: string): Promise<Book | undefined> {
   try {
     const user = await getSessionUser();
-    const record = await findRecord('books', `AND({id} = '${escapeFormula(id)}', OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}'))`);
-    if (!record) return undefined;
-    return mapRecordToBook(record);
+    const res = await query(
+      "SELECT * FROM books WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    if (res.rows.length === 0) return undefined;
+    return mapRowToBook(res.rows[0]);
   } catch (error) {
+    console.error('getBookById error:', error);
     return undefined;
   }
 }
@@ -757,28 +1015,10 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     const id = randomUUID();
     const createdAt = new Date().toISOString();
 
-    await createRecord('books', {
-      id,
-      title: book.title,
-      author: book.author,
-      cover_image: book.coverImage,
-      description: book.description,
-      published_date: book.publishDate,
-      price: book.price,
-      category: book.category,
-      status: book.readingStatus,
-      progress: book.progress || 0,
-      rating: book.rating || 0,
-      notes: book.notes,
-      added_at: createdAt,
-      user_id: user.email || user.id,
-      intro: book.intro,
-      toc: book.toc,
-      author_intro: book.authorIntro,
-      inside: book.inside,
-      publisher_review: book.publisherReview,
-      yes24_url: book.yes24Url
-    });
+    await query(
+      "INSERT INTO books (id, title, author, cover_image, description, published_date, price, category, status, progress, rating, notes, added_at, user_id, intro, toc, author_intro, inside, publisher_review, yes24_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)",
+      [id, book.title, book.author, book.coverImage, book.description, book.publishDate, book.price, book.category, book.readingStatus, book.progress || 0, book.rating || 0, book.notes, createdAt, user.email || user.id, book.intro, book.toc, book.authorIntro, book.inside, book.publisherReview, book.yes24Url]
+    );
 
     safeRevalidate('/');
     return { success: true, data: { ...book, id, createdAt } };
@@ -795,25 +1035,10 @@ export async function updateBook(book: Book): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await updateRecord('books', book.id, {
-      title: book.title,
-      author: book.author,
-      cover_image: book.coverImage,
-      description: book.description,
-      published_date: book.publishDate,
-      price: book.price,
-      category: book.category,
-      status: book.readingStatus,
-      progress: book.progress || 0,
-      rating: book.rating || 0,
-      notes: book.notes,
-      intro: book.intro,
-      toc: book.toc,
-      author_intro: book.authorIntro,
-      inside: book.inside,
-      publisher_review: book.publisherReview,
-      yes24_url: book.yes24Url
-    });
+    await query(
+      "UPDATE books SET title = $1, author = $2, cover_image = $3, description = $4, published_date = $5, price = $6, category = $7, status = $8, progress = $9, rating = $10, notes = $11, intro = $12, toc = $13, author_intro = $14, inside = $15, publisher_review = $16, yes24_url = $17 WHERE id = $18",
+      [book.title, book.author, book.coverImage, book.description, book.publishDate, book.price, book.category, book.readingStatus, book.progress || 0, book.rating || 0, book.notes, book.intro, book.toc, book.authorIntro, book.inside, book.publisherReview, book.yes24Url, book.id]
+    );
     safeRevalidate('/');
     safeRevalidate(`/book/${book.id}`);
   } catch (error) {
@@ -830,7 +1055,7 @@ export async function softDeleteBook(id: string): Promise<void> {
   await ensureApproved();
   const deletedAt = new Date().toISOString();
   try {
-    await updateRecord('books', id, { deleted_at: deletedAt });
+    await query("UPDATE books SET deleted_at = $1 WHERE id = $2", [deletedAt, id]);
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -846,7 +1071,7 @@ export async function batchDeleteBooksAction(ids: string[]): Promise<{ success: 
     if (ids.length === 0) return { success: true };
 
     const deletedAt = new Date().toISOString();
-    await batchUpdateRecords('books', ids.map(id => ({ id, fields: { deleted_at: deletedAt } })));
+    await query("UPDATE books SET deleted_at = $1 WHERE id = ANY($2)", [deletedAt, ids]);
 
     safeRevalidate('/');
     safeRevalidate('/trash');
@@ -864,7 +1089,7 @@ export async function restoreBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await updateRecord('books', id, { deleted_at: null });
+    await query("UPDATE books SET deleted_at = NULL WHERE id = $1", [id]);
     safeRevalidate('/');
     safeRevalidate('/trash');
   } catch (error) {
@@ -880,7 +1105,7 @@ export async function permanentlyDeleteBook(id: string): Promise<void> {
   const user = await getSessionUser();
   await ensureApproved();
   try {
-    await deleteRecord('books', id);
+    await query("DELETE FROM books WHERE id = $1", [id]);
     safeRevalidate('/trash');
   } catch (error) {
     console.error(`Failed to permanently delete book with id ${id}:`, error);
@@ -905,18 +1130,10 @@ export async function saveYoutubeVideo(video: {
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await createRecord('youtube_videos', {
-      id,
-      title: video.title,
-      url: video.url,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      published_at: video.published_at,
-      summary: video.summary,
-      description: video.description,
-      user_id: user.email || user.id,
-      added_at: addedAt
-    });
+    await query(
+      "INSERT INTO youtube_videos (id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+      [id, video.title, video.url, video.thumbnail, video.duration, video.published_at, video.summary, video.description, user.email || user.id, addedAt]
+    );
 
     safeRevalidate('/');
     return { success: true, id };
@@ -929,14 +1146,16 @@ export async function saveYoutubeVideo(video: {
   }
 }
 
-export async function getYoutubeVideos(): Promise<any[]> {
+export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
   try {
-    const user = await getSessionUser();
-    return await findRecords('youtube_videos', {
-      filterByFormula: `OR({user_id} = '${escapeFormula(user.id)}', {user_id} = '${escapeFormula(user.email)}')`,
-      sort: [{ field: 'added_at', direction: 'desc' }]
-    });
+    const user = await getSessionUser(prefetchedUser);
+    const res = await query(
+      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      [user.id, user.email]
+    );
+    return res.rows;
   } catch (error) {
+    console.error('getYoutubeVideos error:', error);
     return [];
   }
 }

@@ -6,6 +6,7 @@ import { getBlogById, deleteBlog, sendBlogEmailAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
+import { showToast } from '@/components/Toast';
 
 export default function BlogDetailPage() {
   const params = useParams();
@@ -44,27 +45,23 @@ export default function BlogDetailPage() {
   };
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(blog.url);
+    navigator.clipboard.writeText(blog.url).then(() => {
+        showToast('URL이 복사되었습니다.');
+    });
   };
 
   const handleSendEmail = async () => {
-    if (!recipientEmail) {
-      alert('이메일 주소를 입력해 주세요.');
-      return;
-    }
-
+    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
     setIsSending(true);
     try {
-      const res = await sendBlogEmailAction(blog.id, recipientEmail);
+      const res = await sendBlogEmailAction(blog.id, email);
       if (res.success) {
-        localStorage.setItem('last_blog_email', recipientEmail);
-        alert('이메일이 발송되었습니다.');
-        setShowEmailModal(false);
+        showToast('메일이 발송되었습니다.');
       } else {
-        alert(res.error);
+        showToast(res.error || '발송 실패', 'error');
       }
     } catch (err) {
-      alert('이메일 발송에 실패했습니다.');
+      showToast('이메일 발송에 실패했습니다.', 'error');
     } finally {
       setIsSending(false);
     }
@@ -102,11 +99,18 @@ export default function BlogDetailPage() {
             URL 복사
           </button>
           <button
-            onClick={() => setShowEmailModal(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold active:scale-95 transition-all"
+            onClick={handleSendEmail}
+            disabled={isSending}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-bold active:scale-95 transition-all disabled:opacity-50"
           >
-            <span className="material-symbols-outlined text-lg">mail</span>
-            메일 보내기
+            {isSending ? (
+                <div className="size-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+                <>
+                <span className="material-symbols-outlined text-lg">mail</span>
+                메일 보내기
+                </>
+            )}
           </button>
         </div>
 
@@ -130,45 +134,6 @@ export default function BlogDetailPage() {
       </main>
 
       <BottomNav activeTab="blog" />
-
-      {/* Email Modal */}
-      {showEmailModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden p-6 space-y-4 animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">메일 송부 (Gmail)</h3>
-              <button onClick={() => setShowEmailModal(false)} className="text-slate-400"><span className="material-symbols-outlined">close</span></button>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase ml-1">수신인 이메일</label>
-              <input
-                type="email"
-                value={recipientEmail}
-                onChange={(e) => setRecipientEmail(e.target.value)}
-                placeholder="example@gmail.com"
-                className="w-full rounded-xl border dark:border-primary/20 bg-slate-50 dark:bg-slate-800 p-3 text-sm text-slate-900 dark:text-slate-100"
-              />
-            </div>
-            <button
-              onClick={handleSendEmail}
-              disabled={isSending || !recipientEmail}
-              className="w-full py-4 bg-primary text-white rounded-2xl font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {isSending ? (
-                <>
-                  <span className="material-symbols-outlined animate-spin">sync</span>
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined">send</span>
-                  보내기
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
