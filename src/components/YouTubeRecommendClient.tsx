@@ -28,7 +28,6 @@ export default function YouTubeRecommendClient({
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
-  const [cols, setCols] = useState<1 | 2>(1);
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -47,16 +46,7 @@ export default function YouTubeRecommendClient({
     } else if (tabs.length > 0) {
       setActiveTabId(tabs[0].id);
     }
-
-    const savedCols = localStorage.getItem('youtube_recommend_cols');
-    if (savedCols === '1' || savedCols === '2') {
-      setCols(parseInt(savedCols) as 1 | 2);
-    }
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem('youtube_recommend_cols', cols.toString());
-  }, [cols]);
 
   useEffect(() => {
     if (activeTabId) {
@@ -231,14 +221,6 @@ export default function YouTubeRecommendClient({
                 >
                     <span className="material-symbols-outlined text-2xl">add_circle</span>
                 </button>
-                <button
-                  onClick={() => setCols(cols === 1 ? 2 : 1)}
-                  className="text-primary hover:bg-primary/10 p-2 rounded-full transition-colors flex items-center justify-center"
-                >
-                  <span className="material-symbols-outlined">
-                    {cols === 1 ? 'grid_view' : 'view_stream'}
-                  </span>
-                </button>
           </div>
         }
       />
@@ -315,12 +297,9 @@ export default function YouTubeRecommendClient({
         )}
 
         {isLoading ? (
-          <div className={cn(
-            "grid gap-4",
-            cols === 1 ? "grid-cols-1" : "grid-cols-2"
-          )}>
+          <div className="grid gap-4 grid-cols-2">
             {[...Array(6)].map((_, i) => (
-              <SkeletonVideoItem key={i} cols={cols} />
+              <SkeletonVideoItem key={i} cols={2} />
             ))}
           </div>
         ) : videos.length === 0 ? (
@@ -328,15 +307,12 @@ export default function YouTubeRecommendClient({
             <p>추천 영상 정보를 불러올 수 없습니다.</p>
           </div>
         ) : (
-          <div className={cn(
-            "grid gap-4",
-            cols === 1 ? "grid-cols-1" : "grid-cols-2"
-          )}>
+          <div className="grid gap-4 grid-cols-2">
             {videos.map((video) => (
               <RecommendVideoItem
                 key={video.videoId}
                 video={video}
-                cols={cols}
+                cols={2}
                 isLoggedIn={!!session}
                 addingId={addingId}
                 onCopyUrl={handleCopyUrl}

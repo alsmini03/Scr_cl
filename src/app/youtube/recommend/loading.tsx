@@ -13,9 +13,9 @@ export default function YouTubeLoading() {
             <div className="h-9 w-20 bg-slate-200 dark:bg-black/30 rounded-full animate-skeleton" />
             <div className="h-9 w-20 bg-slate-200 dark:bg-black/30 rounded-full animate-skeleton" />
         </div>
-        <div className="grid grid-cols-1 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <SkeletonVideoItem key={i} cols={1} />
+        <div className="grid grid-cols-2 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <SkeletonVideoItem key={i} cols={2} />
           ))}
         </div>
       </main>
