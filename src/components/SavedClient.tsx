@@ -2,8 +2,8 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useState, memo, useMemo, useEffect } from 'react';
-import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
+import { useState, memo, useMemo, useEffect, useRef, useCallback } from 'react';
+import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
 import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
 import { showToast } from '@/components/Toast';
@@ -30,6 +30,15 @@ export default function SavedClient({
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report'>('all');
+  const [isDragging, setIsDragging] = useState(false);
+
+  const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const startPosRef = useRef<{x: number, y: number} | null>(null);
+  const currentSelectedRef = useRef<{type: string, id: string}[]>([]);
+
+  useEffect(() => {
+    currentSelectedRef.current = selectedItems;
+  }, [selectedItems]);
 
   useEffect(() => {
     const savedFilter = localStorage.getItem('saved_active_filter');
@@ -47,11 +56,7 @@ export default function SavedClient({
       return items.filter(item => item.type === activeFilter);
   }, [items, activeFilter]);
 
-  const toggleSelect = (type: string, id: string, e?: React.MouseEvent) => {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+  const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {
         const isAlreadySelected = prev.some(item => item.type === type && item.id === id);
         if (isAlreadySelected) {
@@ -60,12 +65,80 @@ export default function SavedClient({
             return [...prev, { type, id }];
         }
     });
+  }, []);
+
+  const addSelect = useCallback((type: string, id: string) => {
+    setSelectedItems(prev => {
+        const isAlreadySelected = prev.some(item => item.type === type && item.id === id);
+        if (isAlreadySelected) return prev;
+        return [...prev, { type, id }];
+    });
+  }, []);
+
+  // --- Drag Selection Logic ---
+
+  const handlePointerDown = (e: React.PointerEvent, type: string, id: string) => {
+    // Only handle primary button/touch
+    if (e.button !== 0) return;
+
+    startPosRef.current = { x: e.clientX, y: e.clientY };
+
+    dragTimerRef.current = setTimeout(() => {
+        if (!isEditMode) {
+            setIsEditMode(true);
+            setSelectedItems([{ type, id }]);
+        } else {
+            // Already in edit mode, toggle current item if just a tap,
+            // but we start dragging mode here
+        }
+        setIsDragging(true);
+        // Provide haptic feedback if possible
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    }, 600);
   };
 
-  const handleLongPress = (type: string, id: string) => {
-    setIsEditMode(true);
-    setSelectedItems([{ type, id }]);
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!startPosRef.current) return;
+
+    // If not dragging yet, check if moved too much to cancel long press
+    if (!isDragging) {
+        const dist = Math.sqrt(
+            Math.pow(e.clientX - startPosRef.current.x, 2) +
+            Math.pow(e.clientY - startPosRef.current.y, 2)
+        );
+        if (dist > 10) {
+            if (dragTimerRef.current) {
+                clearTimeout(dragTimerRef.current);
+                dragTimerRef.current = null;
+            }
+        }
+        return;
+    }
+
+    // While dragging, identify the item under pointer
+    const element = document.elementFromPoint(e.clientX, e.clientY);
+    const itemElement = element?.closest('[data-saved-item="true"]');
+    if (itemElement) {
+        const type = itemElement.getAttribute('data-type');
+        const id = itemElement.getAttribute('data-id');
+        if (type && id) {
+            addSelect(type, id);
+        }
+    }
   };
+
+  const handlePointerUp = () => {
+    if (dragTimerRef.current) {
+        clearTimeout(dragTimerRef.current);
+        dragTimerRef.current = null;
+    }
+    setIsDragging(false);
+    startPosRef.current = null;
+  };
+
+  // --- End Drag Selection Logic ---
 
   const handleBatchEmail = async () => {
     if (selectedItems.length === 0) return;
@@ -138,7 +211,12 @@ export default function SavedClient({
   ];
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
+    <div
+        className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden touch-none"
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+    >
       <Header
         title="저장된 항목"
         rightAction={
@@ -161,7 +239,7 @@ export default function SavedClient({
         }
       />
 
-      <main className="mt-4 px-4">
+      <main className="mt-4 px-4 select-none">
         {/* Filters */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10 py-2">
             <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-1 flex-nowrap">
@@ -224,7 +302,7 @@ export default function SavedClient({
                 item={item}
                 isEditMode={isEditMode}
                 isSelected={isSelected(item.type, item.id)}
-                onLongPress={handleLongPress}
+                onPointerDown={handlePointerDown}
                 onToggleSelect={toggleSelect}
               />
             ))}
@@ -237,7 +315,7 @@ export default function SavedClient({
   );
 }
 
-const SavedItem = memo(({ item, isEditMode, isSelected, onLongPress, onToggleSelect }: any) => {
+const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleSelect }: any) => {
   let href = '';
   let icon = '';
   let iconColor = '';
@@ -260,15 +338,22 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onLongPress, onToggleSel
     typeLabel = '리포트';
   }
 
-  const longPressHandlers = getLongPressHandlers(() => onLongPress(item.type, item.id), 500);
-
   return (
-    <div className="relative animate-fade-in-up">
+    <div
+        className="relative animate-fade-in-up"
+        data-saved-item="true"
+        data-type={item.type}
+        data-id={item.id}
+    >
       <Link
         href={isEditMode ? '#' : href}
-        onClick={(e) => isEditMode && onToggleSelect(item.type, item.id, e)}
+        onClick={(e) => {
+            if (isEditMode) {
+                onToggleSelect(item.type, item.id, e);
+            }
+        }}
+        onPointerDown={(e) => onPointerDown(e, item.type, item.id)}
         onContextMenu={(e) => e.preventDefault()}
-        {...longPressHandlers}
         className={cn(
           "flex items-center gap-3 bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
           isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
@@ -276,18 +361,18 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onLongPress, onToggleSel
       >
         {item.type === 'youtube' && item.thumbnail ? (
           <div className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
-            <img src={item.thumbnail} alt="" className="w-full h-full object-cover" />
+            <img src={item.thumbnail} alt="" className="w-full h-full object-cover pointer-events-none" />
             <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] font-bold px-1 rounded">
                 {item.duration}
             </div>
           </div>
         ) : (
           <div className={cn("size-12 shrink-0 rounded-xl flex items-center justify-center ml-3", iconColor)}>
-            <span className="material-symbols-outlined">{icon}</span>
+            <span className="material-symbols-outlined pointer-events-none">{icon}</span>
           </div>
         )}
 
-        <div className="flex-1 min-w-0 py-3">
+        <div className="flex-1 min-w-0 py-3 pointer-events-none">
           <div className="flex items-center gap-1.5 mb-0.5">
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase",
                 item.type === 'youtube' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
@@ -306,7 +391,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onLongPress, onToggleSel
           </p>
         </div>
 
-        <div className="flex items-center pr-3">
+        <div className="flex items-center pr-3 pointer-events-none">
             {isEditMode ? (
                 <div className={cn(
                     "size-5 rounded-full border-2 flex items-center justify-center transition-all",
