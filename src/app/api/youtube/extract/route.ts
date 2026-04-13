@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     const videoId = videoIdMatch ? videoIdMatch[1] : null;
 
     if (!thumbnail && videoId) {
-      thumbnail = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
     }
 
     // Attempt to fetch transcript

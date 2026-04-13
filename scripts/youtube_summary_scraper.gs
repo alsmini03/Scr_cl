@@ -37,7 +37,9 @@ function main() {
 
       emailHtml += `
         <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-          <img src="${video.thumbnail}" style="width: 100%; aspect-ratio: 16/9; object-fit: cover;" />
+          <div style="padding: 20px 20px 0 20px;">
+            <img src="${video.thumbnail}" style="border-radius: 8px; display: block;" />
+          </div>
           <div style="padding: 20px;">
             <h2 style="margin: 0 0 10px 0; font-size: 1.2em; color: #111;">${video.title}</h2>
             <div style="font-size: 0.8em; color: #888; margin-bottom: 15px;">
@@ -106,7 +108,7 @@ function fetchLatestVideos(channelUrl, limit) {
           videoId: videoId,
           title: videoRenderer.title.runs[0].text,
           url: 'https://www.youtube.com/watch?v=' + videoId,
-          thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
           publishedTime: videoRenderer.publishedTimeText?.simpleText || ''
         });
       }
