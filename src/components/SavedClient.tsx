@@ -34,11 +34,6 @@ export default function SavedClient({
 
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{x: number, y: number} | null>(null);
-  const currentSelectedRef = useRef<{type: string, id: string}[]>([]);
-
-  useEffect(() => {
-    currentSelectedRef.current = selectedItems;
-  }, [selectedItems]);
 
   useEffect(() => {
     const savedFilter = localStorage.getItem('saved_active_filter');
@@ -78,63 +73,85 @@ export default function SavedClient({
   // --- Drag Selection Logic ---
 
   const handlePointerDown = (e: React.PointerEvent, type: string, id: string) => {
-    // Only handle primary button/touch
     if (e.button !== 0) return;
 
     startPosRef.current = { x: e.clientX, y: e.clientY };
 
     dragTimerRef.current = setTimeout(() => {
-        if (!isEditMode) {
-            setIsEditMode(true);
-            setSelectedItems([{ type, id }]);
-        } else {
-            // Already in edit mode, toggle current item if just a tap,
-            // but we start dragging mode here
-        }
+        setIsEditMode(true);
         setIsDragging(true);
-        // Provide haptic feedback if possible
+        addSelect(type, id);
+
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
             navigator.vibrate(50);
         }
     }, 600);
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!startPosRef.current) return;
+  useEffect(() => {
+    if (!isDragging) return;
 
-    // If not dragging yet, check if moved too much to cancel long press
-    if (!isDragging) {
-        const dist = Math.sqrt(
-            Math.pow(e.clientX - startPosRef.current.x, 2) +
-            Math.pow(e.clientY - startPosRef.current.y, 2)
-        );
-        if (dist > 10) {
-            if (dragTimerRef.current) {
-                clearTimeout(dragTimerRef.current);
-                dragTimerRef.current = null;
+    const onPointerMove = (e: PointerEvent) => {
+        const element = document.elementFromPoint(e.clientX, e.clientY);
+        const itemElement = element?.closest('[data-saved-item="true"]');
+        if (itemElement) {
+            const type = itemElement.getAttribute('data-type');
+            const id = itemElement.getAttribute('data-id');
+            if (type && id) {
+                addSelect(type, id);
             }
         }
-        return;
-    }
+    };
 
-    // While dragging, identify the item under pointer
-    const element = document.elementFromPoint(e.clientX, e.clientY);
-    const itemElement = element?.closest('[data-saved-item="true"]');
-    if (itemElement) {
-        const type = itemElement.getAttribute('data-type');
-        const id = itemElement.getAttribute('data-id');
-        if (type && id) {
-            addSelect(type, id);
+    const onPointerUp = () => {
+        setIsDragging(false);
+        startPosRef.current = null;
+        if (dragTimerRef.current) {
+            clearTimeout(dragTimerRef.current);
+            dragTimerRef.current = null;
+        }
+        document.body.style.touchAction = '';
+        document.body.style.userSelect = '';
+    };
+
+    // Lock scrolling and selection during drag
+    document.body.style.touchAction = 'none';
+    document.body.style.userSelect = 'none';
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+
+    return () => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+        document.body.style.touchAction = '';
+        document.body.style.userSelect = '';
+    };
+  }, [isDragging, addSelect]);
+
+  // Handle pointer move BEFORE dragging starts (to cancel long press)
+  const handlePointerMoveRoot = (e: React.PointerEvent) => {
+    if (!startPosRef.current || isDragging) return;
+
+    const dist = Math.sqrt(
+        Math.pow(e.clientX - startPosRef.current.x, 2) +
+        Math.pow(e.clientY - startPosRef.current.y, 2)
+    );
+    if (dist > 10) {
+        if (dragTimerRef.current) {
+            clearTimeout(dragTimerRef.current);
+            dragTimerRef.current = null;
         }
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUpRoot = () => {
     if (dragTimerRef.current) {
         clearTimeout(dragTimerRef.current);
         dragTimerRef.current = null;
     }
-    setIsDragging(false);
     startPosRef.current = null;
   };
 
@@ -199,7 +216,7 @@ export default function SavedClient({
       }
   };
 
-  const isSelected = (type: string, id: string) => {
+  const isItemSelected = (type: string, id: string) => {
     return selectedItems.some(item => item.type === type && item.id === id);
   };
 
@@ -212,10 +229,10 @@ export default function SavedClient({
 
   return (
     <div
-        className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden touch-none"
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden"
+        onPointerMove={handlePointerMoveRoot}
+        onPointerUp={handlePointerUpRoot}
+        onPointerCancel={handlePointerUpRoot}
     >
       <Header
         title="저장된 항목"
@@ -301,7 +318,7 @@ export default function SavedClient({
                 key={`${item.type}-${item.id}`}
                 item={item}
                 isEditMode={isEditMode}
-                isSelected={isSelected(item.type, item.id)}
+                isSelected={isItemSelected(item.type, item.id)}
                 onPointerDown={handlePointerDown}
                 onToggleSelect={toggleSelect}
               />
@@ -344,16 +361,17 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
         data-saved-item="true"
         data-type={item.type}
         data-id={item.id}
+        onPointerDown={(e) => onPointerDown(e, item.type, item.id)}
+        onContextMenu={(e) => e.preventDefault()}
     >
       <Link
         href={isEditMode ? '#' : href}
         onClick={(e) => {
             if (isEditMode) {
-                onToggleSelect(item.type, item.id, e);
+                e.preventDefault();
+                onToggleSelect(item.type, item.id);
             }
         }}
-        onPointerDown={(e) => onPointerDown(e, item.type, item.id)}
-        onContextMenu={(e) => e.preventDefault()}
         className={cn(
           "flex items-center gap-3 bg-white dark:bg-slate-900/50 rounded-2xl border overflow-hidden shadow-sm active:scale-[0.98] transition-all relative group",
           isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
