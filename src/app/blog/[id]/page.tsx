@@ -8,6 +8,36 @@ import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 
+export const SkeletonBlogDetail = () => (
+  <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100">
+    <Header title="블로그 글" showBack onBack={() => {}} />
+    <main className="p-4 space-y-6 max-w-2xl mx-auto">
+      <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+        <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+        <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      </div>
+      <div className="h-10 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      <div className="flex items-center gap-2 py-2 border-y border-slate-100 dark:border-primary/10">
+        <div className="flex-1 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+        <div className="flex-1 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+        <div className="flex-1 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+      </div>
+      <div className="flex justify-between items-center">
+        <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      </div>
+      <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+      <div className="space-y-4">
+        <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-4 w-full bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-4 w-2/3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      </div>
+    </main>
+    <BottomNav activeTab="blog" />
+  </div>
+);
+
 export default function BlogDetailPage() {
   const params = useParams();
   const id = params?.id as string;
@@ -43,7 +73,7 @@ export default function BlogDetailPage() {
     load();
   }, [id]);
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary">sync</span></div>;
+  if (loading) return <SkeletonBlogDetail />;
   if (!blog) notFound();
 
   const handleDelete = async () => {

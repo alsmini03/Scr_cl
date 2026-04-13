@@ -34,6 +34,36 @@ interface YoutubeVideo {
   user_id: string;
 }
 
+export const SkeletonYoutubeDetail = () => (
+  <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark overflow-x-hidden">
+    <Header title="유튜브 기록" showBack onBack={() => {}} />
+    <main className="p-4 space-y-6">
+      <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+        <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+        <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      </div>
+      <div className="w-full aspect-video rounded-2xl bg-slate-100 dark:bg-slate-800 animate-skeleton" />
+      <div className="space-y-4">
+        <div className="h-8 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="flex gap-3">
+          <div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+          <div className="h-4 w-24 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        </div>
+        <div className="flex gap-3">
+          <div className="h-6 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+          <div className="h-6 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        </div>
+      </div>
+      <div className="space-y-3">
+        <div className="h-6 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+      </div>
+    </main>
+    <BottomNav activeTab="library" />
+  </div>
+);
+
 export default function YoutubeDetailPage() {
   const params = useParams();
   const id = params?.id as string;
@@ -89,15 +119,7 @@ export default function YoutubeDetailPage() {
     loadVideo();
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="font-display min-h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin text-primary">
-          <span className="material-symbols-outlined text-4xl">sync</span>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <SkeletonYoutubeDetail />;
 
   if (!video) {
     notFound();

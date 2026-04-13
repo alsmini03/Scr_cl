@@ -50,6 +50,7 @@ export default function ReportClient({
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [lastId, setLastId] = useState('0');
   const [hasMore, setHasMore] = useState(true);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -160,11 +161,14 @@ export default function ReportClient({
   }, [reports, isLoading, isMoreLoading, hasMore, selectedRecommendReport, selectedReportId]);
 
   const fetchMetadata = async (reportId: string) => {
+    setIsDetailLoading(true);
     try {
         const adj = await getAdjacentReportIdsAction(reportId);
         setAdjacentIds(adj);
     } catch (err) {
         console.error(err);
+    } finally {
+        setIsDetailLoading(false);
     }
   };
 
@@ -385,7 +389,9 @@ export default function ReportClient({
       />
 
       <main className="mt-4 px-4">
-        {selectedRecommendReport || (selectedReportId && selectedSavedReport) ? (
+        {isDetailLoading ? (
+            <SkeletonReportDetail />
+        ) : selectedRecommendReport || (selectedReportId && selectedSavedReport) ? (
             /* Detail View (both recommended and saved) */
             <div className="space-y-6 animate-fade-in-up pb-20">
                 {/* Navigation Bar */}
@@ -639,6 +645,31 @@ export default function ReportClient({
     </div>
   );
 }
+
+export const SkeletonReportDetail = memo(() => (
+    <div className="space-y-6 animate-fade-in-up pb-20">
+        <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+            <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+            <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+        </div>
+
+        <div className="space-y-2">
+            <div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+            <div className="h-8 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+            <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+        </div>
+
+        <div className="h-48 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+        <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+    </div>
+));
 
 export const SkeletonReportItem = memo(() => (
     <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm space-y-3">
