@@ -50,8 +50,6 @@ export default function ReportClient({
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [lastId, setLastId] = useState('0');
   const [hasMore, setHasMore] = useState(true);
-  const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
-  const [isContentLoading, setIsContentLoading] = useState(false);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -161,35 +159,18 @@ export default function ReportClient({
     }
   }, [reports, isLoading, isMoreLoading, hasMore, selectedRecommendReport, selectedReportId]);
 
-  const fetchContent = async (reportId: string) => {
-    if (viewingContent?.id === reportId) {
-        return;
-    }
-
-    setIsContentLoading(true);
+  const fetchMetadata = async (reportId: string) => {
     try {
-        const [res, adj] = await Promise.all([
-            fetch('/api/report/content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ num: reportId, code: '01' })
-            }),
-            getAdjacentReportIdsAction(reportId)
-        ]);
-        const html = await res.text();
-        setViewingContent({ id: reportId, content: html });
+        const adj = await getAdjacentReportIdsAction(reportId);
         setAdjacentIds(adj);
     } catch (err) {
         console.error(err);
-        showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
-    } finally {
-        setIsContentLoading(false);
     }
   };
 
   const handleRecommendClick = (report: Report) => {
       setSelectedRecommendReport(report);
-      fetchContent(report.id);
+      fetchMetadata(report.id);
   };
 
   const handleCopyUrl = (url?: string) => {
@@ -288,8 +269,7 @@ export default function ReportClient({
         institution: report.institution,
         date: report.date,
         url: pdfUrl,
-        summary: data.result,
-        content: viewingContent?.id === report.id ? viewingContent.content : ''
+        summary: data.result
       });
 
       if (result.success && result.id) {
@@ -363,10 +343,10 @@ export default function ReportClient({
   const selectedSavedReport = initialSavedReports.find(r => r.id === selectedReportId);
   const isDetailView = !!selectedReportId || !!selectedRecommendReport;
 
-  // If redirected with ID, automatically fetch content
+  // If redirected with ID, automatically fetch metadata
   useEffect(() => {
       if (selectedReportId && !selectedRecommendReport) {
-          fetchContent(selectedReportId);
+          fetchMetadata(selectedReportId);
       }
   }, [selectedReportId]);
 
@@ -511,21 +491,6 @@ export default function ReportClient({
                     </div>
                 )}
 
-                {isContentLoading ? (
-                    <div className="p-10 flex flex-col items-center justify-center gap-4 text-slate-400">
-                        <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm">내용을 불러오는 중...</p>
-                    </div>
-                ) : viewingContent ? (
-                    <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm">
-                        <div
-                            className="prose prose-sm dark:prose-invert max-w-none break-words p-6"
-                            dangerouslySetInnerHTML={{ __html: viewingContent.content }}
-                        />
-                    </div>
-                ) : (
-                    <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
-                )}
             </div>
         ) : (
             /* List View */

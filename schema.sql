@@ -107,8 +107,6 @@ CREATE TABLE IF NOT EXISTS reports (
   institution TEXT,
   date TEXT,
   url TEXT,
-  thumbnail TEXT,
-  content TEXT,
   summary TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL
