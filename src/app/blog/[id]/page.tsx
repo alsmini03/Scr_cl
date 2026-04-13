@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getBlogById, deleteBlog, sendBlogEmailAction } from '@/lib/db';
+import { getBlogById, deleteBlog, sendBlogEmailAction, getAdjacentBlogIdsAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
@@ -15,6 +15,9 @@ export default function BlogDetailPage() {
   const [blog, setBlog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+
+  // Navigation states
+  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
 
@@ -26,8 +29,15 @@ export default function BlogDetailPage() {
   useEffect(() => {
     async function load() {
       if (!id) return;
-      const data = await getBlogById(id);
-      if (data) setBlog(data);
+      setLoading(true);
+      const [data, adj] = await Promise.all([
+          getBlogById(id),
+          getAdjacentBlogIdsAction(id)
+      ]);
+      if (data) {
+          setBlog(data);
+          setAdjacentIds(adj);
+      }
       setLoading(false);
     }
     load();
@@ -71,6 +81,7 @@ export default function BlogDetailPage() {
     <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header
         title="블로그 글"
+        onBack={() => router.push('/saved?filter=blog')}
         showBack
         rightAction={
             <button onClick={handleDelete} className="text-red-500 p-2" title="삭제"><span className="material-symbols-outlined">delete</span></button>
@@ -78,6 +89,27 @@ export default function BlogDetailPage() {
       />
 
       <main className="p-4 space-y-6 max-w-2xl mx-auto">
+        {/* Navigation Bar */}
+        <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+            <button
+                onClick={() => adjacentIds.prevId && router.push(`/blog/${adjacentIds.prevId}`)}
+                disabled={!adjacentIds.prevId}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+            >
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
+                이전
+            </button>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+            <button
+                onClick={() => adjacentIds.nextId && router.push(`/blog/${adjacentIds.nextId}`)}
+                disabled={!adjacentIds.nextId}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+            >
+                다음
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+        </div>
+
         <h1 className="text-2xl font-bold leading-tight">{blog.title}</h1>
 
         {/* Action Bar */}

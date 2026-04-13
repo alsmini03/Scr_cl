@@ -3,11 +3,12 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { marked } from 'marked';
 
 interface Report {
   id: string;
@@ -53,6 +54,7 @@ export default function ReportClient({
   const [isContentLoading, setIsContentLoading] = useState(false);
 
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Search State
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -61,6 +63,9 @@ export default function ReportClient({
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedRecommendReport, setSelectedRecommendReport] = useState<Report | null>(null);
+
+  // Navigation states
+  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
@@ -163,13 +168,17 @@ export default function ReportClient({
 
     setIsContentLoading(true);
     try {
-        const res = await fetch('/api/report/content', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ num: reportId, code: '01' })
-        });
+        const [res, adj] = await Promise.all([
+            fetch('/api/report/content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ num: reportId, code: '01' })
+            }),
+            getAdjacentReportIdsAction(reportId)
+        ]);
         const html = await res.text();
         setViewingContent({ id: reportId, content: html });
+        setAdjacentIds(adj);
     } catch (err) {
         console.error(err);
         showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
@@ -367,6 +376,9 @@ export default function ReportClient({
         title={isDetailView ? "리포트 상세" : "리포트"}
         showBack={isDetailView}
         onBack={() => {
+            if (selectedReportId) {
+                router.push('/saved?filter=report');
+            }
             setSelectedReportId(null);
             setSelectedRecommendReport(null);
         }}
@@ -396,6 +408,29 @@ export default function ReportClient({
         {selectedRecommendReport || (selectedReportId && selectedSavedReport) ? (
             /* Detail View (both recommended and saved) */
             <div className="space-y-6 animate-fade-in-up pb-20">
+                {/* Navigation Bar */}
+                {selectedReportId && (
+                <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+                    <button
+                        onClick={() => adjacentIds.prevId && setSelectedReportId(adjacentIds.prevId)}
+                        disabled={!adjacentIds.prevId}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                    >
+                        <span className="material-symbols-outlined text-lg">chevron_left</span>
+                        이전
+                    </button>
+                    <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+                    <button
+                        onClick={() => adjacentIds.nextId && setSelectedReportId(adjacentIds.nextId)}
+                        disabled={!adjacentIds.nextId}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                    >
+                        다음
+                        <span className="material-symbols-outlined text-lg">chevron_right</span>
+                    </button>
+                </div>
+                )}
+
                 <div className="grid grid-cols-3 gap-2">
                     <button
                         onClick={async () => {
@@ -462,6 +497,19 @@ export default function ReportClient({
                         </p>
                     </div>
                 </div>
+
+                {selectedSavedReport?.summary && (
+                    <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
+                        <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                            AI 요약 분석
+                        </h3>
+                        <div
+                            className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                            dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
+                        />
+                    </div>
+                )}
 
                 {isContentLoading ? (
                     <div className="p-10 flex flex-col items-center justify-center gap-4 text-slate-400">

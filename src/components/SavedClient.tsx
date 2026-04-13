@@ -7,6 +7,7 @@ import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
 import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
 import { showToast } from '@/components/Toast';
+import { useSearchParams } from 'next/navigation';
 
 export const SkeletonSavedItem = memo(() => (
   <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-3 flex items-center gap-3">

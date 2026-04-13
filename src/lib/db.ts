@@ -86,7 +86,7 @@ export async function getReports(prefetchedUser?: any): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT id, title, author, institution, date, url, thumbnail, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, author, institution, date, url, thumbnail, summary, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -1157,5 +1157,95 @@ export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
   } catch (error) {
     console.error('getYoutubeVideos error:', error);
     return [];
+  }
+}
+
+export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+  try {
+    const user = await getSessionUser();
+    const currentVideo = await getYoutubeVideoById(id);
+    if (!currentVideo) return {};
+
+    const addedAt = currentVideo.added_at;
+
+    // Prev (Newer in list)
+    const prevRes = await query(
+      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    // Next (Older in list)
+    const nextRes = await query(
+      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    return {
+      prevId: prevRes.rows[0]?.id,
+      nextId: nextRes.rows[0]?.id
+    };
+  } catch (error) {
+    console.error('getAdjacentYoutubeVideoIdsAction error:', error);
+    return {};
+  }
+}
+
+export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+  try {
+    const user = await getSessionUser();
+    const current = await getBlogById(id);
+    if (!current) return {};
+
+    const addedAt = current.added_at;
+
+    // Prev (Newer)
+    const prevRes = await query(
+      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    // Next (Older)
+    const nextRes = await query(
+      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    return {
+      prevId: prevRes.rows[0]?.id,
+      nextId: nextRes.rows[0]?.id
+    };
+  } catch (error) {
+    console.error('getAdjacentBlogIdsAction error:', error);
+    return {};
+  }
+}
+
+export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+  try {
+    const user = await getSessionUser();
+    const current = await getReportById(id);
+    if (!current) return {};
+
+    const addedAt = current.added_at;
+
+    // Prev (Newer)
+    const prevRes = await query(
+      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    // Next (Older)
+    const nextRes = await query(
+      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      [user.id, user.email, addedAt]
+    );
+
+    return {
+      prevId: prevRes.rows[0]?.id,
+      nextId: nextRes.rows[0]?.id
+    };
+  } catch (error) {
+    console.error('getAdjacentReportIdsAction error:', error);
+    return {};
   }
 }

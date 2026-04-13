@@ -8,7 +8,8 @@ import {
   updateYoutubeVideo,
   getGeminiModels,
   getGeminiPrompts,
-  sendYoutubeEmailAction
+  sendYoutubeEmailAction,
+  getAdjacentYoutubeVideoIdsAction
 } from '@/lib/db';
 import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -52,6 +53,9 @@ export default function YoutubeDetailPage() {
   const [editedSummary, setEditedSummary] = useState('');
   const [editedDescription, setEditedDescription] = useState('');
 
+  // Navigation states
+  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
+
   useEffect(() => {
     const lastEmail = localStorage.getItem('last_blog_email');
     if (lastEmail) setRecipientEmail(lastEmail);
@@ -60,7 +64,12 @@ export default function YoutubeDetailPage() {
   useEffect(() => {
     async function loadVideo() {
       if (!id) return;
-      const data = await getYoutubeVideoById(id);
+      setLoading(true);
+      const [data, adj] = await Promise.all([
+        getYoutubeVideoById(id),
+        getAdjacentYoutubeVideoIdsAction(id)
+      ]);
+
       if (data) {
         // Decode entities for all fields to ensure consistent display and editing
         const decodedData = {
@@ -73,6 +82,7 @@ export default function YoutubeDetailPage() {
         setEditedTitle(decodedData.title);
         setEditedSummary(decodedData.summary);
         setEditedDescription(decodedData.description);
+        setAdjacentIds(adj);
       }
       setLoading(false);
     }
@@ -246,6 +256,7 @@ export default function YoutubeDetailPage() {
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
         title="유튜브 기록"
+        onBack={() => router.push('/saved?filter=youtube')}
         showBack
         rightAction={
           <div className="flex items-center gap-1">
@@ -303,6 +314,29 @@ export default function YoutubeDetailPage() {
       />
 
       <main className="p-4 space-y-6">
+        {/* Navigation Bar */}
+        {!isEditingMode && (
+          <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+            <button
+              onClick={() => adjacentIds.prevId && router.push(`/youtube/${adjacentIds.prevId}`)}
+              disabled={!adjacentIds.prevId}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-lg">chevron_left</span>
+              이전
+            </button>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+            <button
+              onClick={() => adjacentIds.nextId && router.push(`/youtube/${adjacentIds.nextId}`)}
+              disabled={!adjacentIds.nextId}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+            >
+              다음
+              <span className="material-symbols-outlined text-lg">chevron_right</span>
+            </button>
+          </div>
+        )}
+
         <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-100 dark:border-primary/10">
            {/* eslint-disable-next-line @next/next/no-img-element */}
            <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
