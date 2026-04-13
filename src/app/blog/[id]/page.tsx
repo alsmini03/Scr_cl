@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 
-export const SkeletonBlogDetail = () => (
+const SkeletonBlogDetail = () => (
   <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100">
     <Header title="블로그 글" showBack onBack={() => {}} />
     <main className="p-4 space-y-6 max-w-2xl mx-auto">

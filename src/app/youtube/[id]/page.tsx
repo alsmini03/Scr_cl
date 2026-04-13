@@ -34,7 +34,7 @@ interface YoutubeVideo {
   user_id: string;
 }
 
-export const SkeletonYoutubeDetail = () => (
+const SkeletonYoutubeDetail = () => (
   <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark overflow-x-hidden">
     <Header title="유튜브 기록" showBack onBack={() => {}} />
     <main className="p-4 space-y-6">
