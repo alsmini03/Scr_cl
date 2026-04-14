@@ -276,6 +276,7 @@ export default function YouTubeRecommendClient({
               type="text"
               value={newTabName}
               onChange={(e) => setNewTabName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
               placeholder="탭 이름 (예: 언더스탠딩)"
               className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
             />
@@ -283,6 +284,7 @@ export default function YouTubeRecommendClient({
               type="text"
               value={newTabUrl}
               onChange={(e) => setNewTabUrl(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
               placeholder="채널 동영상 URL (예: https://m.youtube.com/@.../videos)"
               className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
             />

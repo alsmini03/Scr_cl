@@ -233,6 +233,7 @@ export default function BlogClient({
                         type="text"
                         value={newTabName}
                         onChange={(e) => setNewTabName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
                         placeholder="블로그 이름 (예: 토트카)"
                         className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
                     />
@@ -240,6 +241,7 @@ export default function BlogClient({
                         type="text"
                         value={newTabUrl}
                         onChange={(e) => setNewTabUrl(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
                         placeholder="블로그 URL (예: https://m.blog.naver.com/totcar)"
                         className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
                     />
