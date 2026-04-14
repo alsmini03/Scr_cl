@@ -4,14 +4,25 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const number = searchParams.get('number');
     const gn = searchParams.get('gn');
+    const url = searchParams.get('url');
     const title = searchParams.get('title') || 'report';
 
-    if (!number || !gn) {
+    if (!number && !gn && !url) {
         return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
     try {
-        const response = await fetchDownload(number, gn);
+        let response;
+        if (url) {
+            response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                }
+            });
+            if (!response.ok) throw new Error('Failed to fetch from URL');
+        } else {
+            response = await fetchDownload(number!, gn!);
+        }
         const blob = await response.blob();
 
         const headers = new Headers();

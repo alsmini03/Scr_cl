@@ -276,7 +276,7 @@ export default function ReportClient({
         author: report.author,
         institution: report.institution,
         date: report.date,
-        url: pdfUrl,
+        url: `/api/report/download?url=${encodeURIComponent(pdfUrl)}&title=${encodeURIComponent(report.title)}`,
         summary: data.result
       });
 
@@ -447,7 +447,8 @@ export default function ReportClient({
                             const directUrl = await getResolvedReportUrlAction({
                                 fileId: current.fileId,
                                 fileNum: current.fileNum,
-                                url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url
+                                url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url,
+                                title: current.title
                             });
                             handleCopyUrl(directUrl || '');
                             setIsCopying(false);

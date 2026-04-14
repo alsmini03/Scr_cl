@@ -147,37 +147,26 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
-export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
+export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string, title?: string }): Promise<string | null> {
   try {
+    const titleParam = params.title ? `&title=${encodeURIComponent(params.title)}` : '';
+
     if (params.fileId && params.fileNum) {
-      const directUrl = await resolveBondwebPdfUrl(params.fileId, params.fileNum);
-      if (directUrl) return directUrl;
+      return `/api/report/download?number=${params.fileId}&gn=${params.fileNum}${titleParam}`;
     }
 
     if (params.url) {
-      // If it's already a direct Data link
-      if (params.url.includes('/Data/')) return params.url;
-
-      // If it's a download proxy link
+      // If it's already a download proxy link
       if (params.url.includes('/api/report/download')) {
-        const urlObj = new URL(params.url, 'http://localhost');
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
+        if (params.title && !params.url.includes('title=')) {
+          return `${params.url}${titleParam}`;
         }
+        return params.url;
       }
 
-      // If it's a standard Bondweb download link
-      if (params.url.includes('DownloadPage.asp')) {
-        const urlObj = new URL(params.url);
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
-        }
+      // If it's a direct bondweb link or scrap path
+      if (params.url.includes('bondweb.co.kr')) {
+        return `/api/report/download?url=${encodeURIComponent(params.url)}${titleParam}`;
       }
     }
 
@@ -419,16 +408,10 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
                 <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
               </p>
               ${report.url ? await (async () => {
-                let displayUrl = report.url;
-                if (report.url.includes('/api/report/download')) {
-                    const urlObj = new URL(report.url, 'http://localhost');
-                    const number = urlObj.searchParams.get('number');
-                    const gn = urlObj.searchParams.get('gn');
-                    if (number && gn) {
-                        const directUrl = await resolveBondwebPdfUrl(number, gn);
-                        if (directUrl) displayUrl = directUrl;
-                    }
-                }
+                const displayUrl = await getResolvedReportUrlAction({
+                    url: report.url,
+                    title: report.title
+                });
                 return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
               })() : ''}
 
