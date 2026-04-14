@@ -9,6 +9,7 @@ import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { marked } from 'marked';
+import { useMemo } from 'react';
 
 interface Report {
   id: string;
@@ -51,6 +52,7 @@ export default function ReportClient({
   const [lastId, setLastId] = useState('0');
   const [hasMore, setHasMore] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [sortType, setSortType] = useState<'date' | 'size-asc' | 'size-desc'>('date');
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -346,6 +348,24 @@ export default function ReportClient({
     }
   };
 
+  const parseSize = (sizeStr?: string) => {
+      if (!sizeStr) return 0;
+      const num = parseFloat(sizeStr);
+      if (sizeStr.includes('MB')) return num * 1024 * 1024;
+      if (sizeStr.includes('KB')) return num * 1024;
+      return num;
+  };
+
+  const sortedReports = useMemo(() => {
+      if (sortType === 'date') return reports;
+
+      return [...reports].sort((a, b) => {
+          const sizeA = parseSize(a.fileSize);
+          const sizeB = parseSize(b.fileSize);
+          return sortType === 'size-asc' ? sizeA - sizeB : sizeB - sizeA;
+      });
+  }, [reports, sortType]);
+
   const selectedSavedReport = initialSavedReports.find(r => r.id === selectedReportId);
   const isDetailView = !!selectedReportId || !!selectedRecommendReport;
 
@@ -505,7 +525,7 @@ export default function ReportClient({
             <>
             <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
             <div className="flex flex-col flex-1 gap-3">
-            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap pt-3 mt-1">
+            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap pt-3 mt-1 pr-16 relative">
                 {tabs.map(tab => {
                     const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
                     return (
@@ -527,6 +547,24 @@ export default function ReportClient({
                         </div>
                     );
                 })}
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm pl-2 py-2">
+                    <button
+                        onClick={() => {
+                            if (sortType === 'date') setSortType('size-desc');
+                            else if (sortType === 'size-desc') setSortType('size-asc');
+                            else setSortType('date');
+                        }}
+                        className={cn(
+                            "p-2 rounded-full transition-all active:scale-95",
+                            sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
+                        )}
+                        title={sortType === 'date' ? '날짜순' : sortType === 'size-desc' ? '용량 큰순' : '용량 작은순'}
+                    >
+                        <span className="material-symbols-outlined text-xl">
+                            {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
+                        </span>
+                    </button>
+                </div>
             </div>
             </div>
             </div>
@@ -570,7 +608,7 @@ export default function ReportClient({
             </div>
             ) : (
             <div className="space-y-3">
-                {reports.map((report, idx) => (
+                {sortedReports.map((report, idx) => (
                 <div
                     key={report.id + idx}
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
