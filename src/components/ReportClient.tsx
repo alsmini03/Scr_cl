@@ -264,8 +264,10 @@ export default function ReportClient({
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to extract details');
       const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '리포트 분석 중 오류가 발생했습니다.');
+      }
 
       const result = await saveReport({
         title: report.title,
