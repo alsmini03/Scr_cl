@@ -30,6 +30,8 @@ function main() {
 
     let emailHtml = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto;">
+        <meta name="referrer" content="no-referrer">
+    `;
 
     for (const video of videoData) {
       console.log(`Analyzing video: ${video.title}`);
@@ -38,7 +40,7 @@ function main() {
       emailHtml += `
         <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
           <div style="padding: 20px 20px 0 20px;">
-            <img src="${video.thumbnail}" style="border-radius: 8px; display: block;" />
+            <img src="${video.thumbnail}" referrerpolicy="no-referrer" style="border-radius: 8px; display: block;" />
           </div>
           <div style="padding: 20px;">
             <h2 style="margin: 0 0 10px 0; font-size: 1.2em; color: #111;">${video.title}</h2>

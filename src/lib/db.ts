@@ -371,7 +371,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <h2 style="margin: 0; font-size: 18px; color: #111;">${video.title}</h2>
             </div>
             <div style="padding: 20px;">
-              ${video.thumbnail ? `<div style="margin-bottom: 20px;"><img src="${video.thumbnail.replace('maxresdefault.jpg', 'mqdefault.jpg')}" style="border-radius: 8px; display: block;"></div>` : ''}
+              ${video.thumbnail ? `<div style="margin-bottom: 20px;"><img src="${video.thumbnail.replace('maxresdefault.jpg', 'mqdefault.jpg')}" referrerpolicy="no-referrer" style="border-radius: 8px; display: block;"></div>` : ''}
               <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
                 <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
                 <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
@@ -450,6 +450,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
 
     const body = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px;">
+        <meta name="referrer" content="no-referrer">
         ${tocHtml}
         ${htmlContent}
       </div>
