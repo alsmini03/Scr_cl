@@ -102,6 +102,7 @@ export async function saveReport(report: {
   institution?: string;
   date?: string;
   url?: string;
+  content?: string;
   summary?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
@@ -110,8 +111,8 @@ export async function saveReport(report: {
     const addedAt = new Date().toISOString();
 
     await query(
-      "INSERT INTO reports (id, title, author, institution, date, url, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [id, report.title, report.author, report.institution, report.date, report.url, report.summary, user.email || user.id, addedAt]
+      "INSERT INTO reports (id, title, author, institution, date, url, content, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+      [id, report.title, report.author, report.institution, report.date, report.url, report.content, report.summary, user.email || user.id, addedAt]
     );
 
     safeRevalidate('/report');
@@ -200,12 +201,13 @@ export async function updateReport(id: string, report: {
   institution?: string;
   date?: string;
   summary?: string;
+  content?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
     await query(
-      "UPDATE reports SET title = $1, author = $2, institution = $3, date = $4, summary = $5 WHERE id = $6 AND (user_id = $7 OR user_id = $8)",
-      [report.title, report.author, report.institution, report.date, report.summary, id, user.id, user.email]
+      "UPDATE reports SET title = $1, author = $2, institution = $3, date = $4, summary = $5, content = $6 WHERE id = $7 AND (user_id = $8 OR user_id = $9)",
+      [report.title, report.author, report.institution, report.date, report.summary, report.content, id, user.id, user.email]
     );
     safeRevalidate('/report');
     return { success: true };
@@ -433,6 +435,13 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <div style="padding: 15px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
                 <div style="font-size: 14px; color: #444; line-height: 1.6;">${summaryHtml}</div>
+              </div>
+              ` : ''}
+
+              ${report.content ? `
+              <div style="margin-top: 20px; font-size: 13px; color: #555; line-height: 1.6; border-top: 1px dashed #eee; padding-top: 15px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; color: #666;">추출된 텍스트 내용</h3>
+                <div style="max-height: 300px; overflow-y: auto; background: #fcfcfc; padding: 10px;">${report.content}</div>
               </div>
               ` : ''}
             </div>
