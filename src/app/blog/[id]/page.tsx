@@ -108,7 +108,7 @@ export default function BlogDetailPage() {
   };
 
   return (
-    <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100">
+    <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
         title="블로그 글"
         onBack={() => router.push('/saved?filter=blog')}
@@ -140,7 +140,7 @@ export default function BlogDetailPage() {
             </button>
         </div>
 
-        <h1 className="text-2xl font-bold leading-tight">{blog.title}</h1>
+        <h1 className="text-2xl font-bold leading-tight break-words">{blog.title}</h1>
 
         {/* Action Bar */}
         <div className="flex items-center gap-2 py-2 border-y border-slate-100 dark:border-primary/10">
@@ -190,7 +190,7 @@ export default function BlogDetailPage() {
         )}
 
         <div
-          className="prose dark:prose-invert prose-slate max-w-none pb-20"
+          className="prose dark:prose-invert prose-slate max-w-none pb-20 break-words overflow-x-hidden"
           dangerouslySetInnerHTML={{ __html: blog.content || '' }}
         />
       </main>

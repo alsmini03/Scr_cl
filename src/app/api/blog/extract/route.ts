@@ -264,6 +264,29 @@ export async function POST(req: NextRequest) {
         if (!html) return "";
         const $clean = cheerio.load(html, null, false);
         $clean('*').removeAttr('id').removeAttr('class');
+
+        // Remove layout-breaking inline styles
+        $clean('*').each((_, el) => {
+            const style = $(el).attr('style');
+            if (style) {
+                // Keep safe styles like color and text-align, remove potentially breaking ones
+                const safeStyles = style.split(';')
+                    .map(s => s.trim())
+                    .filter(s => {
+                        const property = s.split(':')[0].toLowerCase().trim();
+                        const forbidden = ['position', 'z-index', 'float', 'width', 'margin', 'left', 'right', 'top', 'bottom', 'display'];
+                        return s && !forbidden.includes(property);
+                    })
+                    .join('; ');
+
+                if (safeStyles) {
+                    $(el).attr('style', safeStyles);
+                } else {
+                    $(el).removeAttr('style');
+                }
+            }
+        });
+
         // Add referrerpolicy="no-referrer" to all images to bypass Naver/Tistory hotlinking protection
         $clean('img').attr('referrerpolicy', 'no-referrer');
         return $clean.html() || "";
