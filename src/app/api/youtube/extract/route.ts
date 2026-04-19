@@ -91,6 +91,11 @@ export async function POST(req: NextRequest) {
       }
 
       if (playerResponse) {
+        // Priority: Use the actual video title from playerResponse as it's the most reliable
+        if (playerResponse.videoDetails?.title) {
+          title = playerResponse.videoDetails.title;
+        }
+
         const captionTracks = playerResponse.captions?.playerCaptionsTracklistRenderer?.captionTracks;
 
         if (captionTracks && captionTracks.length > 0) {

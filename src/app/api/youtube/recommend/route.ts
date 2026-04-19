@@ -77,7 +77,9 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
               if (!video) return null;
 
               const videoId = video.videoId;
-              const title = video.title?.runs?.[0]?.text || video.title?.accessibility?.accessibilityData?.label;
+              const title = video.title?.runs?.[0]?.text ||
+                            video.title?.simpleText ||
+                            video.title?.accessibility?.accessibilityData?.label;
               const thumbnail = video.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
               const publishedTime = video.publishedTimeText?.simpleText;
               const viewCount = video.viewCountText?.simpleText;
