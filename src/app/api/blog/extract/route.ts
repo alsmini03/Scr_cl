@@ -143,9 +143,24 @@ export async function POST(req: NextRequest) {
         // Tistory content selectors
         const contentArea = $(".blogview_content, .article_view, .view_section, .post-content, .tt_article_useless_p_margin, .entry-content, #article-view").first();
         if (contentArea.length > 0) {
+            // Clean up Tistory-specific metadata/ad containers before extraction
+            contentArea.find(".another_category, .container_postbtn, .revenue_unit_wrap, .related_posts, .list_related, .tt_adsense_bottom, script, ins, .og-link, .link_rel").remove();
+
+            let stopExtraction = false;
             contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote, table").each((_, el) => {
+                if (stopExtraction) return;
+
                 const tag = el.tagName.toLowerCase();
                 const $el = $(el);
+                const text = $el.text().trim();
+
+                // Check for recommendation list headers to stop extraction early
+                if (tag.startsWith('h') || tag === 'p' || tag === 'div') {
+                    if (text === '추천 글' || text === '함께 보면 좋은 글' || text.startsWith('카테고리의 다른 글') || text === '관련글') {
+                        stopExtraction = true;
+                        return;
+                    }
+                }
 
                 if (tag === 'img') {
                     const src = $el.attr('src');
@@ -156,7 +171,6 @@ export async function POST(req: NextRequest) {
                     content += $el.prop('outerHTML') + "<br><br>";
                 } else {
                     // Only get text from leaf nodes or direct children to avoid duplication
-                    // But also check for background-image in div (common for OG links or images in some skins)
                     const style = $el.attr('style') || '';
                     if (tag === 'div' && style.includes('background-image')) {
                         const bgMatch = style.match(/url\(['"]?([^'")]*)['"]?\)/);
@@ -175,7 +189,6 @@ export async function POST(req: NextRequest) {
                             } else if (tag === 'p') {
                                 content += html.trim() + "<br><br>";
                             } else if (tag === 'div' && $el.children().length === 0) {
-                                // Only add div if it has no children (leaf node with text)
                                 content += html.trim() + "<br><br>";
                             }
                         }
