@@ -137,21 +137,34 @@ export async function POST(req: NextRequest) {
         date = $(".se_publishDate, .date, .se-publish-date, .publishDate").first().text().trim();
         author = $(".nick, .writer, .nick_area").first().text().trim();
     } else if (isTistory) {
-        title = he.decode($(".tit_blogview, .title_post, .tit_section").first().text().trim() || $("meta[property='og:title']").attr("content") || "");
-        author = $(".txt_author, .writer").first().text().trim();
+        title = he.decode($(".tit_blogview, .title_post, .tit_section, .h-title, .post-title, h1, h2, .tit_h3").first().text().trim() || $("meta[property='og:title']").attr("content") || $("meta[name='title']").attr("content") || "");
+        author = $(".txt_author, .writer, .nick, .nickname, .name, .user-info .name, .info_author .link_author").first().text().trim() || $("meta[name='by']").attr("content") || $("meta[property='og.article.author']").attr("content") || "";
 
-        // Tistory Mobile content selector
-        const contentArea = $(".blogview_content, .article_view, .view_section, .post-content");
-        contentArea.find('*').removeAttr('id').removeAttr('class');
+        // Tistory content selectors
+        const contentArea = $(".blogview_content, .article_view, .view_section, .post-content, .tt_article_useless_p_margin, .entry-content, #article-view").first();
         if (contentArea.length > 0) {
-            contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote").each((_, el) => {
+            contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote, table").each((_, el) => {
                 const tag = el.tagName.toLowerCase();
+                const $el = $(el);
+
                 if (tag === 'img') {
-                    const src = $(el).attr('src');
+                    const src = $el.attr('src');
                     if (src) content += `<img src="${src}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br><br>`;
+                } else if (tag === 'table') {
+                    // Keep tables but clean them
+                    $el.removeAttr('id').removeAttr('class').removeAttr('style');
+                    content += $el.prop('outerHTML') + "<br><br>";
                 } else {
-                    const $el = $(el);
                     // Only get text from leaf nodes or direct children to avoid duplication
+                    // But also check for background-image in div (common for OG links or images in some skins)
+                    const style = $el.attr('style') || '';
+                    if (tag === 'div' && style.includes('background-image')) {
+                        const bgMatch = style.match(/url\(['"]?([^'")]*)['"]?\)/);
+                        if (bgMatch && bgMatch[1]) {
+                            content += `<img src="${bgMatch[1]}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br><br>`;
+                        }
+                    }
+
                     if ($el.children().length === 0 || tag === 'p' || tag.startsWith('h') || tag === 'blockquote') {
                         const html = $el.html() || "";
                         if (html.trim()) {
@@ -159,7 +172,10 @@ export async function POST(req: NextRequest) {
                                 content += `<${tag}>${html.trim()}</${tag}><br>`;
                             } else if (tag === 'blockquote') {
                                 content += `<blockquote>${html.trim()}</blockquote><br>`;
-                            } else {
+                            } else if (tag === 'p') {
+                                content += html.trim() + "<br><br>";
+                            } else if (tag === 'div' && $el.children().length === 0) {
+                                // Only add div if it has no children (leaf node with text)
                                 content += html.trim() + "<br><br>";
                             }
                         }
@@ -167,8 +183,8 @@ export async function POST(req: NextRequest) {
                 }
             });
         }
-        if (!content.trim()) content = $(".blogview_content, .article_view").html() || "";
-        date = $("meta[property='article:published_time']").attr("content") || $(".txt_date, .date").first().text().trim();
+        if (!content.trim()) content = $(".blogview_content, .article_view, .tt_article_useless_p_margin, .entry-content").first().html() || "";
+        date = $("meta[property='article:published_time']").attr("content") || $(".txt_date, .date, .time").first().text().trim();
     } else if (isBrunch) {
         title = he.decode($(".tit_view").first().text().trim() || $("meta[property='og:title']").attr("content") || "");
         author = $(".txt_byline .link_author").first().text().trim() || $("meta[name='author']").attr("content") || "";
