@@ -32,6 +32,7 @@ function AddContent() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoAdding, setIsAutoAdding] = useState(false);
+  const [isAutoAddingBlog, setIsAutoAddingBlog] = useState(false);
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
   const [extractedBlog, setExtractedBlog] = useState<{
     title: string;
@@ -160,6 +161,41 @@ function AddContent() {
           showToast(res.error || '저장 실패', 'error');
       }
       setIsSaving(false);
+  };
+
+  const handleAutoAddBlog = async () => {
+    if (!url) return;
+    setIsAutoAddingBlog(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/blog/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const saveRes = await saveBlog({
+          title: data.title,
+          author: data.author,
+          url: data.url || url,
+          thumbnail: data.thumbnail,
+          content: data.content,
+          published_at: data.published_at
+      });
+
+      if (saveRes.success) {
+          showToast('내 서재에 추가되었습니다.');
+          router.push('/blog');
+      } else {
+          showToast(saveRes.error || '저장 실패', 'error');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '블로그 정보를 가져오는 데 실패했습니다.');
+    } finally {
+      setIsAutoAddingBlog(false);
+    }
   };
 
   const handleAutoAdd = async () => {
@@ -408,16 +444,28 @@ function AddContent() {
                             className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
                             placeholder="https://blog.naver.com/..."
                         />
-                        <button
-                            onClick={handleExtractBlog}
-                            disabled={isExtracting}
-                            className="w-full bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                        >
-                            <span className="material-symbols-outlined text-lg">description</span>
-                            <span className="text-sm font-bold">
-                                {isExtracting ? '가져오는 중' : '정보 가져오기'}
-                            </span>
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleExtractBlog}
+                                disabled={isExtracting || isAutoAddingBlog}
+                                className="flex-1 bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined text-lg">description</span>
+                                <span className="text-sm font-bold">
+                                    {isExtracting ? '가져오는 중' : '가져오기'}
+                                </span>
+                            </button>
+                            <button
+                                onClick={handleAutoAddBlog}
+                                disabled={isExtracting || isAutoAddingBlog}
+                                className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                                <span className="text-sm font-bold">
+                                    {isAutoAddingBlog ? '추가 중' : '자동 추가'}
+                                </span>
+                            </button>
+                        </div>
                     </div>
                     {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
                 </div>
