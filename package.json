@@ -18,6 +18,7 @@
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "he": "^1.2.0",
+    "iconv-lite": "^0.7.2",
     "lucide-react": "^0.576.0",
     "marked": "^17.0.5",
     "marked-gfm-heading-id": "^4.1.3",

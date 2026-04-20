@@ -203,27 +203,35 @@ export async function POST(req: NextRequest) {
                           headers: {
                               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                           },
-                          signal: AbortSignal.timeout(3000)
+                          signal: AbortSignal.timeout(4000)
                       };
 
-                      const headRes = await fetch(finalUrl, { ...fetchOptions, method: 'HEAD' });
+                      // Improved size detection: Verify it's actually a PDF and not a 5KB error page
+                      const getRes = await fetch(finalUrl, {
+                          ...fetchOptions,
+                          method: 'GET',
+                          headers: { ...fetchOptions.headers, 'Range': 'bytes=0-256' }
+                      });
 
-                      let size = headRes.headers.get('content-length');
-                      if (!size || size === '0') {
-                          const getRes = await fetch(finalUrl, {
-                              ...fetchOptions,
-                              method: 'GET',
-                              headers: { ...fetchOptions.headers, 'Range': 'bytes=0-1' }
-                          });
-                          size = getRes.headers.get('content-range')?.split('/')?.[1] || getRes.headers.get('content-length');
-                      }
+                      if (getRes.status === 206 || getRes.status === 200) {
+                          const contentType = getRes.headers.get('content-type') || '';
+                          const contentRange = getRes.headers.get('content-range');
+                          const contentLength = getRes.headers.get('content-length');
 
-                      if (size) {
-                          const s = parseInt(size, 10);
-                          if (s > 1024) { // Ignore very small sizes which are likely error pages
-                            if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
-                            else fileSize = (s / 1024).toFixed(0) + 'KB';
-                            break; // Success, stop trying endpoints
+                          const buffer = await getRes.arrayBuffer();
+                          const headText = Buffer.from(buffer).toString('utf8', 0, 10);
+
+                          // Only proceed if it looks like a PDF and isn't an HTML error page
+                          if (headText.startsWith('%PDF') && !contentType.includes('text/html')) {
+                              const size = contentRange?.split('/')?.[1] || contentLength;
+                              if (size) {
+                                  const s = parseInt(size, 10);
+                                  if (s > 10240) { // Ignore anything under 10KB (usually corrupted or error)
+                                      if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
+                                      else fileSize = (s / 1024).toFixed(0) + 'KB';
+                                      break;
+                                  }
+                              }
                           }
                       }
                   }
