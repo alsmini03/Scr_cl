@@ -15,19 +15,29 @@ export async function POST(req: Request) {
     const allowedDomains = ["www.bondweb.co.kr", "bondweb.co.kr"];
     try {
         const parsedUrl = new URL(url);
-        // Also allow local origin for proxied requests
+        // Also allow current deployment origin
         const host = req.headers.get('host') || '';
-        const isLocal = host && (parsedUrl.host === host);
+        const referer = req.headers.get('referer') || '';
+        let refererHost = '';
+        try { refererHost = referer ? new URL(referer).host : ''; } catch(e) {}
+
+        const isLocal = (host && parsedUrl.host === host) ||
+                        (refererHost && parsedUrl.host === refererHost) ||
+                        (parsedUrl.hostname.endsWith('.netlify.app'));
 
         if (!allowedDomains.includes(parsedUrl.hostname) && !isLocal) {
-            return NextResponse.json({ error: "Invalid domain. Only bondweb.co.kr is allowed." }, { status: 403 });
+            return NextResponse.json({ error: `Invalid domain: ${parsedUrl.hostname}. Only bondweb.co.kr or local origin is allowed.` }, { status: 403 });
         }
     } catch (e) {
         return NextResponse.json({ error: "Invalid URL format." }, { status: 400 });
     }
 
     // 1. Fetch the PDF
-    const response = await fetch(url);
+    const response = await fetch(url, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        }
+    });
     if (!response.ok) {
         throw new Error(`Failed to fetch PDF from ${url}`);
     }
