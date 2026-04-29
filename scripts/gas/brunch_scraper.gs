@@ -140,6 +140,62 @@ function getBrunchContent(postUrl) {
 }
 
 /**
+ * 브런치 최신 글을 가져와 이메일로 발송합니다.
+ */
+function sendBrunchEmailMain() {
+  const PROFILE_URL = "https://brunch.co.kr/@socandy";
+  const RECIPIENT = "seokmin.kwon@samsung.com";
+
+  try {
+    console.log("Fetching latest brunch posts...");
+    const posts = getBrunchPosts(PROFILE_URL);
+
+    if (posts.length === 0) {
+      console.log("No posts found.");
+      return;
+    }
+
+    // 최신 글 1개만 처리 (또는 필요에 따라 여러 개 처리)
+    const latestPost = posts[0];
+    console.log(`Extracting content for: ${latestPost.title}`);
+    const detail = getBrunchContent(latestPost.url);
+
+    if (!detail) {
+      throw new Error("Failed to extract content for " + latestPost.title);
+    }
+
+    let emailHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 0 auto; padding: 20px;">
+        <meta name="referrer" content="no-referrer">
+
+        <div style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
+          <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
+            <span style="display: inline-block; background: #00c6be; color: #fff; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-bottom: 8px;">BRUNCH</span>
+            <h1 style="margin: 0; font-size: 1.5em; color: #111;">${detail.title}</h1>
+          </div>
+
+          <div style="padding: 20px;">
+            <p style="margin: 0 0 20px 0; font-size: 13px; color: #666;">
+              <b>작성자:</b> ${detail.author} | <b>발행일:</b> ${detail.publishedAt.split('T')[0]} | <b>원본 URL:</b> <a href="${detail.url}" style="color: #1978e5; text-decoration: none;">${detail.url}</a>
+            </p>
+
+            <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${detail.content}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    GmailApp.sendEmail(RECIPIENT, `[Brunch] ${detail.title}`, '', {
+      htmlBody: emailHtml
+    });
+
+    console.log("Email sent successfully to " + RECIPIENT);
+  } catch (error) {
+    console.error("Error in sendBrunchEmailMain:", error);
+  }
+}
+
+/**
  * 사용 예제: 스프레드시트에 실행 결과 기록
  */
 function testBrunchScraper() {
