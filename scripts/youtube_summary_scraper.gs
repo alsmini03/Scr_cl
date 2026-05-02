@@ -103,7 +103,8 @@ function fetchLatestVideos(channelUrl, limit) {
     for (const content of contents) {
       if (videos.length >= limit) break;
 
-      const videoRenderer = content.richItemRenderer?.content?.videoRenderer;
+      const richContent = content.richItemRenderer?.content;
+      const videoRenderer = richContent?.videoRenderer;
       if (videoRenderer) {
         const videoId = videoRenderer.videoId;
         videos.push({
@@ -113,6 +114,25 @@ function fetchLatestVideos(channelUrl, limit) {
           thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
           publishedTime: videoRenderer.publishedTimeText?.simpleText || ''
         });
+        continue;
+      }
+
+      // Support for new lockupViewModel (YouTube Mobile)
+      const lockup = richContent?.lockupViewModel;
+      if (lockup) {
+        const videoId = lockup.contentId;
+        const title = lockup.metadata?.lockupMetadataViewModel?.title?.content;
+        const publishedTime = lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadata?.[1]?.content || '';
+
+        if (videoId && title) {
+          videos.push({
+            videoId: videoId,
+            title: title,
+            url: 'https://www.youtube.com/watch?v=' + videoId,
+            thumbnail: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+            publishedTime: publishedTime
+          });
+        }
       }
     }
   } catch (e) {

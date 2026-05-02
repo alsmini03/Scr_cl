@@ -73,27 +73,63 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
 
           const itemsToProcess = limit > 0 ? gridItems.slice(0, limit) : gridItems;
           videos = itemsToProcess.map((item: any) => {
-              const video = item.richItemRenderer?.content?.videoRenderer || item.gridVideoRenderer;
-              if (!video) return null;
+              const richContent = item.richItemRenderer?.content;
+              const video = richContent?.videoRenderer || item.gridVideoRenderer;
 
-              const videoId = video.videoId;
-              const title = video.title?.runs?.[0]?.text ||
-                            video.title?.simpleText ||
-                            video.title?.accessibility?.accessibilityData?.label;
-              const thumbnail = video.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
-              const publishedTime = video.publishedTimeText?.simpleText;
-              const viewCount = video.viewCountText?.simpleText;
-              const duration = video.lengthText?.simpleText;
+              if (video) {
+                  const videoId = video.videoId;
+                  const title = video.title?.runs?.[0]?.text ||
+                                video.title?.simpleText ||
+                                video.title?.accessibility?.accessibilityData?.label;
+                  const thumbnail = video.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
+                  const publishedTime = video.publishedTimeText?.simpleText;
+                  const viewCount = video.viewCountText?.simpleText;
+                  const duration = video.lengthText?.simpleText;
 
-              return {
-                  videoId,
-                  title,
-                  thumbnail,
-                  url: `https://www.youtube.com/watch?v=${videoId}`,
-                  publishedTime,
-                  viewCount,
-                  duration
-              };
+                  return {
+                      videoId,
+                      title,
+                      thumbnail,
+                      url: `https://www.youtube.com/watch?v=${videoId}`,
+                      publishedTime,
+                      viewCount,
+                      duration
+                  };
+              }
+
+              // Support for new lockupViewModel (YouTube Mobile)
+              const lockup = richContent?.lockupViewModel;
+              if (lockup) {
+                  const videoId = lockup.contentId;
+                  const metadata = lockup.metadata?.lockupMetadataViewModel;
+                  const title = metadata?.title?.content;
+
+                  const thumbnail = lockup.contentImage?.thumbnailViewModel?.image?.sources?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
+
+                  // Meta: "viewCount • publishedTime"
+                  const metaItems = metadata?.metadata?.contentMetadataViewModel?.metadata || [];
+                  const viewCount = metaItems[0]?.content || "";
+                  const publishedTime = metaItems[1]?.content || "";
+
+                  // Duration from overlays
+                  const overlays = lockup.contentImage?.thumbnailViewModel?.overlays || [];
+                  const durationOverlay = overlays.find((o: any) => o.thumbnailOverlayTimeStatusRenderer);
+                  const duration = durationOverlay?.thumbnailOverlayTimeStatusRenderer?.text?.content || "";
+
+                  if (videoId && title) {
+                      return {
+                          videoId,
+                          title,
+                          thumbnail,
+                          url: `https://www.youtube.com/watch?v=${videoId}`,
+                          publishedTime,
+                          viewCount,
+                          duration
+                      };
+                  }
+              }
+
+              return null;
           }).filter(Boolean);
       }
   } catch (e) {
