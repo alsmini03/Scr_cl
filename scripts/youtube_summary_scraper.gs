@@ -121,8 +121,17 @@ function fetchLatestVideos(channelUrl, limit) {
       const lockup = richContent?.lockupViewModel;
       if (lockup) {
         const videoId = lockup.contentId;
-        const title = lockup.metadata?.lockupMetadataViewModel?.title?.content;
-        const publishedTime = lockup.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadata?.[1]?.content || '';
+        const metadata = lockup.metadata?.lockupMetadataViewModel;
+        const title = metadata?.title?.content;
+
+        // Extract published time
+        let publishedTime = "";
+        const renderer = metadata?.metadata?.contentMetadataViewModel;
+        if (renderer?.metadata) {
+          publishedTime = renderer.metadata[1]?.content || "";
+        } else if (renderer?.metadataRows) {
+          publishedTime = renderer.metadataRows[0]?.metadataParts?.[1]?.text?.content || "";
+        }
 
         if (videoId && title) {
           videos.push({

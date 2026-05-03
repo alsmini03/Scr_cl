@@ -106,15 +106,28 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
 
                   const thumbnail = lockup.contentImage?.thumbnailViewModel?.image?.sources?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
 
-                  // Meta: "viewCount • publishedTime"
-                  const metaItems = metadata?.metadata?.contentMetadataViewModel?.metadata || [];
-                  const viewCount = metaItems[0]?.content || "";
-                  const publishedTime = metaItems[1]?.content || "";
+                  // Meta extraction from various possible structures in contentMetadataViewModel
+                  let viewCount = "";
+                  let publishedTime = "";
+
+                  const renderer = metadata?.metadata?.contentMetadataViewModel;
+                  if (renderer?.metadata) {
+                      viewCount = renderer.metadata[0]?.content || "";
+                      publishedTime = renderer.metadata[1]?.content || "";
+                  } else if (renderer?.metadataRows) {
+                      const row = renderer.metadataRows[0];
+                      const parts = row?.metadataParts || [];
+                      viewCount = parts[0]?.text?.content || "";
+                      publishedTime = parts[1]?.text?.content || "";
+                  }
 
                   // Duration from overlays
                   const overlays = lockup.contentImage?.thumbnailViewModel?.overlays || [];
                   const durationOverlay = overlays.find((o: any) => o.thumbnailOverlayTimeStatusRenderer);
-                  const duration = durationOverlay?.thumbnailOverlayTimeStatusRenderer?.text?.content || "";
+                  const badgeOverlay = overlays.find((o: any) => o.thumbnailBottomOverlayViewModel);
+
+                  const duration = durationOverlay?.thumbnailOverlayTimeStatusRenderer?.text?.content ||
+                                   badgeOverlay?.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel?.text || "";
 
                   if (videoId && title) {
                       return {
