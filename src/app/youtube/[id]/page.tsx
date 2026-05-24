@@ -6,6 +6,7 @@ import {
   getYoutubeVideoById,
   deleteYoutubeVideo,
   updateYoutubeVideo,
+  toggleLikeAction,
   getGeminiModels,
   getGeminiPrompts,
   sendYoutubeEmailAction,
@@ -32,6 +33,7 @@ interface YoutubeVideo {
   description: string;
   added_at: string;
   user_id: string;
+  is_liked: boolean;
 }
 
 const SkeletonYoutubeDetail = () => (
@@ -71,6 +73,7 @@ export default function YoutubeDetailPage() {
   const [video, setVideo] = useState<YoutubeVideo | null>(null);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
   const [isRefetching, setIsRefetching] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -149,6 +152,25 @@ export default function YoutubeDetailPage() {
     navigator.clipboard.writeText(video?.url || '').then(() => {
         showToast('URL이 복사되었습니다.');
     });
+  };
+
+  const handleToggleLike = async () => {
+    if (!video || isLiking) return;
+    setIsLiking(true);
+    const newLiked = !video.is_liked;
+    try {
+      const res = await toggleLikeAction('youtube', video.id, newLiked);
+      if (res.success) {
+        setVideo({ ...video, is_liked: newLiked });
+        showToast(newLiked ? '좋아요 항목에 추가되었습니다.' : '좋아요가 취소되었습니다.');
+      } else {
+        showToast(res.error || '실패했습니다.', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const handleEditToggle = () => {
@@ -376,7 +398,19 @@ export default function YoutubeDetailPage() {
               />
             </div>
           ) : (
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight">{video.title}</h1>
+            <div className="flex items-start gap-2">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 leading-tight flex-1">{video.title}</h1>
+              <button
+                onClick={handleToggleLike}
+                disabled={isLiking}
+                className={cn(
+                  "flex-shrink-0 p-1.5 transition-all active:scale-125 disabled:opacity-50",
+                  video.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
+                )}
+              >
+                <span className={cn("material-symbols-outlined text-3xl", video.is_liked && "fill-current")}>favorite</span>
+              </button>
+            </div>
           )}
           <div className="flex gap-3 text-sm text-slate-500 dark:text-slate-400 font-medium">
              <span>{video.duration}</span>

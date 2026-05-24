@@ -5,7 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useState, memo, useMemo, useEffect, useRef, useCallback } from 'react';
 import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
-import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
+import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport, toggleLikeAction } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 import { useSearchParams } from 'next/navigation';
 
@@ -31,6 +31,7 @@ export default function SavedClient({
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report'>('all');
+  const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -48,9 +49,15 @@ export default function SavedClient({
   }, [activeFilter]);
 
   const filteredItems = useMemo(() => {
-      if (activeFilter === 'all') return items;
-      return items.filter(item => item.type === activeFilter);
-  }, [items, activeFilter]);
+      let result = items;
+      if (activeFilter !== 'all') {
+          result = result.filter(item => item.type === activeFilter);
+      }
+      if (isLikedOnly) {
+          result = result.filter(item => item.is_liked);
+      }
+      return result;
+  }, [items, activeFilter, isLikedOnly]);
 
   const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {
@@ -221,6 +228,41 @@ export default function SavedClient({
     return selectedItems.some(item => item.type === type && item.id === id);
   };
 
+  const handleToggleLike = async (type: 'youtube' | 'blog' | 'report', id: string, currentLiked: boolean) => {
+    const newLiked = !currentLiked;
+
+    // Optimistic update
+    setItems(prev => prev.map(item => {
+        if (item.type === type && item.id === id) {
+            return { ...item, is_liked: newLiked };
+        }
+        return item;
+    }));
+
+    try {
+        const res = await toggleLikeAction(type, id, newLiked);
+        if (!res.success) {
+            // Revert on failure
+            setItems(prev => prev.map(item => {
+                if (item.type === type && item.id === id) {
+                    return { ...item, is_liked: currentLiked };
+                }
+                return item;
+            }));
+            showToast(res.error || '실패했습니다.', 'error');
+        }
+    } catch (err) {
+        // Revert on error
+        setItems(prev => prev.map(item => {
+            if (item.type === type && item.id === id) {
+                return { ...item, is_liked: currentLiked };
+            }
+            return item;
+        }));
+        showToast('오류가 발생했습니다.', 'error');
+    }
+  };
+
   const filters = [
       { id: 'all', label: '전체' },
       { id: 'youtube', label: 'YouTube' },
@@ -274,6 +316,15 @@ export default function SavedClient({
                     </button>
                 ))}
             </div>
+            <button
+                onClick={() => setIsLikedOnly(!isLikedOnly)}
+                className={cn(
+                    "flex-shrink-0 size-9 rounded-full flex items-center justify-center transition-all",
+                    isLikedOnly ? "bg-red-500 text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-400 dark:text-slate-500"
+                )}
+            >
+                <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-current")}>favorite</span>
+            </button>
         </div>
 
         {isEditMode && (
@@ -322,6 +373,7 @@ export default function SavedClient({
                 isSelected={isItemSelected(item.type, item.id)}
                 onPointerDown={handlePointerDown}
                 onToggleSelect={toggleSelect}
+                onToggleLike={handleToggleLike}
               />
             ))}
           </div>
@@ -333,7 +385,7 @@ export default function SavedClient({
   );
 }
 
-const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleSelect }: any) => {
+const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleSelect, onToggleLike }: any) => {
   let href = '';
   let icon = '';
   let iconColor = '';
@@ -402,9 +454,26 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             </span>
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight">
-            {item.title}
-          </h3>
+          <div className="flex items-center gap-1">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight flex-1">
+              {item.title}
+            </h3>
+            {!isEditMode && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleLike(item.type, item.id, item.is_liked);
+                }}
+                className={cn(
+                  "flex-shrink-0 p-1 transition-all active:scale-110",
+                  item.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
+                )}
+              >
+                <span className={cn("material-symbols-outlined text-lg", item.is_liked && "fill-current")}>favorite</span>
+              </button>
+            )}
+          </div>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
             {item.author || item.institution || ''}
           </p>

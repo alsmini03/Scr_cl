@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   summary TEXT,
   description TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Gemini Models Table
@@ -110,7 +111,8 @@ CREATE TABLE IF NOT EXISTS reports (
   content TEXT,
   summary TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Naver Blogs Table
@@ -123,7 +125,8 @@ CREATE TABLE IF NOT EXISTS naver_blogs (
   content TEXT,
   published_at TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Auth.js Tables (PostgreSQL Adapter)

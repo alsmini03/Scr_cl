@@ -2,7 +2,7 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getBlogById, deleteBlog, sendBlogEmailAction, getAdjacentBlogIdsAction } from '@/lib/db';
+import { getBlogById, deleteBlog, sendBlogEmailAction, getAdjacentBlogIdsAction, toggleLikeAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
@@ -45,6 +45,7 @@ export default function BlogDetailPage() {
   const [blog, setBlog] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
 
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
@@ -88,6 +89,25 @@ export default function BlogDetailPage() {
     navigator.clipboard.writeText(blog.url).then(() => {
         showToast('URL이 복사되었습니다.');
     });
+  };
+
+  const handleToggleLike = async () => {
+    if (!blog || isLiking) return;
+    setIsLiking(true);
+    const newLiked = !blog.is_liked;
+    try {
+      const res = await toggleLikeAction('blog', blog.id, newLiked);
+      if (res.success) {
+        setBlog({ ...blog, is_liked: newLiked });
+        showToast(newLiked ? '좋아요 항목에 추가되었습니다.' : '좋아요가 취소되었습니다.');
+      } else {
+        showToast(res.error || '실패했습니다.', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const handleSendEmail = async () => {
@@ -140,7 +160,19 @@ export default function BlogDetailPage() {
             </button>
         </div>
 
-        <h1 className="text-2xl font-bold leading-tight break-words">{blog.title}</h1>
+        <div className="flex items-start gap-2">
+            <h1 className="text-2xl font-bold leading-tight break-words flex-1">{blog.title}</h1>
+            <button
+                onClick={handleToggleLike}
+                disabled={isLiking}
+                className={cn(
+                    "flex-shrink-0 p-1.5 transition-all active:scale-125 disabled:opacity-50",
+                    blog.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
+                )}
+            >
+                <span className={cn("material-symbols-outlined text-3xl", blog.is_liked && "fill-current")}>favorite</span>
+            </button>
+        </div>
 
         {/* Action Bar */}
         <div className="flex items-center gap-2 py-2 border-y border-slate-100 dark:border-primary/10">

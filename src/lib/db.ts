@@ -86,7 +86,7 @@ export async function getReports(prefetchedUser?: any): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT id, title, author, institution, date, url, summary, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, author, institution, date, url, summary, user_id, added_at, is_liked FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -698,7 +698,7 @@ export async function getBlogs(prefetchedUser?: any): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -1148,7 +1148,7 @@ export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows;
@@ -1185,6 +1185,31 @@ export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ pr
   } catch (error) {
     console.error('getAdjacentYoutubeVideoIdsAction error:', error);
     return {};
+  }
+}
+
+export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report', id: string, isLiked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const table = type === 'youtube' ? 'youtube_videos' : type === 'blog' ? 'naver_blogs' : 'reports';
+
+    await query(
+      `UPDATE ${table} SET is_liked = $1 WHERE id = $2 AND (user_id = $3 OR user_id = $4)`,
+      [isLiked, id, user.id, user.email]
+    );
+
+    const revalidatePathMap = {
+      youtube: `/youtube/${id}`,
+      blog: `/blog/${id}`,
+      report: '/report'
+    };
+    safeRevalidate(revalidatePathMap[type]);
+    safeRevalidate('/saved');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('toggleLikeAction error:', error);
+    return { success: false, error: error.message };
   }
 }
 

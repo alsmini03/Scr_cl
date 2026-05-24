@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -62,6 +62,7 @@ export default function ReportClient({
   // Search State
   const [savingId, setSavingId] = useState<string | null>(null);
   const [isCopying, setIsCopying] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -248,6 +249,34 @@ export default function ReportClient({
     } catch (error) {
         console.error('Download error:', error);
         showToast('다운로드 중 오류가 발생했습니다.', 'error');
+    }
+  };
+
+  const handleToggleLike = async (report: any) => {
+    if (!report || isLiking) return;
+    setIsLiking(true);
+    const newLiked = !report.is_liked;
+    try {
+      const res = await toggleLikeAction('report', report.id, newLiked);
+      if (res.success) {
+        // Update local saved reports state if it's a saved report
+        if (selectedSavedReport) {
+            // Need to update the parent-passed initialSavedReports?
+            // Better to have a local state for initialSavedReports if we want it to be reactive.
+            // But since it's a Client component, we can use router.refresh() or just local state.
+            // For now, I'll update the initialSavedReports if I had them in state.
+            // Wait, the component receives initialSavedReports as a prop.
+        }
+        showToast(newLiked ? '좋아요 항목에 추가되었습니다.' : '좋아요가 취소되었습니다.');
+        // Forced reload might be needed if we don't have a local state for saved reports
+        router.refresh();
+      } else {
+        showToast(res.error || '실패했습니다.', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -513,16 +542,28 @@ export default function ReportClient({
                     )}
                 </div>
 
-                <div className="flex justify-between items-start">
-                    <div className="space-y-1">
+                <div className="flex justify-between items-start gap-4">
+                    <div className="space-y-1 flex-1 min-w-0">
                         <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight break-words">
                             {(selectedRecommendReport || selectedSavedReport).title}
                         </h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             {(selectedRecommendReport || selectedSavedReport).author} • {(selectedRecommendReport || selectedSavedReport).date}
                         </p>
                     </div>
+                    {selectedSavedReport && (
+                        <button
+                            onClick={() => handleToggleLike(selectedSavedReport)}
+                            disabled={isLiking}
+                            className={cn(
+                                "flex-shrink-0 p-1.5 transition-all active:scale-125 disabled:opacity-50",
+                                selectedSavedReport.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
+                            )}
+                        >
+                            <span className={cn("material-symbols-outlined text-3xl", selectedSavedReport.is_liked && "fill-current")}>favorite</span>
+                        </button>
+                    )}
                 </div>
 
                 {selectedSavedReport?.summary && (
