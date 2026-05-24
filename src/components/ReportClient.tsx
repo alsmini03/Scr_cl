@@ -561,7 +561,7 @@ export default function ReportClient({
                                 selectedSavedReport.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
                             )}
                         >
-                            <span className={cn("material-symbols-outlined text-3xl", selectedSavedReport.is_liked && "fill-current")}>favorite</span>
+                            <span className={cn("material-symbols-outlined text-3xl", selectedSavedReport.is_liked && "fill-1")}>favorite</span>
                         </button>
                     )}
                 </div>

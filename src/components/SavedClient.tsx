@@ -323,7 +323,7 @@ export default function SavedClient({
                     isLikedOnly ? "bg-red-500 text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-400 dark:text-slate-500"
                 )}
             >
-                <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-current")}>favorite</span>
+                <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-1")}>favorite</span>
             </button>
         </div>
 
@@ -454,41 +454,40 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             </span>
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
-          <div className="flex items-center gap-1">
-            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight flex-1">
-              {item.title}
-            </h3>
-            {!isEditMode && (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onToggleLike(item.type, item.id, item.is_liked);
-                }}
-                className={cn(
-                  "flex-shrink-0 p-1 transition-all active:scale-110",
-                  item.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
-                )}
-              >
-                <span className={cn("material-symbols-outlined text-lg", item.is_liked && "fill-current")}>favorite</span>
-              </button>
-            )}
-          </div>
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight">
+            {item.title}
+          </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
             {item.author || item.institution || ''}
           </p>
         </div>
 
-        <div className="flex items-center pr-3 pointer-events-none">
+        <div className="flex items-center gap-1 pr-2">
             {isEditMode ? (
                 <div className={cn(
-                    "size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                    "size-5 rounded-full border-2 flex items-center justify-center transition-all mr-1",
                     isSelected ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
                 )}>
                     {isSelected && <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>}
                 </div>
             ) : (
-                <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-sm">chevron_right</span>
+                <>
+                    <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-sm">chevron_right</span>
+                    <button
+                        onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onToggleLike(item.type, item.id, item.is_liked);
+                        }}
+                        className={cn(
+                        "size-9 flex items-center justify-center rounded-full transition-all active:scale-125 z-10",
+                        item.is_liked ? "text-red-500 bg-red-50 dark:bg-red-500/10" : "text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800"
+                        )}
+                        title="좋아요"
+                    >
+                        <span className={cn("material-symbols-outlined text-xl", item.is_liked && "fill-1")}>favorite</span>
+                    </button>
+                </>
             )}
         </div>
       </Link>
