@@ -95,14 +95,17 @@ export default function YoutubeGrid({
                    {video.duration}
                  </div>
               </div>
-              <div className="p-4 flex flex-col justify-between flex-1">
+              <div className={cn(
+                "p-4 flex flex-col justify-between flex-1",
+                viewMode === '1' ? "min-h-[100px]" : "min-h-[110px]"
+              )}>
                 <h3 className={cn(
-                  "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1",
-                  viewMode === '2' ? "text-sm" : "text-base"
+                  "font-bold text-slate-900 dark:text-slate-100 leading-snug mb-1",
+                  viewMode === '1' ? "text-base" : "text-[13px] line-clamp-2"
                 )}>
                   {video.title}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{video.published_at}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{video.published_at}</p>
               </div>
             </Link>
           </div>
