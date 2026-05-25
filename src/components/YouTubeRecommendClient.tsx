@@ -370,7 +370,7 @@ export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
   )}>
     <div className={cn(
       "aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton",
-      cols === 1 ? "w-40 shrink-0" : "w-full mb-3"
+      cols === 1 ? "w-36 shrink-0" : "w-full mb-3"
     )} />
     <div className="flex-1 space-y-2">
       <div className={cn(
@@ -405,7 +405,7 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
       >
         <div className={cn(
           "relative aspect-video bg-slate-100 rounded-xl overflow-hidden",
-          cols === 1 ? "w-40 shrink-0" : "w-full mb-3"
+          cols === 1 ? "w-36 shrink-0" : "w-full mb-3"
         )}>
           <div
             className="w-full h-full bg-center bg-no-repeat bg-cover"
