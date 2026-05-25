@@ -83,25 +83,29 @@ export default function YoutubeGrid({
                 }
               }}
               className={cn(
-                "flex flex-col bg-slate-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border transition-all",
+                "flex bg-slate-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border transition-all",
+                viewMode === '1' ? "flex-row items-center p-3 gap-3" : "flex-col",
                 isSelected ? "border-primary ring-1 ring-primary" : "border-slate-100 dark:border-primary/10 shadow-sm",
                 !isSelectionMode && "active:scale-[0.98]"
               )}
             >
-              <div className="aspect-video relative w-full overflow-hidden">
+              <div className={cn(
+                "aspect-video relative overflow-hidden rounded-xl",
+                viewMode === '1' ? "w-40 shrink-0" : "w-full"
+              )}>
                  {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
-                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                 <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                    {video.duration}
                  </div>
               </div>
               <div className={cn(
-                "p-4 flex flex-col justify-between flex-1",
-                viewMode === '1' ? "min-h-[100px]" : "min-h-[110px]"
+                "flex flex-col justify-between flex-1 min-w-0",
+                viewMode === '1' ? "" : "p-4 min-h-[110px]"
               )}>
                 <h3 className={cn(
                   "font-bold text-slate-900 dark:text-slate-100 leading-snug mb-1",
-                  viewMode === '1' ? "text-base" : "text-[13px] line-clamp-2"
+                  viewMode === '1' ? "text-sm line-clamp-2" : "text-[13px] line-clamp-2"
                 )}>
                   {video.title}
                 </h3>

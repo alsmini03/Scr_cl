@@ -364,12 +364,18 @@ export default function YouTubeRecommendClient({
 }
 
 export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
-  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3">
-    <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-skeleton" />
-    <div className="space-y-2">
+  <div className={cn(
+    "bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3",
+    cols === 1 ? "flex items-center gap-3" : ""
+  )}>
+    <div className={cn(
+      "aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton",
+      cols === 1 ? "w-40 shrink-0" : "w-full mb-3"
+    )} />
+    <div className="flex-1 space-y-2">
       <div className={cn(
         "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
-        cols === 1 ? "h-5 w-3/4" : "h-4 w-5/6"
+        cols === 1 ? "h-4 w-3/4" : "h-4 w-5/6"
       )} />
       <div className={cn(
         "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
@@ -393,11 +399,14 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
-          "flex flex-col rounded-2xl",
-          cols === 1 ? "p-3" : "p-2"
+          "flex rounded-2xl",
+          cols === 1 ? "flex-row items-center p-3 gap-3" : "flex-col p-2"
         )}
       >
-        <div className="relative w-full aspect-video bg-slate-100 rounded-xl overflow-hidden mb-3">
+        <div className={cn(
+          "relative aspect-video bg-slate-100 rounded-xl overflow-hidden",
+          cols === 1 ? "w-40 shrink-0" : "w-full mb-3"
+        )}>
           <div
             className="w-full h-full bg-center bg-no-repeat bg-cover"
             style={{ backgroundImage: `url("${video.thumbnail}")` }}
@@ -411,7 +420,7 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
           <div className="flex justify-between items-start gap-2 mb-1">
             <p className={cn(
               "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug",
-              cols === 1 ? "text-base" : "text-[13px]"
+              cols === 1 ? "text-sm" : "text-[13px]"
             )}>{video.title}</p>
 
             {isLoggedIn && (
@@ -420,14 +429,14 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
                 disabled={addingId === video.videoId}
                 className={cn(
                   "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
-                  cols === 1 ? "size-9" : "size-7"
+                  cols === 1 ? "size-8" : "size-7"
                 )}
                 title="내 서재에 추가"
               >
                 {addingId === video.videoId ? (
                   <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-lg" : "text-base")}>library_add</span>
+                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-base" : "text-base")}>library_add</span>
                 )}
               </button>
             )}
