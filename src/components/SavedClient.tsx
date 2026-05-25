@@ -454,7 +454,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             </span>
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight">
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">
             {item.title}
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">

@@ -104,8 +104,8 @@ export default function YoutubeGrid({
                 viewMode === '1' ? "" : "p-4 min-h-[110px]"
               )}>
                 <h3 className={cn(
-                  "font-bold text-slate-900 dark:text-slate-100 leading-snug mb-1",
-                  viewMode === '1' ? "text-sm line-clamp-3" : "text-[13px] line-clamp-2"
+                  "text-slate-900 dark:text-slate-100 leading-snug mb-1",
+                  viewMode === '1' ? "text-[13px] line-clamp-3" : "text-[13px] line-clamp-3"
                 )}>
                   {video.title}
                 </h3>

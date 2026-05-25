@@ -419,8 +419,8 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-2 mb-1">
             <p className={cn(
-              "font-bold text-slate-900 dark:text-slate-100 leading-snug",
-              cols === 1 ? "text-sm line-clamp-3" : "text-[13px] line-clamp-2"
+              "text-slate-900 dark:text-slate-100 leading-snug",
+              cols === 1 ? "text-[13px] line-clamp-3" : "text-[13px] line-clamp-3"
             )}>{video.title}</p>
 
             {isLoggedIn && (
