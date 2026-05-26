@@ -147,7 +147,8 @@ export async function POST(req: NextRequest) {
             contentArea.find(".another_category, .container_postbtn, .revenue_unit_wrap, .related_posts, .list_related, .tt_adsense_bottom, script, ins, .og-link, .link_rel").remove();
 
             let stopExtraction = false;
-            contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote, table").each((_, el) => {
+            // Expanded selectors to include lists, figures (OG cards), and horizontal rules
+            contentArea.find("p, div, img, h1, h2, h3, h4, h5, h6, blockquote, table, ul, ol, figure, hr").each((_, el) => {
                 if (stopExtraction) return;
 
                 const tag = el.tagName.toLowerCase();
@@ -165,12 +166,21 @@ export async function POST(req: NextRequest) {
                 if (tag === 'img') {
                     const src = $el.attr('src');
                     if (src) content += `<img src="${src}" style="max-width:100%; border-radius:12px; margin: 10px 0;"><br><br>`;
-                } else if (tag === 'table') {
-                    // Keep tables but clean them
+                } else if (tag === 'table' || tag === 'ul' || tag === 'ol' || tag === 'figure' || tag === 'hr') {
+                    // Keep structured elements but clean them
                     $el.removeAttr('id').removeAttr('class').removeAttr('style');
+                    if (tag === 'figure' && $el.attr('data-ke-type') === 'opengraph') {
+                        // OG Cards handling
+                        const link = $el.find('a').attr('href');
+                        const ogTitle = $el.attr('data-og-title');
+                        if (link) {
+                            content += `<div style="padding: 15px; border: 1px solid #eee; border-radius: 12px; margin: 10px 0;"><a href="${link}" target="_blank" style="color: #1978e5; font-weight: bold; text-decoration: none;">${ogTitle || link}</a></div><br>`;
+                            return;
+                        }
+                    }
                     content += $el.prop('outerHTML') + "<br><br>";
                 } else {
-                    // Only get text from leaf nodes or direct children to avoid duplication
+                    // Only get text from leaf nodes or specific block elements to avoid duplication
                     const style = $el.attr('style') || '';
                     if (tag === 'div' && style.includes('background-image')) {
                         const bgMatch = style.match(/url\(['"]?([^'")]*)['"]?\)/);
@@ -179,16 +189,21 @@ export async function POST(req: NextRequest) {
                         }
                     }
 
-                    if ($el.children().length === 0 || tag === 'p' || tag.startsWith('h') || tag === 'blockquote') {
+                    // Tistory specific: editor containers sometimes have text.
+                    // Using .children().length check can be brittle, checking for data-ke-size attribute
+                    const isKeSize = $el.attr('data-ke-size') || $el.attr('data-ke-style');
+
+                    if ($el.children().length === 0 || tag === 'p' || tag.startsWith('h') || tag === 'blockquote' || isKeSize) {
+                        // Avoid adding text if we already added it via a parent list/table
+                        if ($el.closest('table, ul, ol, figure').length > 0 && tag !== 'li') return;
+
                         const html = $el.html() || "";
                         if (html.trim()) {
                             if (tag.startsWith('h')) {
                                 content += `<${tag}>${html.trim()}</${tag}><br>`;
                             } else if (tag === 'blockquote') {
                                 content += `<blockquote>${html.trim()}</blockquote><br>`;
-                            } else if (tag === 'p') {
-                                content += html.trim() + "<br><br>";
-                            } else if (tag === 'div' && $el.children().length === 0) {
+                            } else {
                                 content += html.trim() + "<br><br>";
                             }
                         }
@@ -263,6 +278,10 @@ export async function POST(req: NextRequest) {
     const cleanContent = (html: string) => {
         if (!html) return "";
         const $clean = cheerio.load(html, null, false);
+
+        // Remove specific Tistory artifacts that might have leaked
+        $clean('script, ins, .another_category, .container_postbtn, .revenue_unit_wrap, .related_posts, .list_related, .tt_adsense_bottom').remove();
+
         $clean('*').removeAttr('id').removeAttr('class');
 
         // Remove layout-breaking inline styles
