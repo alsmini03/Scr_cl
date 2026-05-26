@@ -174,8 +174,7 @@ function AddContent() {
 
       if (result?.success) {
         showToast('내 서재에 추가되었습니다.');
-        const redirectPath = contentType === 'yes24' ? '/' : (contentType === 'blog' ? '/blog' : '/youtube');
-        router.push(redirectPath);
+        router.push('/saved');
       } else {
         showToast(result?.error || '저장에 실패했습니다.', 'error');
       }
@@ -252,8 +251,7 @@ function AddContent() {
 
       if (saveResult?.success) {
         showToast('내 서재에 추가되었습니다.');
-        const redirectPath = contentType === 'yes24' ? '/' : (contentType === 'blog' ? '/blog' : '/youtube');
-        router.push(redirectPath);
+        router.push('/saved');
       } else {
         showToast(saveResult?.error || '저장 실패', 'error');
       }

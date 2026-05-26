@@ -116,6 +116,7 @@ export async function saveReport(report: {
     );
 
     safeRevalidate('/report');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save report:', error);
@@ -687,6 +688,7 @@ export async function saveBlog(blog: {
     );
 
     safeRevalidate('/blog');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save blog:', error);
@@ -1019,6 +1021,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     );
 
     safeRevalidate('/');
+    safeRevalidate('/saved');
     return { success: true, data: { ...book, id, createdAt } };
   } catch (error: any) {
     console.error('Failed to save book:', error);
@@ -1134,6 +1137,7 @@ export async function saveYoutubeVideo(video: {
     );
 
     safeRevalidate('/');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save youtube video:', error);
