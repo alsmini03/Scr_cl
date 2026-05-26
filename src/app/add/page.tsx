@@ -4,10 +4,15 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { cn, isThumbnailInContent } from '@/lib/utils';
-import { saveBook, saveBlog } from '@/lib/db';
+import { saveBook, saveBlog, saveYoutubeVideo, getGeminiModels, getGeminiPrompts } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { showToast } from '@/components/Toast';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
+import he from 'he';
 
 interface ExtractedBook {
   title: string;
@@ -32,7 +37,8 @@ function AddContent() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoAdding, setIsAutoAdding] = useState(false);
-  const [isAutoAddingBlog, setIsAutoAddingBlog] = useState(false);
+  const [contentType, setContentType] = useState<'yes24' | 'youtube' | 'blog' | null>(null);
+
   const [extractedBook, setExtractedBook] = useState<ExtractedBook | null>(null);
   const [extractedBlog, setExtractedBlog] = useState<{
     title: string;
@@ -42,206 +48,216 @@ function AddContent() {
     content: string;
     published_at: string;
   } | null>(null);
+  const [extractedYoutube, setExtractedYoutube] = useState<{
+    title: string;
+    description: string;
+    thumbnail: string;
+    url: string;
+    duration?: string;
+    publishDate?: string;
+    summary?: string;
+  } | null>(null);
+
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'yes24' | 'youtube' | 'blog'>('yes24');
+
+  // Gemini Settings for YouTube
+  const [models, setModels] = useState<any[]>([]);
+  const [prompts, setPrompts] = useState<any[]>([]);
+  const [selectedModel, setSelectedModel] = useState('');
+  const [selectedPromptId, setSelectedPromptId] = useState('');
 
   useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab === 'blog') setActiveTab('blog');
-    else if (tab === 'yes24') setActiveTab('yes24');
-    else if (tab === 'youtube') router.push('/add/youtube');
-  }, [searchParams, router]);
+    async function loadSettings() {
+      const [dbModels, dbPrompts] = await Promise.all([getGeminiModels(), getGeminiPrompts()]);
+      setModels(dbModels);
+      setPrompts(dbPrompts);
+      const defModel = dbModels.find(m => m.youtube_default) || dbModels[0];
+      if (defModel) setSelectedModel(defModel.name);
+      const defPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];
+      if (defPrompt) setSelectedPromptId(defPrompt.id);
+    }
+    loadSettings();
+  }, []);
+
+  useEffect(() => {
+    if (url.includes('youtube.com/') || url.includes('youtu.be/')) setContentType('youtube');
+    else if (url.includes('yes24.com/')) setContentType('yes24');
+    else if (url.includes('blog.naver.com/') || url.includes('tistory.com/')) setContentType('blog');
+    else if (url.startsWith('http')) setContentType('blog'); // Default to blog for other links
+    else setContentType(null);
+  }, [url]);
 
   const handleExtract = async () => {
-    if (!url) return;
+    if (!url || !contentType) return;
 
     setIsExtracting(true);
     setError(null);
+    setExtractedBook(null);
+    setExtractedBlog(null);
+    setExtractedYoutube(null);
 
     try {
-      const response = await fetch('/api/extract', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url }),
-      });
+      let endpoint = '';
+      let body: any = { url };
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to extract book info');
+      if (contentType === 'yes24') endpoint = '/api/extract';
+      else if (contentType === 'blog') endpoint = '/api/blog/extract';
+      else if (contentType === 'youtube') {
+        endpoint = '/api/youtube/extract';
+        const p = prompts.find(p => p.id === selectedPromptId);
+        body.model = selectedModel;
+        body.prompt = p?.content;
       }
 
-      const data = await response.json();
-      setExtractedBook(data);
-    } catch (err: unknown) {
-      console.error('Extraction error:', err);
-      const message = err instanceof Error ? err.message : '정보를 가져오는 데 실패했습니다.';
-      setError(message);
-    } finally {
-      setIsExtracting(false);
-    }
-  };
-
-  const handleSave = async (showSuccessAlert = true) => {
-    if (!extractedBook) return { success: false, error: 'No data to save' };
-
-    setIsSaving(true);
-    try {
-      const result = await saveBook({
-        title: extractedBook.title,
-        author: extractedBook.author,
-        coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
-        category: extractedBook.category,
-        publishDate: extractedBook.publishDate,
-        price: extractedBook.price,
-        description: extractedBook.description,
-        readingStatus: 'READING',
-        progress: 0,
-        intro: extractedBook.intro,
-        yes24Url: extractedBook.yes24Url || url,
-        toc: extractedBook.toc,
-        authorIntro: extractedBook.author_intro,
-        inside: extractedBook.inside,
-        publisherReview: extractedBook.publisher_review,
-      });
-
-      if (result.success) {
-        if (showSuccessAlert) showToast('내 서재에 추가되었습니다.');
-        router.push('/');
-        return { success: true };
-      } else {
-        if (showSuccessAlert) showToast(`저장에 실패했습니다: ${result.error}`, 'error');
-        return { success: false, error: result.error };
-      }
-    } catch (error) {
-      console.error('Unexpected error during save:', error);
-      if (showSuccessAlert) showToast('저장 중 알 수 없는 오류가 발생했습니다.', 'error');
-      return { success: false, error: 'Unknown error' };
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleExtractBlog = async () => {
-    if (!url) return;
-    setIsExtracting(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/blog/extract', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
+        body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setExtractedBlog(data);
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || '정보를 가져오는데 실패했습니다.');
+
+      if (contentType === 'yes24') setExtractedBook(data);
+      else if (contentType === 'blog') setExtractedBlog(data);
+      else if (contentType === 'youtube') setExtractedYoutube({ ...data, url });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '블로그 정보를 가져오는 데 실패했습니다.');
+      setError(err instanceof Error ? err.message : '정보를 가져오는 데 실패했습니다.');
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const handleSaveBlog = async () => {
-      if (!extractedBlog) return;
-      setIsSaving(true);
-      const res = await saveBlog({
+  const handleSave = async () => {
+    if (!contentType) return;
+    setIsSaving(true);
+    try {
+      let result;
+      if (contentType === 'yes24' && extractedBook) {
+        result = await saveBook({
+          title: extractedBook.title,
+          author: extractedBook.author,
+          coverImage: extractedBook.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
+          category: extractedBook.category,
+          publishDate: extractedBook.publishDate,
+          price: extractedBook.price,
+          description: extractedBook.description,
+          readingStatus: 'READING',
+          progress: 0,
+          intro: extractedBook.intro,
+          yes24Url: extractedBook.yes24Url || url,
+          toc: extractedBook.toc,
+          authorIntro: extractedBook.author_intro,
+          inside: extractedBook.inside,
+          publisherReview: extractedBook.publisher_review,
+        });
+      } else if (contentType === 'blog' && extractedBlog) {
+        result = await saveBlog({
           title: extractedBlog.title,
           author: extractedBlog.author,
           url: extractedBlog.url,
           thumbnail: extractedBlog.thumbnail,
           content: extractedBlog.content,
           published_at: extractedBlog.published_at
-      });
-      if (res.success) {
-          showToast('내 서재에 추가되었습니다.');
-          router.push('/blog');
-      } else {
-          showToast(res.error || '저장 실패', 'error');
+        });
+      } else if (contentType === 'youtube' && extractedYoutube) {
+        result = await saveYoutubeVideo({
+          title: extractedYoutube.title,
+          url: extractedYoutube.url,
+          thumbnail: extractedYoutube.thumbnail,
+          duration: extractedYoutube.duration,
+          published_at: extractedYoutube.publishDate,
+          summary: extractedYoutube.summary,
+          description: extractedYoutube.description,
+        });
       }
-      setIsSaving(false);
-  };
 
-  const handleAutoAddBlog = async () => {
-    if (!url) return;
-    setIsAutoAddingBlog(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/blog/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      const saveRes = await saveBlog({
-          title: data.title,
-          author: data.author,
-          url: data.url || url,
-          thumbnail: data.thumbnail,
-          content: data.content,
-          published_at: data.published_at
-      });
-
-      if (saveRes.success) {
-          showToast('내 서재에 추가되었습니다.');
-          router.push('/blog');
+      if (result?.success) {
+        showToast('내 서재에 추가되었습니다.');
+        const redirectPath = contentType === 'yes24' ? '/' : (contentType === 'blog' ? '/blog' : '/youtube');
+        router.push(redirectPath);
       } else {
-          showToast(saveRes.error || '저장 실패', 'error');
+        showToast(result?.error || '저장에 실패했습니다.', 'error');
       }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : '블로그 정보를 가져오는 데 실패했습니다.');
+    } catch (error) {
+      showToast('저장 중 오류가 발생했습니다.', 'error');
     } finally {
-      setIsAutoAddingBlog(false);
+      setIsSaving(false);
     }
   };
 
   const handleAutoAdd = async () => {
-    if (!url) return;
-
+    if (!url || !contentType) return;
     setIsAutoAdding(true);
     setError(null);
-
     try {
-      const response = await fetch('/api/extract', {
+      let endpoint = '';
+      let body: any = { url };
+      if (contentType === 'yes24') endpoint = '/api/extract';
+      else if (contentType === 'blog') endpoint = '/api/blog/extract';
+      else if (contentType === 'youtube') {
+          endpoint = '/api/youtube/extract';
+          const p = prompts.find(p => p.id === selectedPromptId);
+          body.model = selectedModel;
+          body.prompt = p?.content;
+      }
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(body)
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '자동 추가 중 오류가 발생했습니다.');
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to extract book info');
+      let saveResult;
+      if (contentType === 'yes24') {
+          saveResult = await saveBook({
+              title: data.title,
+              author: data.author,
+              coverImage: data.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
+              category: data.category,
+              publishDate: data.publishDate,
+              price: data.price,
+              description: data.description,
+              readingStatus: 'READING',
+              progress: 0,
+              intro: data.intro,
+              yes24Url: data.yes24Url || url,
+              toc: data.toc,
+              authorIntro: data.author_intro,
+              inside: data.inside,
+              publisherReview: data.publisher_review,
+          });
+      } else if (contentType === 'blog') {
+          saveResult = await saveBlog({
+              title: data.title,
+              author: data.author,
+              url: data.url || url,
+              thumbnail: data.thumbnail,
+              content: data.content,
+              published_at: data.published_at
+          });
+      } else if (contentType === 'youtube') {
+          saveResult = await saveYoutubeVideo({
+              title: data.title,
+              url,
+              thumbnail: data.thumbnail,
+              duration: data.duration,
+              published_at: data.publishDate,
+              summary: data.summary,
+              description: data.description,
+          });
+      }
 
-      setExtractedBook(data);
-
-      const saveResult = await saveBook({
-        title: data.title,
-        author: data.author,
-        coverImage: data.coverImage || 'https://image.yes24.com/momo/Noimg_L.jpg',
-        category: data.category,
-        publishDate: data.publishDate,
-        price: data.price,
-        description: data.description,
-        readingStatus: 'READING',
-        progress: 0,
-        intro: data.intro,
-        yes24Url: data.yes24Url || url,
-        toc: data.toc,
-        authorIntro: data.author_intro,
-        inside: data.inside,
-        publisherReview: data.publisher_review,
-      });
-
-      if (saveResult.success) {
+      if (saveResult?.success) {
         showToast('내 서재에 추가되었습니다.');
-        router.push('/');
+        const redirectPath = contentType === 'yes24' ? '/' : (contentType === 'blog' ? '/blog' : '/youtube');
+        router.push(redirectPath);
       } else {
-        showToast(`자동 저장 실패: ${saveResult.error}`, 'error');
+        showToast(saveResult?.error || '저장 실패', 'error');
       }
     } catch (err: unknown) {
-      console.error('Auto Add error:', err);
       setError(err instanceof Error ? err.message : '자동 추가 중 오류가 발생했습니다.');
     } finally {
       setIsAutoAdding(false);
@@ -253,246 +269,189 @@ function AddContent() {
       <Header title="가져오기" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 pb-48">
-        {/* Switch Mode Tab */}
-        <div className="flex gap-2 mb-6 p-1 bg-slate-200 dark:bg-slate-800 rounded-xl">
-          <button
-            onClick={() => setActiveTab('yes24')}
-            className={cn("flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all", activeTab === 'yes24' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400")}
-          >
-            Yes24
-          </button>
-          <button
-            onClick={() => router.push('/add/youtube')}
-            className="flex-1 py-3 px-4 rounded-lg text-sm font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-          >
-            Youtube
-          </button>
-          <button
-            onClick={() => setActiveTab('blog')}
-            className={cn("flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all", activeTab === 'blog' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500 dark:text-slate-400")}
-          >
-            블로그
-          </button>
-        </div>
+        <section className="mb-10 space-y-4">
+            <div className="flex flex-col gap-2">
+                <div className="flex justify-between items-center ml-1">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">URL 입력</label>
+                    {contentType === 'youtube' && (
+                        <button
+                          onClick={() => router.push('/settings/gemini')}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-bold border border-slate-200 dark:border-primary/10 hover:text-primary transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">settings_suggest</span>
+                          제미나이 설정
+                        </button>
+                    )}
+                </div>
+                <div className="flex flex-col gap-3">
+                    <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-14 px-4 transition-all outline-none"
+                        placeholder="Youtube, Yes24, 블로그 URL"
+                    />
 
-        {activeTab === 'yes24' ? (
-        <>
-            <section className="mb-10 space-y-4">
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300 ml-1">Yes24 상품 URL</label>
-                    <div className="flex flex-col gap-3">
-                        <input
-                            type="text"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900/50 text-slate-900 dark:text-white focus:border-primary focus:ring-primary h-14 px-4 transition-all outline-none"
-                            placeholder="https://www.yes24.com/Product/Goods/..."
-                        />
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleExtract}
-                                disabled={isExtracting || isAutoAdding}
-                                className="flex-1 bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                    {contentType === 'youtube' && (
+                        <div className="grid grid-cols-2 gap-3">
+                            <select
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(e.target.value)}
+                                className="rounded-xl border border-primary/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 h-12 px-3 text-xs outline-none appearance-none"
                             >
-                                <span className="material-symbols-outlined text-lg">description</span>
-                                <span className="text-sm font-bold">
-                                    {isExtracting ? '가져오는 중' : '가져오기'}
-                                </span>
-                            </button>
-                            <button
-                                onClick={handleAutoAdd}
-                                disabled={isExtracting || isAutoAdding}
-                                className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                {models.map(model => (
+                                    <option key={model.id} value={model.name}>{model.name}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={selectedPromptId}
+                                onChange={(e) => setSelectedPromptId(e.target.value)}
+                                className="rounded-xl border border-primary/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 h-12 px-3 text-xs outline-none appearance-none"
                             >
-                                <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                                <span className="text-sm font-bold">
-                                    {isAutoAdding ? '추가 중' : '자동 추가'}
-                                </span>
-                            </button>
+                                {prompts.map((p) => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={handleExtract}
+                            disabled={isExtracting || isAutoAdding || !contentType}
+                            className="flex-1 bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-lg">description</span>
+                            <span className="text-sm font-bold">
+                                {isExtracting ? '분석 중' : '가져오기'}
+                            </span>
+                        </button>
+                        <button
+                            onClick={handleAutoAdd}
+                            disabled={isExtracting || isAutoAdding || !contentType}
+                            className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                            <span className="text-sm font-bold">
+                                {isAutoAdding ? '추가 중' : '자동 추가'}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+                {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
+            </div>
+        </section>
+
+        {/* Preview Section */}
+        <section className="border-t border-primary/10 pt-6">
+          <div className={cn("mt-4 transition-opacity", !extractedBook && !extractedBlog && !extractedYoutube && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
+
+            {/* YouTube Preview */}
+            {extractedYoutube && (
+                <div className="flex flex-col gap-6 animate-fade-in-up">
+                  <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl overflow-hidden border border-slate-200 dark:border-primary/10 shadow-sm relative group">
+                    <img src={extractedYoutube.thumbnail} alt="thumbnail" className="w-full h-full object-cover" />
+                    <div className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 bg-black/80 text-white text-[9px] font-bold rounded">
+                        {extractedYoutube.duration}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h2 className="text-xl font-bold">{extractedYoutube.title}</h2>
+                    <p className="text-sm text-slate-500">{extractedYoutube.publishDate}</p>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">AI 요약 분석</label>
+                        <div className="w-full rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 p-4 prose dark:prose-invert prose-sm max-w-none shadow-inner break-words overflow-x-hidden">
+                            <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} rehypePlugins={[rehypeRaw]}>
+                                {he.decode(extractedYoutube.summary || '')}
+                            </ReactMarkdown>
                         </div>
                     </div>
-                    {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
+                  </div>
                 </div>
-            </section>
+            )}
 
-            {/* Preview State */}
-            <section className="border-t border-primary/10 pt-6">
-              <div className={cn("mt-4 transition-opacity", !extractedBook && !isExtracting && !isAutoAdding && "opacity-50 pointer-events-none select-none")}>
-                <div className="flex flex-col gap-8">
-                  {/* Cover and Primary Metadata Row */}
-                  <div className="flex gap-6 items-start">
-                    {/* Book Cover - Left */}
-                    <div className="w-32 h-48 bg-slate-200 dark:bg-slate-800 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-primary/10 overflow-hidden shadow-lg relative">
-                      {extractedBook?.coverImage ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined text-slate-400 text-4xl mb-1">image</span>
-                          <span className="text-[10px] text-slate-400 font-medium">표지 이미지</span>
-                        </>
-                      )}
-                      {(isExtracting || isAutoAdding) && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 animate-pulse flex items-center justify-center"><span className="material-symbols-outlined animate-spin text-primary text-3xl">sync</span></div>}
+            {/* Blog Preview */}
+            {extractedBlog && (
+                <div className="space-y-6 animate-fade-in-up">
+                    <h2 className="text-xl font-bold">{extractedBlog.title}</h2>
+                    <div className="flex justify-between items-center text-sm">
+                        {extractedBlog.author && <p className="text-primary font-bold">{extractedBlog.author}</p>}
+                        <p className="text-slate-400">{extractedBlog.published_at}</p>
                     </div>
+                    {extractedBlog.thumbnail && !isThumbnailInContent(extractedBlog.thumbnail, extractedBlog.content) && (
+                        <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />
+                    )}
+                    <div
+                      className="prose dark:prose-invert prose-slate max-w-none"
+                      dangerouslySetInnerHTML={{ __html: extractedBlog.content || '' }}
+                    />
+                </div>
+            )}
 
-                    {/* Metadata - Right */}
+            {/* Yes24 Preview */}
+            {extractedBook && (
+                <div className="flex flex-col gap-8 animate-fade-in-up">
+                  <div className="flex gap-6 items-start">
+                    <div className="w-32 h-48 bg-slate-200 dark:bg-slate-800 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-300 dark:border-primary/10 overflow-hidden shadow-lg relative">
+                      {extractedBook.coverImage && (
+                        <img src={extractedBook.coverImage} alt={extractedBook.title} className="w-full h-full object-cover" />
+                      )}
+                    </div>
                     <div className="flex-1 space-y-4">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">제목</label>
-                        <div className={cn(
-                            "min-h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 py-2 flex items-center text-sm font-bold text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner break-words",
-                            (isExtracting || isAutoAdding) && "animate-pulse"
-                        )}>
-                            {(isExtracting || isAutoAdding) ? "가져오는 중..." : (extractedBook?.title || "도서 제목")}
+                        <div className="min-h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 py-2 flex items-center text-sm font-bold border border-slate-100 dark:border-primary/10 shadow-inner break-words">
+                            {extractedBook.title}
                         </div>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">저자</label>
-                        <div className={cn(
-                            "h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner truncate",
-                            (isExtracting || isAutoAdding) && "animate-pulse"
-                        )}>
-                            {(isExtracting || isAutoAdding) ? "" : (extractedBook?.author || "")}
+                        <div className="h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 flex items-center text-sm border border-slate-100 dark:border-primary/10 shadow-inner truncate">
+                            {extractedBook.author}
                         </div>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">발행일자</label>
-                        <div className={cn(
-                            "h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner truncate",
-                            (isExtracting || isAutoAdding) && "animate-pulse"
-                        )}>
-                            {(isExtracting || isAutoAdding) ? "" : (extractedBook?.publishDate || "")}
+                        <div className="h-10 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-3 flex items-center text-sm border border-slate-100 dark:border-primary/10 shadow-inner truncate">
+                            {extractedBook.publishDate}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Secondary Metadata */}
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">가격</label>
-                            <div className={cn(
-                                "h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner truncate",
-                                (isExtracting || isAutoAdding) && "animate-pulse"
-                            )}>
-                                {(isExtracting || isAutoAdding) ? "" : (extractedBook?.price || "")}
+                            <div className="h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm border border-slate-100 dark:border-primary/10 shadow-inner truncate">
+                                {extractedBook.price}
                             </div>
                         </div>
                         <div>
                             <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">도서 분류</label>
-                            <div className={cn(
-                                "h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner truncate",
-                                (isExtracting || isAutoAdding) && "animate-pulse"
-                            )}>
-                                {(isExtracting || isAutoAdding) ? "" : (extractedBook?.category || "")}
+                            <div className="h-12 bg-slate-50 dark:bg-slate-900/50 rounded-xl px-4 flex items-center text-sm border border-slate-100 dark:border-primary/10 shadow-inner truncate">
+                                {extractedBook.category}
                             </div>
                         </div>
                     </div>
-
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase mb-1 ml-1">책소개</label>
-                        <div className={cn(
-                            "min-h-32 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm text-slate-900 dark:text-slate-100 border border-slate-100 dark:border-primary/10 shadow-inner whitespace-pre-wrap",
-                            (isExtracting || isAutoAdding) && "animate-pulse"
-                        )}>
-                            {(isExtracting || isAutoAdding) ? "내용을 가져오는 중입니다..." : (extractedBook?.description || "도서 정보가 표시됩니다.")}
+                        <div className="min-h-32 bg-slate-50 dark:bg-slate-900/50 rounded-xl p-4 text-sm border border-slate-100 dark:border-primary/10 shadow-inner whitespace-pre-wrap">
+                            {extractedBook.description}
                         </div>
                     </div>
                   </div>
+                </div>
+            )}
 
-                  {/* Detailed Sections */}
-                  <div className="space-y-6">
-                    {extractedBook?.toc && (
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">목차</label>
-                            <div className="w-full rounded-xl border border-slate-100 dark:border-primary/10 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 p-4 text-sm shadow-inner whitespace-pre-wrap max-h-64 overflow-y-auto no-scrollbar">
-                                {extractedBook.toc}
-                            </div>
-                        </div>
-                    )}
-                    {extractedBook?.author_intro && (
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">저자 소개</label>
-                            <div className="w-full rounded-xl border border-slate-100 dark:border-primary/10 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 p-4 text-sm shadow-inner whitespace-pre-wrap">
-                                {extractedBook.author_intro}
-                            </div>
-                        </div>
-                    )}
-                    {extractedBook?.publisher_review && (
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">출판사 리뷰</label>
-                            <div className="w-full rounded-xl border border-slate-100 dark:border-primary/10 bg-slate-50 dark:bg-slate-900/50 text-slate-600 dark:text-slate-300 p-4 text-sm shadow-inner whitespace-pre-wrap">
-                                {extractedBook.publisher_review}
-                            </div>
-                        </div>
-                    )}
-                  </div>
+            {isExtracting && (
+                <div className="py-20 flex flex-col items-center justify-center gap-4 text-slate-400 animate-pulse">
+                    <span className="material-symbols-outlined text-5xl animate-spin text-primary">sync</span>
+                    <p className="font-bold">정보를 가져오는 중입니다...</p>
                 </div>
-              </div>
-            </section>
-        </>
-        ) : (
-            <>
-            <section className="mb-10 space-y-4">
-                <div className="flex flex-col gap-2">
-                    <div className="flex flex-col gap-3">
-                        <input
-                            type="text"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            className="w-full rounded-xl border border-primary/20 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:border-primary focus:ring-1 focus:ring-primary h-14 px-4 transition-all outline-none"
-                            placeholder="https://blog.naver.com/..."
-                        />
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleExtractBlog}
-                                disabled={isExtracting || isAutoAddingBlog}
-                                className="flex-1 bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary dark:hover:bg-primary/30 font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-lg">description</span>
-                                <span className="text-sm font-bold">
-                                    {isExtracting ? '가져오는 중' : '가져오기'}
-                                </span>
-                            </button>
-                            <button
-                                onClick={handleAutoAddBlog}
-                                disabled={isExtracting || isAutoAddingBlog}
-                                className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
-                                <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                                <span className="text-sm font-bold">
-                                    {isAutoAddingBlog ? '추가 중' : '자동 추가'}
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    {error && <p className="text-red-500 text-sm mt-1 ml-1">{error}</p>}
-                </div>
-            </section>
-            <section className="border-t border-primary/10 pt-6">
-                <div className={cn("mt-4 transition-opacity", !extractedBlog && !isExtracting && "opacity-50 pointer-events-none select-none")}>
-                    {extractedBlog && (
-                        <div className="space-y-6">
-                            <h2 className="text-xl font-bold">{extractedBlog.title}</h2>
-                            <div className="flex justify-between items-center text-sm">
-                                {extractedBlog.author && <p className="text-primary font-bold">{extractedBlog.author}</p>}
-                                <p className="text-slate-400">{extractedBlog.published_at}</p>
-                            </div>
-                            {extractedBlog.thumbnail && !isThumbnailInContent(extractedBlog.thumbnail, extractedBlog.content) && (
-                                <img src={extractedBlog.thumbnail} alt="" className="w-full rounded-2xl" referrerPolicy="no-referrer" />
-                            )}
-                            <div
-                              className="prose dark:prose-invert prose-slate max-w-none"
-                              dangerouslySetInnerHTML={{ __html: extractedBlog.content || '' }}
-                            />
-                        </div>
-                    )}
-                    {isExtracting && <div className="py-20 text-center animate-pulse">정보를 가져오는 중입니다...</div>}
-                </div>
-            </section>
-            </>
-        )}
+            )}
+          </div>
+        </section>
       </main>
 
       <BottomNav activeTab="library" />
@@ -501,8 +460,8 @@ function AddContent() {
       <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
         <div className="max-w-2xl mx-auto flex justify-center">
           <button
-            onClick={() => activeTab === 'yes24' ? handleSave() : handleSaveBlog()}
-            disabled={(!extractedBook && !extractedBlog) || isSaving}
+            onClick={handleSave}
+            disabled={(!extractedBook && !extractedBlog && !extractedYoutube) || isSaving}
             className="w-full py-4 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <span className="material-symbols-outlined text-xl">save</span>
