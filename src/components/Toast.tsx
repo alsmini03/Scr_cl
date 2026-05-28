@@ -35,21 +35,21 @@ export default function ToastContainer() {
     }, [addToast]);
 
     return (
-        <div className="fixed top-20 left-1/2 z-[200] flex flex-col items-center gap-3 w-full max-w-xs pointer-events-none">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 w-full max-w-xs pointer-events-none">
             {toasts.map(toast => (
                 <div
                     key={toast.id}
                     className={cn(
-                        "px-6 py-3 rounded-2xl shadow-xl text-white font-bold text-sm animate-fade-in-down pointer-events-auto backdrop-blur-md whitespace-nowrap",
+                        "px-6 py-3 rounded-2xl shadow-xl text-white font-bold text-sm animate-fade-in-down pointer-events-auto backdrop-blur-md break-words",
                         toast.type === 'success' ? "bg-primary/90" :
                         toast.type === 'error' ? "bg-red-500/90" : "bg-slate-700/90"
                     )}
                 >
-                    <div className="flex items-center gap-2">
-                        {toast.type === 'success' && <span className="material-symbols-outlined text-lg">check_circle</span>}
-                        {toast.type === 'error' && <span className="material-symbols-outlined text-lg">error</span>}
-                        {toast.type === 'info' && <span className="material-symbols-outlined text-lg">info</span>}
-                        {toast.message}
+                    <div className="flex items-start gap-2">
+                        {toast.type === 'success' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">check_circle</span>}
+                        {toast.type === 'error' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">error</span>}
+                        {toast.type === 'info' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">info</span>}
+                        <div className="leading-snug">{toast.message}</div>
                     </div>
                 </div>
             ))}

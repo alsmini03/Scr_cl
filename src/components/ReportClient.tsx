@@ -697,7 +697,7 @@ export default function ReportClient({
 
                     <div className="flex justify-between items-start gap-3">
                         <div onClick={() => handleRecommendClick(report)} className="flex-1 cursor-pointer group">
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-3 group-hover:text-primary transition-colors">
                                 {report.title}
                             </h3>
                         </div>
