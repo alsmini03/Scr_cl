@@ -42,7 +42,20 @@ export async function POST(req: Request) {
         throw new Error(`Failed to fetch PDF from ${url}`);
     }
     const pdfBuffer = await response.arrayBuffer();
-    const base64Pdf = Buffer.from(pdfBuffer).toString("base64");
+
+    // Check for PDF signature (%PDF-)
+    const buffer = Buffer.from(pdfBuffer);
+    const signature = buffer.slice(0, 5).toString('ascii');
+    if (signature !== '%PDF-') {
+        // It might be an HTML error page from Bondweb
+        const contentSample = buffer.slice(0, 500).toString('utf8');
+        if (contentSample.includes('<html') || contentSample.includes('<HTML')) {
+            throw new Error("유효한 PDF 파일이 아닙니다. (Bondweb 세션 만료 또는 접근 권한 오류)");
+        }
+        throw new Error("올바른 PDF 형식이 아닙니다.");
+    }
+
+    const base64Pdf = buffer.toString("base64");
 
     // 2. Initialize Gemini model
     const geminiModel = genAI.getGenerativeModel({ model: model || "gemini-1.5-flash" });

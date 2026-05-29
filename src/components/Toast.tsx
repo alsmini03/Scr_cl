@@ -35,24 +35,24 @@ export default function ToastContainer() {
     }, [addToast]);
 
     return (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] flex flex-col items-center gap-3 w-full max-w-xs pointer-events-none">
-            {toasts.map(toast => (
-                <div
-                    key={toast.id}
-                    className={cn(
-                        "px-6 py-3 rounded-2xl shadow-xl text-white font-bold text-sm animate-fade-in-down pointer-events-auto backdrop-blur-md break-words",
-                        toast.type === 'success' ? "bg-primary/90" :
-                        toast.type === 'error' ? "bg-red-500/90" : "bg-slate-700/90"
-                    )}
-                >
-                    <div className="flex items-start gap-2">
-                        {toast.type === 'success' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">check_circle</span>}
-                        {toast.type === 'error' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">error</span>}
-                        {toast.type === 'info' && <span className="material-symbols-outlined text-lg shrink-0 mt-0.5">info</span>}
-                        <div className="leading-snug">{toast.message}</div>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none p-6">
+            <div className="flex flex-col gap-4 w-full max-w-xs">
+                {toasts.map(toast => (
+                    <div
+                        key={toast.id}
+                        className={cn(
+                            "w-full p-8 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] text-white font-bold text-center animate-fade-in pointer-events-auto backdrop-blur-3xl border border-white/10",
+                            toast.type === 'success' ? "bg-primary/90" :
+                            toast.type === 'error' ? "bg-red-500/90" : "bg-slate-800/90"
+                        )}
+                    >
+                        <span className="material-symbols-outlined text-6xl mb-4 block">
+                            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+                        </span>
+                        <div className="text-base leading-relaxed break-words whitespace-pre-wrap">{toast.message}</div>
                     </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
     );
 }
