@@ -5,7 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useState, memo, useMemo, useEffect, useRef, useCallback } from 'react';
 import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
-import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport, toggleLikeAction } from '@/lib/db';
+import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport, toggleLikeAction, softDeleteBook } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 import { useSearchParams } from 'next/navigation';
 
@@ -30,7 +30,7 @@ export default function SavedClient({
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report' | 'book'>('all');
   const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -39,7 +39,7 @@ export default function SavedClient({
 
   useEffect(() => {
     const savedFilter = localStorage.getItem('saved_active_filter');
-    if (savedFilter && ['all', 'youtube', 'blog', 'report'].includes(savedFilter)) {
+    if (savedFilter && ['all', 'youtube', 'blog', 'report', 'book'].includes(savedFilter)) {
         setActiveFilter(savedFilter as any);
     }
   }, []);
@@ -173,9 +173,9 @@ export default function SavedClient({
     setIsProcessing(true);
     try {
       const itemsToSend = selectedItems.map(item => ({
-        type: item.type as 'youtube' | 'blog' | 'report',
+        type: item.type as 'youtube' | 'blog' | 'report' | 'book',
         id: item.id
-      }));
+      })).filter(i => i.type !== 'book'); // Books not supported in batch email yet
       const res = await sendBatchEmailAction(itemsToSend, email);
       if (res.success) {
         showToast('메일이 발송되었습니다.');
@@ -203,6 +203,10 @@ export default function SavedClient({
               if (item.type === 'blog') res = await deleteBlog(item.id);
               else if (item.type === 'youtube') res = await deleteYoutubeVideo(item.id);
               else if (item.type === 'report') res = await deleteReport(item.id);
+              else if (item.type === 'book') {
+                  await softDeleteBook(item.id);
+                  res = { success: true };
+              }
 
               if (res?.success) successCount++;
           }
@@ -228,7 +232,7 @@ export default function SavedClient({
     return selectedItems.some(item => item.type === type && item.id === id);
   };
 
-  const handleToggleLike = async (type: 'youtube' | 'blog' | 'report', id: string, currentLiked: boolean) => {
+  const handleToggleLike = async (type: 'youtube' | 'blog' | 'report' | 'book', id: string, currentLiked: boolean) => {
     const newLiked = !currentLiked;
 
     // Optimistic update
@@ -267,7 +271,8 @@ export default function SavedClient({
       { id: 'all', label: '전체' },
       { id: 'youtube', label: 'YouTube' },
       { id: 'blog', label: '블로그' },
-      { id: 'report', label: '리포트' }
+      { id: 'report', label: '리포트' },
+      { id: 'book', label: 'Yes24' }
   ];
 
   return (
@@ -406,6 +411,11 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
     icon = 'description';
     iconColor = 'text-blue-500 bg-blue-50 dark:bg-blue-500/10';
     typeLabel = '리포트';
+  } else if (item.type === 'book') {
+    href = `/book/${item.id}`;
+    icon = 'menu_book';
+    iconColor = 'text-amber-500 bg-amber-50 dark:bg-amber-500/10';
+    typeLabel = 'Yes24';
   }
 
   return (
@@ -431,7 +441,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
         )}
       >
         {item.type === 'youtube' && item.thumbnail ? (
-          <div className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
+          <div className="relative shrink-0 w-32 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
             <img src={item.thumbnail} alt="" className="w-full h-full object-cover pointer-events-none" />
             <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] font-bold px-1 rounded">
                 {item.duration}
@@ -448,13 +458,17 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase",
                 item.type === 'youtube' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
                 item.type === 'blog' ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
-                "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                item.type === 'report' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
+                "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
             )}>
                 {typeLabel}
             </span>
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-2 leading-tight">
+          <h3 className={cn(
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-3",
+            item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
+          )}>
             {item.title}
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">

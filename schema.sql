@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS books (
   author_intro TEXT,
   inside TEXT,
   publisher_review TEXT,
-  yes24_url TEXT
+  yes24_url TEXT,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- YouTube Videos Table

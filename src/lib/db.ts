@@ -54,6 +54,7 @@ function mapRowToBook(row: any): Book {
     inside: row.inside,
     publisherReview: row.publisher_review,
     yes24Url: row.yes24_url,
+    is_liked: row.is_liked,
   };
 }
 
@@ -69,7 +70,7 @@ export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
     const res = await query(
-      "SELECT * FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
+      "SELECT id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
       [user.id, user.email]
     );
     return res.rows.map(mapRowToBook);
@@ -313,7 +314,7 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
   return sendBatchEmailAction([{ type: 'youtube', id: videoId }], toEmail);
 }
 
-export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
+export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report' | 'book', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     if (!user.id) throw new Error('Unauthorized');
@@ -1192,22 +1193,32 @@ export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ pr
   }
 }
 
-export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report', id: string, isLiked: boolean): Promise<{ success: boolean; error?: string }> {
+export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report' | 'book', id: string, isLiked: boolean): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const table = type === 'youtube' ? 'youtube_videos' : type === 'blog' ? 'naver_blogs' : 'reports';
+    const tableMap: Record<string, string> = {
+      youtube: 'youtube_videos',
+      blog: 'naver_blogs',
+      report: 'reports',
+      book: 'books'
+    };
+    const table = tableMap[type];
+    if (!table) throw new Error('Invalid type');
 
     await query(
       `UPDATE ${table} SET is_liked = $1 WHERE id = $2 AND (user_id = $3 OR user_id = $4)`,
       [isLiked, id, user.id, user.email]
     );
 
-    const revalidatePathMap = {
+    const revalidatePathMap: Record<string, string> = {
       youtube: `/youtube/${id}`,
       blog: `/blog/${id}`,
-      report: '/report'
+      report: '/report',
+      book: `/book/${id}`
     };
-    safeRevalidate(revalidatePathMap[type]);
+    if (revalidatePathMap[type]) {
+      safeRevalidate(revalidatePathMap[type]);
+    }
     safeRevalidate('/saved');
 
     return { success: true };
