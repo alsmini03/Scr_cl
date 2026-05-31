@@ -208,30 +208,14 @@ export default function ReportClient({
 
   const handleDatePreset = (preset: string) => {
     setActiveDatePreset(preset);
-    if (preset === '6') { // 전체
+    if (preset === '1') { // 전체 (Bondweb uses empty string for latest)
       setSrhDate('');
       return;
     }
 
-    const end = new Date();
-    const start = new Date();
-
-    if (preset === '0') { // 오늘
-      // Same
-    } else if (preset === '1') { // 1주
-      start.setDate(end.getDate() - 7);
-    } else if (preset === '2') { // 1개월
-      start.setMonth(end.getMonth() - 1);
-    } else if (preset === '3') { // 3개월
-      start.setMonth(end.getMonth() - 3);
-    } else if (preset === '4') { // 6개월
-      start.setMonth(end.getMonth() - 6);
-    } else if (preset === '5') { // 1년
-      start.setFullYear(end.getFullYear() - 1);
-    }
-
-    const formatDate = (d: Date) => d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-    setSrhDate(`${formatDate(start)}-${formatDate(end)}`);
+    const d = new Date();
+    const formatDate = (date: Date) => date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0') + String(date.getDate()).padStart(2, '0');
+    setSrhDate(formatDate(d));
   };
 
   const handleCopyUrl = (url?: string) => {
@@ -641,58 +625,37 @@ export default function ReportClient({
                       )}
                     </div>
 
-                    <div className="flex overflow-x-auto no-scrollbar gap-2 -mx-1 px-1">
-                      {[
-                        { label: '오늘', id: '0' },
-                        { label: '1주', id: '1' },
-                        { label: '1개월', id: '2' },
-                        { label: '3개월', id: '3' },
-                        { label: '6개월', id: '4' },
-                        { label: '1년', id: '5' },
-                        { label: '전체', id: '6' }
-                      ].map((preset) => (
-                        <button
-                          key={preset.id}
-                          onClick={() => handleDatePreset(preset.id)}
-                          className={cn(
-                            "flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-all border",
-                            activeDatePreset === preset.id
-                              ? "bg-primary/10 text-primary border-primary/20"
-                              : "bg-transparent text-slate-500 border-slate-200 dark:border-primary/10 hover:border-primary/30"
-                          )}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 relative">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
                         <input
                           type="date"
-                          value={srhDate.split('-')[0] ? `${srhDate.split('-')[0].slice(0,4)}-${srhDate.split('-')[0].slice(4,6)}-${srhDate.split('-')[0].slice(6,8)}` : ''}
+                          value={srhDate ? `${srhDate.slice(0,4)}-${srhDate.slice(4,6)}-${srhDate.slice(6,8)}` : ''}
                           onChange={(e) => {
                             const val = e.target.value.split('-').join('');
-                            const end = srhDate.split('-')[1] || val;
-                            setSrhDate(`${val}-${end}`);
+                            setSrhDate(val);
                             setActiveDatePreset('-1');
                           }}
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-primary/20"
+                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 px-4 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 transition-all"
                         />
                       </div>
-                      <span className="text-slate-400 text-xs">~</span>
-                      <div className="flex-1 relative">
-                        <input
-                          type="date"
-                          value={srhDate.split('-')[1] ? `${srhDate.split('-')[1].slice(0,4)}-${srhDate.split('-')[1].slice(4,6)}-${srhDate.split('-')[1].slice(6,8)}` : ''}
-                          onChange={(e) => {
-                            const val = e.target.value.split('-').join('');
-                            const start = srhDate.split('-')[0] || val;
-                            setSrhDate(`${start}-${val}`);
-                            setActiveDatePreset('-1');
-                          }}
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-2 px-3 text-xs text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-primary/20"
-                        />
+                      <div className="flex gap-2">
+                        {[
+                          { label: '오늘', id: '0' },
+                          { label: '전체', id: '1' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => handleDatePreset(preset.id)}
+                            className={cn(
+                              "px-4 py-2.5 rounded-xl text-sm font-bold transition-all border",
+                              activeDatePreset === preset.id
+                                ? "bg-primary/10 text-primary border-primary/20"
+                                : "bg-transparent text-slate-500 border-slate-200 dark:border-primary/10 hover:border-primary/30"
+                            )}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>
