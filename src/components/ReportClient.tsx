@@ -59,6 +59,7 @@ export default function ReportClient({
   // Search/Filter State
   const [srhDate, setSrhDate] = useState('');
   const [srhWord, setSrhWord] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [activeDatePreset, setActiveDatePreset] = useState('0'); // 0: 오늘, 1: 1주, 2: 1개월, 3: 3개월, 4: 6개월, 5: 1년, 6: 전체
 
   const searchParams = useSearchParams();
@@ -104,6 +105,11 @@ export default function ReportClient({
       setIsLoading(false);
     }
   }, [activeTabId, srhDate, srhWord]);
+
+  const handleSearch = () => {
+    setSrhWord(searchInput);
+    // fetchReports(true) will be triggered by useEffect
+  };
 
   const fetchReports = async (isInitial = false) => {
     if (!activeTabId && tabs.length > 0) return;
@@ -606,23 +612,32 @@ export default function ReportClient({
               <div className="flex flex-col flex-1 gap-3">
                 <div className="space-y-4 pt-3">
                   <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm space-y-4">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={srhWord}
-                        onChange={(e) => setSrhWord(e.target.value)}
-                        placeholder="검색어를 입력하세요..."
-                        className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
-                      />
-                      <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-                      {srhWord && (
-                        <button
-                          onClick={() => setSrhWord('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-lg">cancel</span>
-                        </button>
-                      )}
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={searchInput}
+                          onChange={(e) => setSearchInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                          placeholder="검색어를 입력하세요..."
+                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
+                        />
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                        {searchInput && (
+                          <button
+                            onClick={() => { setSearchInput(''); setSrhWord(''); }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-lg">cancel</span>
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleSearch}
+                        className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                      >
+                        조회
+                      </button>
                     </div>
 
                     <div className="flex items-center gap-3">
