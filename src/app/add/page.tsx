@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useState } from 'react';
 import { cn, isThumbnailInContent } from '@/lib/utils';
-import { saveBook, saveBlog, saveYoutubeVideo, getGeminiModels, getGeminiPrompts } from '@/lib/db';
+import { saveBook, saveBlog, saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addToQueue } from '@/lib/db';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
 import { showToast } from '@/components/Toast';
@@ -167,13 +167,22 @@ function AddContent() {
           thumbnail: extractedYoutube.thumbnail,
           duration: extractedYoutube.duration,
           published_at: extractedYoutube.publishDate,
-          summary: extractedYoutube.summary,
+          summary: '',
           description: extractedYoutube.description,
         });
+
+        if (result?.success && result.id) {
+          const p = prompts.find(p => p.id === selectedPromptId);
+          await addToQueue('youtube', result.id, {
+            url: extractedYoutube.url,
+            model: selectedModel,
+            prompt: p?.content
+          });
+        }
       }
 
       if (result?.success) {
-        showToast('내 서재에 추가되었습니다.');
+        showToast(contentType === 'youtube' ? '내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.' : '내 서재에 추가되었습니다.');
         router.push('/saved');
       } else {
         showToast(result?.error || '저장에 실패했습니다.', 'error');
@@ -244,13 +253,22 @@ function AddContent() {
               thumbnail: data.thumbnail,
               duration: data.duration,
               published_at: data.publishDate,
-              summary: data.summary,
+              summary: '',
               description: data.description,
           });
+
+          if (saveResult?.success && saveResult.id) {
+            const p = prompts.find(p => p.id === selectedPromptId);
+            await addToQueue('youtube', saveResult.id, {
+                url,
+                model: selectedModel,
+                prompt: p?.content
+            });
+          }
       }
 
       if (saveResult?.success) {
-        showToast('내 서재에 추가되었습니다.');
+        showToast(contentType === 'youtube' ? '내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.' : '내 서재에 추가되었습니다.');
         router.push('/saved');
       } else {
         showToast(saveResult?.error || '저장 실패', 'error');

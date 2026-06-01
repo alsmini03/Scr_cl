@@ -3,12 +3,13 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { marked } from 'marked';
+import QueueStatus from '@/components/QueueStatus';
 
 interface Report {
   id: string;
@@ -320,33 +321,23 @@ export default function ReportClient({
 
       if (!pdfUrl) throw new Error('PDF URL not found');
 
-      const response = await fetch('/api/report/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: pdfUrl,
-          model: selectedModel,
-          prompt: selectedPrompt
-        }),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || '리포트 분석 중 오류가 발생했습니다.');
-      }
-
       const result = await saveReport({
         title: report.title,
         author: report.author,
         institution: report.institution,
         date: report.date,
         url: pdfUrl,
-        summary: data.result,
+        summary: '',
         content: viewingContent?.id === report.id ? viewingContent.content : ''
       });
 
       if (result.success && result.id) {
-        showToast('내 서재에 추가되었습니다.');
+        await addToQueue('report', result.id, {
+          url: pdfUrl,
+          model: selectedModel,
+          prompt: selectedPrompt
+        });
+        showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`저장 실패: ${result.error}`, 'error');
       }
@@ -747,6 +738,8 @@ export default function ReportClient({
                 </button>
               </div>
             )}
+
+        <QueueStatus type="report" />
 
             {isLoading ? (
               <div className="space-y-4">

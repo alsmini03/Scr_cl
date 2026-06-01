@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, addToQueue } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -126,31 +126,23 @@ export default function YouTubeRecommendClient({
       const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
 
-      const response = await fetch('/api/youtube/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: video.url,
-          model: selectedModel,
-          prompt: selectedPrompt
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to extract details');
-      const data = await response.json();
-
       const result = await saveYoutubeVideo({
-        title: data.title || video.title,
+        title: video.title,
         url: video.url,
-        thumbnail: data.thumbnail || video.thumbnail,
-        duration: data.duration || video.duration,
-        published_at: data.publishDate || new Date().toISOString().split('T')[0],
-        summary: data.summary || '',
-        description: data.description || '',
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        published_at: new Date().toISOString().split('T')[0],
+        summary: '',
+        description: '',
       });
 
       if (result.success && result.id) {
-        showToast('내 서재에 추가되었습니다.');
+        await addToQueue('youtube', result.id, {
+          url: video.url,
+          model: selectedModel,
+          prompt: selectedPrompt
+        });
+        showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`추가 실패: ${result.error}`, 'error');
       }

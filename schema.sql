@@ -172,3 +172,19 @@ CREATE TABLE IF NOT EXISTS verification_token (
   expires TIMESTAMPTZ NOT NULL,
   PRIMARY KEY (identifier, token)
 );
+
+-- Gemini Queue Table
+CREATE TABLE IF NOT EXISTS gemini_queue (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'youtube', 'report'
+  target_id TEXT NOT NULL, -- ID in youtube_videos or reports table
+  payload JSONB NOT NULL, -- contains model, prompt, url etc.
+  status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+  retry_count INTEGER DEFAULT 0,
+  error_message TEXT,
+  last_processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_gemini_queue_user_status ON gemini_queue(user_id, status);

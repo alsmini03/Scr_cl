@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import YoutubeGrid from '@/components/YoutubeGrid';
+import QueueStatus from '@/components/QueueStatus';
 
 export default function YoutubeRecordsClient({
   session,
@@ -47,6 +48,7 @@ export default function YoutubeRecordsClient({
       />
 
       <main className="mt-6 px-4">
+        <QueueStatus type="youtube" />
         {!session?.user ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">

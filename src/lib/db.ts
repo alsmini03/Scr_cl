@@ -1287,3 +1287,132 @@ export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?:
     return {};
   }
 }
+
+// Gemini Queue Actions
+export async function addToQueue(type: 'youtube' | 'report', targetId: string, payload: any) {
+  try {
+    const user = await ensureApproved();
+    const id = randomUUID();
+    await query(
+      "INSERT INTO gemini_queue (id, user_id, type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, type, targetId, JSON.stringify(payload)]
+    );
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    return { success: true, id };
+  } catch (error: any) {
+    console.error('addToQueue error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getQueueItems(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('getQueueItems error:', error);
+    return [];
+  }
+}
+
+export async function processNextQueueItemAction() {
+  try {
+    const user = await ensureApproved();
+
+    // Check if any item is already processing for this user
+    const processingRes = await query(
+      "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status = 'processing'",
+      [user.id, user.email]
+    );
+
+    if (processingRes.rows.length > 0) {
+      return { success: false, message: 'Processing in progress' };
+    }
+
+    // Get the next item to process
+    const nextRes = await query(
+      "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'failed') AND retry_count < 3 ORDER BY created_at ASC LIMIT 1",
+      [user.id, user.email]
+    );
+
+    const item = nextRes.rows[0];
+    if (!item) return { success: false, message: 'No items in queue' };
+
+    // Check 1 minute interval from the most recently processed item for this user
+    const lastProcessedRes = await query(
+      "SELECT last_processed_at FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND last_processed_at IS NOT NULL ORDER BY last_processed_at DESC LIMIT 1",
+      [user.id, user.email]
+    );
+
+    if (lastProcessedRes.rows.length > 0) {
+      const lastProcessed = new Date(lastProcessedRes.rows[0].last_processed_at).getTime();
+      const now = Date.now();
+      if (now - lastProcessed < 60000) {
+        return { success: false, message: 'Wait for 1 minute interval' };
+      }
+    }
+
+    // Mark as processing
+    await query(
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [item.id]
+    );
+
+    let result;
+    try {
+      const { type, target_id, payload } = item;
+
+      const apiEndpoint = type === 'youtube' ? '/api/youtube/extract' : '/api/report/extract';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+      const res = await fetch(`${baseUrl}${apiEndpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'API Error');
+
+      const summary = data.result;
+
+      // Update target table
+      if (type === 'youtube') {
+        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/youtube');
+        safeRevalidate(`/youtube/${target_id}`);
+      } else {
+        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/report');
+        safeRevalidate('/saved');
+      }
+
+      // Mark as completed
+      await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE id = $1",
+        [item.id]
+      );
+      result = { success: true };
+    } catch (err: any) {
+      console.error('Queue processing error:', err);
+      // Mark as failed and increment retry count
+      await query(
+        "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
+        [err.message, item.id]
+      );
+      result = { success: false, error: err.message };
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    return result;
+  } catch (error: any) {
+    console.error('processNextQueueItemAction error:', error);
+    return { success: false, error: error.message };
+  }
+}
