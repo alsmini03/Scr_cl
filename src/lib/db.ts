@@ -1415,3 +1415,68 @@ export async function processNextQueueItemAction() {
     return { success: false, error: error.message };
   }
 }
+
+export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId: string) {
+  try {
+    const user = await ensureApproved();
+
+    // Check if task exists in queue
+    const taskRes = await query(
+      "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND type = $3 AND target_id = $4",
+      [user.id, user.email, type, targetId]
+    );
+
+    if (taskRes.rows.length > 0) {
+      // Reset existing task
+      await query(
+        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL WHERE id = $1",
+        [taskRes.rows[0].id]
+      );
+    } else {
+      // Create new task if missing (need to find payload from target)
+      let payload;
+      if (type === 'report') {
+        const report = await getReportById(targetId);
+        if (!report) throw new Error('Report not found');
+
+        const models = await getGeminiModels();
+        const prompts = await getGeminiPrompts();
+        const selectedModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        const selectedPrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+
+        payload = {
+            url: report.url,
+            model: selectedModel,
+            prompt: selectedPrompt
+        };
+      } else {
+          // YouTube - find by URL from youtube_videos table
+          const ytRes = await query("SELECT url FROM youtube_videos WHERE id = $1", [targetId]);
+          const video = ytRes.rows[0];
+          if (!video) throw new Error('YouTube video not found');
+
+          const models = await getGeminiModels();
+          const prompts = await getGeminiPrompts();
+          const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+          const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+
+          payload = {
+              url: video.url,
+              model: selectedModel,
+              prompt: selectedPrompt
+          };
+      }
+
+      await addToQueue(type, targetId, payload);
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    if (type === 'youtube') safeRevalidate(`/youtube/${targetId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('retryGeminiTaskAction error:', error);
+    return { success: false, error: error.message };
+  }
+}

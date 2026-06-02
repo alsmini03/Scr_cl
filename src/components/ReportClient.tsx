@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -77,6 +77,8 @@ export default function ReportClient({
 
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
+  const [currentQueueItem, setCurrentQueueItem] = useState<any>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
@@ -188,17 +190,21 @@ export default function ReportClient({
     setIsContentLoading(true);
     setIsDetailLoading(true);
     try {
-      const [res, adj] = await Promise.all([
+      const [res, adj, queueItems] = await Promise.all([
         fetch('/api/report/content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ num: reportId, code: '01' })
         }),
-        getAdjacentReportIdsAction(reportId)
+        getAdjacentReportIdsAction(reportId),
+        getQueueItems()
       ]);
       const html = await res.text();
       setViewingContent({ id: reportId, content: html });
       setAdjacentIds(adj);
+
+      const qItem = queueItems.find(i => i.type === 'report' && i.target_id === reportId);
+      setCurrentQueueItem(qItem || null);
     } catch (err) {
       console.error(err);
       showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
@@ -436,6 +442,29 @@ export default function ReportClient({
     }
   }, [selectedReportId, selectedRecommendReport]);
 
+  const handleRetrySummary = async () => {
+    const report = selectedRecommendReport || selectedSavedReport;
+    if (!report || isRetrying) return;
+
+    setIsRetrying(true);
+    try {
+      const res = await retryGeminiTaskAction('report', report.id);
+      if (res.success) {
+        showToast('재시도 작업이 큐에 추가되었습니다.');
+        // Refresh queue status
+        const items = await getQueueItems();
+        const qItem = items.find(i => i.type === 'report' && i.target_id === report.id);
+        setCurrentQueueItem(qItem || null);
+      } else {
+        showToast(res.error || '재시도 실패', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
@@ -576,16 +605,71 @@ export default function ReportClient({
               )}
             </div>
 
-            {selectedSavedReport?.summary && (
-              <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
-                <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                  AI 요약 분석
-                </h3>
-                <div
-                  className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
-                  dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
-                />
+            {(selectedSavedReport?.summary || currentQueueItem) && (
+              <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                        AI 요약 분석
+                    </h3>
+                    {currentQueueItem && (
+                        <div className="flex items-center gap-2">
+                            <span className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                currentQueueItem.status === 'processing' ? "bg-primary/10 text-primary animate-pulse" :
+                                currentQueueItem.status === 'failed' ? "bg-red-100 text-red-600" :
+                                "bg-slate-100 text-slate-500"
+                            )}>
+                                {currentQueueItem.status === 'processing' ? '처리 중' :
+                                 currentQueueItem.status === 'failed' ? '실패' : '대기 중'}
+                            </span>
+                            {(currentQueueItem.status === 'failed' || currentQueueItem.status === 'pending') && (
+                                <button
+                                    onClick={handleRetrySummary}
+                                    disabled={isRetrying}
+                                    className="size-7 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full active:scale-90 transition-all"
+                                    title="재시도"
+                                >
+                                    <span className={cn("material-symbols-outlined text-sm", isRetrying && "animate-spin")}>refresh</span>
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    {!currentQueueItem && !selectedSavedReport?.summary && (
+                         <button
+                            onClick={handleRetrySummary}
+                            disabled={isRetrying}
+                            className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg active:scale-95 transition-all"
+                         >
+                            요약 생성하기
+                         </button>
+                    )}
+                </div>
+
+                {selectedSavedReport?.summary ? (
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                      dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
+                    />
+                ) : currentQueueItem?.status === 'failed' ? (
+                    <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
+                        <p className="text-xs text-red-500 mb-2">분석 중 오류가 발생했습니다.</p>
+                        <p className="text-[10px] text-red-400 line-clamp-2 mb-3">{currentQueueItem.error_message}</p>
+                        <button
+                            onClick={handleRetrySummary}
+                            disabled={isRetrying}
+                            className="px-4 py-2 bg-red-500 text-white text-[10px] font-bold rounded-lg shadow-sm active:scale-95 transition-all"
+                        >
+                            다시 시도
+                        </button>
+                    </div>
+                ) : (
+                    <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-400">
+                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs font-medium">AI가 리포트를 분석하고 있습니다...</p>
+                        <p className="text-[9px] opacity-60">잠시만 기다려 주세요 (순차 처리 중)</p>
+                    </div>
+                )}
               </div>
             )}
 
