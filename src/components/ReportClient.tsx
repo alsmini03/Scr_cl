@@ -321,19 +321,27 @@ export default function ReportClient({
 
       if (!pdfUrl) throw new Error('PDF URL not found');
 
+      const directPdfUrl = await getResolvedReportUrlAction({
+        fileId: report.fileId,
+        fileNum: report.fileNum,
+        url: pdfUrl
+      });
+
+      if (!directPdfUrl) throw new Error('PDF direct URL resolution failed');
+
       const result = await saveReport({
         title: report.title,
         author: report.author,
         institution: report.institution,
         date: report.date,
-        url: pdfUrl,
+        url: directPdfUrl,
         summary: '',
         content: viewingContent?.id === report.id ? viewingContent.content : ''
       });
 
       if (result.success && result.id) {
         await addToQueue('report', result.id, {
-          url: pdfUrl,
+          url: directPdfUrl,
           model: selectedModel,
           prompt: selectedPrompt
         });

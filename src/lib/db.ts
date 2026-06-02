@@ -9,6 +9,7 @@ import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
 import { resolveBondwebPdfUrl } from './utils';
+import { extractYoutube, extractReport } from './extract-service';
 
 // Configure marked
 marked.use(gfmHeadingId());
@@ -120,7 +121,11 @@ export async function saveReport(report: {
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
-    console.error('Failed to save report:', error);
+    console.error('Failed to save report:', {
+        error: error.message,
+        stack: error.stack,
+        report: { ...report, content: report.content ? 'OMITTED' : undefined }
+    });
     return { success: false, error: error.message || '리포트 정보를 저장하는 중 오류가 발생했습니다.' };
   }
 }
@@ -1366,20 +1371,14 @@ export async function processNextQueueItemAction() {
     let result;
     try {
       const { type, target_id, payload } = item;
+      let summary = '';
 
-      const apiEndpoint = type === 'youtube' ? '/api/youtube/extract' : '/api/report/extract';
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-
-      const res = await fetch(`${baseUrl}${apiEndpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'API Error');
-
-      const summary = data.result;
+      if (type === 'youtube') {
+          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          summary = data.summary;
+      } else {
+          summary = await extractReport(payload.url, payload.model, payload.prompt);
+      }
 
       // Update target table
       if (type === 'youtube') {
