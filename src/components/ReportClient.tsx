@@ -635,23 +635,35 @@ export default function ReportClient({
                     </div>
                 </div>
 
-                {selectedSavedReport?.summary && (!currentQueueItem || currentQueueItem.status === 'completed') ? (
+                {currentQueueItem?.status === 'failed' ? (
+                    <div className="p-5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/20">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
+                            <span className="material-symbols-outlined text-sm">error</span>
+                            <p className="text-xs font-bold">분석 중 오류가 발생했습니다</p>
+                        </div>
+                        <div className="bg-white/50 dark:bg-black/20 rounded-lg p-3 mb-4">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
+                                {currentQueueItem.error_message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleRetrySummary}
+                            disabled={isRetrying}
+                            className="w-full py-2.5 bg-red-500 text-white text-xs font-bold rounded-lg shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            {isRetrying ? (
+                                <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-sm">refresh</span>
+                            )}
+                            다시 시도
+                        </button>
+                    </div>
+                ) : selectedSavedReport?.summary && (!currentQueueItem || currentQueueItem.status === 'completed') ? (
                     <div
                       className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
                       dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
                     />
-                ) : currentQueueItem?.status === 'failed' ? (
-                    <div className="p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/20 text-center">
-                        <p className="text-xs text-red-500 mb-2">분석 중 오류가 발생했습니다.</p>
-                        <p className="text-[10px] text-red-400 line-clamp-2 mb-3">{currentQueueItem.error_message}</p>
-                        <button
-                            onClick={handleRetrySummary}
-                            disabled={isRetrying}
-                            className="px-4 py-2 bg-red-500 text-white text-[10px] font-bold rounded-lg shadow-sm active:scale-95 transition-all"
-                        >
-                            다시 시도
-                        </button>
-                    </div>
                 ) : (
                     <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-400">
                         <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
