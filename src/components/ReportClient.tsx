@@ -605,15 +605,15 @@ export default function ReportClient({
               )}
             </div>
 
-            {(selectedSavedReport?.summary || currentQueueItem) && (
+            {(selectedSavedReport || currentQueueItem) && (
               <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
                     <h3 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
                         <span className="material-symbols-outlined text-sm">auto_awesome</span>
                         AI 요약 분석
                     </h3>
-                    {currentQueueItem && (
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                        {currentQueueItem && (
                             <span className={cn(
                                 "text-[10px] font-bold px-2 py-0.5 rounded-full",
                                 currentQueueItem.status === 'processing' ? "bg-primary/10 text-primary animate-pulse" :
@@ -623,30 +623,19 @@ export default function ReportClient({
                                 {currentQueueItem.status === 'processing' ? '처리 중' :
                                  currentQueueItem.status === 'failed' ? '실패' : '대기 중'}
                             </span>
-                            {(currentQueueItem.status === 'failed' || currentQueueItem.status === 'pending') && (
-                                <button
-                                    onClick={handleRetrySummary}
-                                    disabled={isRetrying}
-                                    className="size-7 flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-full active:scale-90 transition-all"
-                                    title="재시도"
-                                >
-                                    <span className={cn("material-symbols-outlined text-sm", isRetrying && "animate-spin")}>refresh</span>
-                                </button>
-                            )}
-                        </div>
-                    )}
-                    {!currentQueueItem && !selectedSavedReport?.summary && (
-                         <button
+                        )}
+                        <button
                             onClick={handleRetrySummary}
-                            disabled={isRetrying}
-                            className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-lg active:scale-95 transition-all"
-                         >
-                            요약 생성하기
-                         </button>
-                    )}
+                            disabled={isRetrying || currentQueueItem?.status === 'processing'}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-bold active:scale-95 transition-all disabled:opacity-50"
+                        >
+                            <span className={cn("material-symbols-outlined text-[14px]", isRetrying && "animate-spin")}>refresh</span>
+                            다시 가져오기
+                        </button>
+                    </div>
                 </div>
 
-                {selectedSavedReport?.summary ? (
+                {selectedSavedReport?.summary && (!currentQueueItem || currentQueueItem.status === 'completed') ? (
                     <div
                       className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
                       dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
