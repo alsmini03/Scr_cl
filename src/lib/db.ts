@@ -295,6 +295,9 @@ export async function getValidAccessToken(userId: string): Promise<string> {
     const tokens = await response.json();
     if (!response.ok) {
         console.error("Google Token Refresh Error:", tokens);
+        if (tokens.error === 'invalid_grant') {
+            throw new Error('인증이 만료되었습니다. 로그아웃 후 다시 로그인하여 Gmail 접근 권한을 허용해 주세요.');
+        }
         throw new Error(`토큰 갱신 실패 (${tokens.error || 'unknown'}): ${tokens.error_description || '다시 로그인해 주세요.'}`);
     }
 

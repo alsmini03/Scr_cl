@@ -83,7 +83,11 @@ export default function ReportClient({
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
-  const selectedSavedReport = initialSavedReports.find(r => r.id === selectedReportId);
+  const selectedSavedReport = useMemo(() => {
+      if (selectedReportId) return initialSavedReports.find(r => r.id === selectedReportId);
+      if (selectedRecommendReport) return initialSavedReports.find(r => r.title === selectedRecommendReport.title && r.institution === selectedRecommendReport.institution);
+      return null;
+  }, [selectedReportId, selectedRecommendReport, initialSavedReports]);
   const isDetailView = !!selectedReportId || !!selectedRecommendReport;
 
   useEffect(() => {
@@ -574,7 +578,15 @@ export default function ReportClient({
                 </button>
               )}
 
-              {selectedRecommendReport ? (
+              {selectedSavedReport ? (
+                <button
+                  onClick={() => handleDeleteReport(selectedSavedReport.id)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-[12px]"
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                  삭제
+                </button>
+              ) : selectedRecommendReport && (
                 <button
                   onClick={() => handleSaveReport(selectedRecommendReport)}
                   disabled={savingId === selectedRecommendReport.id}
@@ -591,14 +603,6 @@ export default function ReportClient({
                       저장
                     </>
                   )}
-                </button>
-              ) : selectedSavedReport && (
-                <button
-                  onClick={() => handleDeleteReport(selectedSavedReport.id)}
-                  className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-[12px]"
-                >
-                  <span className="material-symbols-outlined text-lg">delete</span>
-                  삭제
                 </button>
               )}
             </div>

@@ -466,7 +466,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
           <h3 className={cn(
-            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-3",
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2",
             item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
           )}>
             {item.title}
