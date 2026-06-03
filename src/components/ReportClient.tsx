@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -465,6 +465,18 @@ export default function ReportClient({
     }
   };
 
+  const handleDeleteReport = async (id: string) => {
+    if (!confirm('리포트를 삭제하시겠습니까?')) return;
+    const res = await deleteReport(id);
+    if (res.success) {
+      showToast('삭제되었습니다.');
+      setSelectedReportId(null);
+      router.push('/saved?filter=report');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
+    }
+  };
+
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
       <Header
@@ -547,10 +559,11 @@ export default function ReportClient({
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-lg">content_copy</span>
-                    URL 복사
+                    URL
                   </>
                 )}
               </button>
+
               {(selectedRecommendReport?.hasFile || selectedSavedReport?.url) && (
                 <button
                   onClick={() => handleDownload(selectedRecommendReport || selectedSavedReport)}
@@ -560,7 +573,8 @@ export default function ReportClient({
                   PDF
                 </button>
               )}
-              {selectedRecommendReport && (
+
+              {selectedRecommendReport ? (
                 <button
                   onClick={() => handleSaveReport(selectedRecommendReport)}
                   disabled={savingId === selectedRecommendReport.id}
@@ -577,6 +591,14 @@ export default function ReportClient({
                       저장
                     </>
                   )}
+                </button>
+              ) : selectedSavedReport && (
+                <button
+                  onClick={() => handleDeleteReport(selectedSavedReport.id)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-[12px]"
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                  삭제
                 </button>
               )}
             </div>
