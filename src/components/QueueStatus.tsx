@@ -6,11 +6,14 @@ import { cn } from '@/lib/utils';
 
 export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
   const [queue, setQueue] = useState<any[]>([]);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const fetchQueue = useCallback(async () => {
-    const items = await getQueueItems();
+    const { items, lastProcessedAt: last } = await getQueueItems();
     setQueue(type ? items.filter(item => item.type === type) : items);
+    setLastProcessedAt(last);
 
     // If there's something to process and we're not currently processing
     const hasWork = items.some(item => item.status === 'pending' || item.status === 'failed');
@@ -34,9 +37,27 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
 
   useEffect(() => {
     fetchQueue();
-    const timer = setInterval(fetchQueue, 10000); // Poll every 10 seconds
+    const timer = setInterval(fetchQueue, 15000); // Poll every 15 seconds
     return () => clearInterval(timer);
   }, [fetchQueue]);
+
+  useEffect(() => {
+    const updateCountdown = () => {
+        if (!lastProcessedAt) {
+            setTimeLeft(0);
+            return;
+        }
+
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
+        setTimeLeft(diff);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [lastProcessedAt]);
 
   if (queue.length === 0) return null;
 
@@ -59,19 +80,24 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
         {processingItem && (
           <div className="flex items-center gap-3 bg-primary/5 rounded-xl p-2.5 border border-primary/10">
             <div className="size-2 bg-primary rounded-full animate-pulse" />
-            <p className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1">
+            <p className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1 font-medium">
               현재 처리 중: {processingItem.type === 'youtube' ? '유튜브 영상' : '리포트'}
             </p>
             <span className="text-[10px] text-primary font-bold">진행 중</span>
           </div>
         )}
 
-        {queue.filter(i => i.status === 'pending' || i.status === 'failed').slice(0, 2).map((item) => (
+        {queue.filter(i => i.status === 'pending' || i.status === 'failed').slice(0, 2).map((item, idx) => (
           <div key={item.id} className="flex items-center gap-3 bg-slate-50 dark:bg-black/20 rounded-xl p-2.5 border border-slate-100 dark:border-primary/5 opacity-60">
             <div className="size-2 bg-slate-300 dark:bg-slate-700 rounded-full" />
-            <p className="text-xs text-slate-500 dark:text-slate-400 truncate flex-1">
-              대기: {item.type === 'youtube' ? '유튜브 영상' : '리포트'}
-            </p>
+            <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
+                    대기: {item.type === 'youtube' ? '유튜브 영상' : '리포트'}
+                </p>
+                {idx === 0 && !processingItem && timeLeft > 0 && (
+                    <p className="text-[9px] text-primary font-bold">{timeLeft}초 후 시작 예정</p>
+                )}
+            </div>
             {item.status === 'failed' && (
               <span className="text-[9px] text-red-500 font-bold">재시도 예정 ({item.retry_count})</span>
             )}

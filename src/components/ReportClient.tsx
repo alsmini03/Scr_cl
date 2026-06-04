@@ -78,7 +78,9 @@ export default function ReportClient({
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
   const [currentQueueItem, setCurrentQueueItem] = useState<any>(null);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
@@ -194,7 +196,7 @@ export default function ReportClient({
     setIsContentLoading(true);
     setIsDetailLoading(true);
     try {
-      const [res, adj, queueItems] = await Promise.all([
+      const [res, adj, { items, lastProcessedAt: last }] = await Promise.all([
         fetch('/api/report/content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -207,8 +209,9 @@ export default function ReportClient({
       setViewingContent({ id: reportId, content: html });
       setAdjacentIds(adj);
 
-      const qItem = queueItems.find(i => i.type === 'report' && i.target_id === reportId);
+      const qItem = items.find(i => i.type === 'report' && i.target_id === reportId);
       setCurrentQueueItem(qItem || null);
+      setLastProcessedAt(last);
     } catch (err) {
       console.error(err);
       showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
@@ -456,9 +459,10 @@ export default function ReportClient({
       if (res.success) {
         showToast('재시도 작업이 큐에 추가되었습니다.');
         // Refresh queue status
-        const items = await getQueueItems();
+        const { items, lastProcessedAt: last } = await getQueueItems();
         const qItem = items.find(i => i.type === 'report' && i.target_id === report.id);
         setCurrentQueueItem(qItem || null);
+        setLastProcessedAt(last);
       } else {
         showToast(res.error || '재시도 실패', 'error');
       }
@@ -480,6 +484,24 @@ export default function ReportClient({
       showToast(res.error || '삭제 실패', 'error');
     }
   };
+
+  useEffect(() => {
+    const updateCountdown = () => {
+        if (!lastProcessedAt || !currentQueueItem || currentQueueItem.status === 'processing') {
+            setTimeLeft(0);
+            return;
+        }
+
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
+        setTimeLeft(diff);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [lastProcessedAt, currentQueueItem]);
 
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
@@ -694,7 +716,11 @@ export default function ReportClient({
                     <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-400">
                         <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                         <p className="text-xs font-medium">AI가 리포트를 분석하고 있습니다...</p>
-                        <p className="text-[9px] opacity-60">잠시만 기다려 주세요 (순차 처리 중)</p>
+                        {timeLeft > 0 ? (
+                            <p className="text-[10px] text-primary font-bold">{timeLeft}초 후 분석 시작 예정</p>
+                        ) : (
+                            <p className="text-[9px] opacity-60">잠시만 기다려 주세요 (순차 처리 중)</p>
+                        )}
                     </div>
                 )}
               </div>

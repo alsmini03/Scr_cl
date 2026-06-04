@@ -1314,17 +1314,28 @@ export async function addToQueue(type: 'youtube' | 'report', targetId: string, p
   }
 }
 
-export async function getQueueItems(): Promise<any[]> {
+export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: string | null }> {
   try {
     const user = await getSessionUser();
-    const res = await query(
-      "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
-      [user.id, user.email]
-    );
-    return res.rows;
+
+    const [queueRes, lastProcessedRes] = await Promise.all([
+        query(
+          "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
+          [user.id, user.email]
+        ),
+        query(
+          "SELECT last_processed_at FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND last_processed_at IS NOT NULL ORDER BY last_processed_at DESC LIMIT 1",
+          [user.id, user.email]
+        )
+    ]);
+
+    return {
+        items: queueRes.rows,
+        lastProcessedAt: lastProcessedRes.rows[0]?.last_processed_at || null
+    };
   } catch (error) {
     console.error('getQueueItems error:', error);
-    return [];
+    return { items: [], lastProcessedAt: null };
   }
 }
 
