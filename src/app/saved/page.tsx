@@ -7,10 +7,10 @@ export default async function SavedPage() {
   const user = session?.user;
 
   const [blogs, youtubeVideos, reports, books] = await Promise.all([
-    getBlogs(user),
-    getYoutubeVideos(user),
-    getReports(user),
-    getBooks(user)
+    getBlogs(user, true),
+    getYoutubeVideos(user, true),
+    getReports(user, true),
+    getBooks(user, true)
   ]);
 
   // Transform and combine items

@@ -67,11 +67,14 @@ function safeRevalidate(path: string) {
   }
 }
 
-export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
+export async function getBooks(prefetchedUser?: any, includeContent: boolean = false): Promise<Book[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked, description, notes, intro, toc, author_intro, inside, publisher_review"
+      : "id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
+      `SELECT ${columns} FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows.map(mapRowToBook);
@@ -84,11 +87,14 @@ export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
 /**
  * Report Database Operations
  */
-export async function getReports(prefetchedUser?: any): Promise<any[]> {
+export async function getReports(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, author, institution, date, url, summary, user_id, added_at, is_liked FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
@@ -705,11 +711,14 @@ export async function saveBlog(blog: {
   }
 }
 
-export async function getBlogs(prefetchedUser?: any): Promise<any[]> {
+export async function getBlogs(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked"
+      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
@@ -1157,11 +1166,14 @@ export async function saveYoutubeVideo(video: {
   }
 }
 
-export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
+export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked"
+      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;

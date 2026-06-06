@@ -33,6 +33,7 @@ export default function SavedClient({
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report' | 'book'>('all');
   const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{x: number, y: number} | null>(null);
@@ -56,8 +57,31 @@ export default function SavedClient({
       if (isLikedOnly) {
           result = result.filter(item => item.is_liked);
       }
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        result = result.filter(item => {
+            const titleMatch = item.title?.toLowerCase().includes(query);
+            const authorMatch = (item.author || item.institution || '').toLowerCase().includes(query);
+
+            let contentMatch = false;
+            if (item.type === 'blog') {
+                contentMatch = item.content?.toLowerCase().includes(query);
+            } else if (item.type === 'youtube') {
+                contentMatch = (item.summary || item.description || '').toLowerCase().includes(query);
+            } else if (item.type === 'report') {
+                contentMatch = (item.summary || item.content || '').toLowerCase().includes(query);
+            } else if (item.type === 'book') {
+                contentMatch = (
+                    item.description || item.notes || item.intro || item.toc ||
+                    item.authorIntro || item.inside || item.publisherReview
+                )?.toLowerCase().includes(query);
+            }
+
+            return titleMatch || authorMatch || contentMatch;
+        });
+      }
       return result;
-  }, [items, activeFilter, isLikedOnly]);
+  }, [items, activeFilter, isLikedOnly, searchQuery]);
 
   const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {
@@ -305,6 +329,26 @@ export default function SavedClient({
       />
 
       <main className="mt-4 px-4 select-none">
+        {/* Search Bar */}
+        <div className="mb-4 relative">
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="제목, 내용, 저자 검색..."
+                className="w-full bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
+            />
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+            {searchQuery && (
+                <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                >
+                    <span className="material-symbols-outlined text-lg">cancel</span>
+                </button>
+            )}
+        </div>
+
         {/* Filters */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10 py-2">
             <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-1 flex-nowrap">
