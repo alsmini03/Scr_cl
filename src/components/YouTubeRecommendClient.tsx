@@ -21,13 +21,16 @@ interface RecommendedVideo {
 export default function YouTubeRecommendClient({
   session,
   initialTabs,
+  initialSavedVideos = []
 }: {
   session: any;
   initialTabs: any[];
+  initialSavedVideos?: any[];
 }) {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedVideos.map(v => v.url)));
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -142,6 +145,7 @@ export default function YouTubeRecommendClient({
           model: selectedModel,
           prompt: selectedPrompt
         });
+        setSavedUrls(prev => new Set([...Array.from(prev), video.url]));
         showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`추가 실패: ${result.error}`, 'error');
@@ -332,6 +336,7 @@ export default function YouTubeRecommendClient({
                 cols={gridCols}
                 isLoggedIn={!!session}
                 addingId={addingId}
+                isSaved={savedUrls.has(video.url)}
                 onCopyUrl={handleCopyUrl}
                 onAdd={handleAddVideo}
               />
@@ -377,7 +382,7 @@ export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
   </div>
 ));
 
-const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
+const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, isSaved, onCopyUrl, onAdd }: any) => {
   const longPressHandlers = getLongPressHandlers(() => onCopyUrl(video.url));
 
   return (
@@ -417,18 +422,26 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
 
             {isLoggedIn && (
               <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(e, video); }}
-                disabled={addingId === video.videoId}
+                onClick={(e) => {
+                    if (isSaved) return;
+                    e.preventDefault(); e.stopPropagation(); onAdd(e, video);
+                }}
+                disabled={addingId === video.videoId || isSaved}
                 className={cn(
-                  "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
+                  "flex-shrink-0 rounded-lg flex items-center justify-center transition-all disabled:opacity-50",
+                  isSaved
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                    : "bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-90",
                   cols === 1 ? "size-8" : "size-7"
                 )}
-                title="내 서재에 추가"
+                title={isSaved ? "이미 저장됨" : "내 서재에 추가"}
               >
                 {addingId === video.videoId ? (
                   <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-base" : "text-base")}>library_add</span>
+                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-base" : "text-base")}>
+                      {isSaved ? 'task_alt' : 'library_add'}
+                  </span>
                 )}
               </button>
             )}

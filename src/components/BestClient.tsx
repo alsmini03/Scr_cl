@@ -57,6 +57,7 @@ export default function BestClient({
   const [myBooks, setMyBooks] = useState<Book[]>(initialBooks);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialBooks.map(b => b.yes24Url).filter(Boolean) as string[]));
   const [viewMode, setViewMode] = useState<'my' | 'recommend'>('my');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
@@ -167,6 +168,7 @@ export default function BestClient({
       });
 
       if (saveRes.success && saveRes.data) {
+        setSavedUrls(prev => new Set([...Array.from(prev), book.yes24Url]));
         showToast('내 서재에 추가되었습니다.');
         setMyBooks(prev => [saveRes.data!, ...prev]);
       } else {
@@ -398,6 +400,7 @@ export default function BestClient({
                 idx={idx}
                 isLoggedIn={!!session}
                 addingId={addingId}
+                isSaved={savedUrls.has(book.yes24Url)}
                 onAdd={handleAddBook}
               />
             ))}
@@ -486,7 +489,7 @@ export default function BestClient({
   );
 }
 
-const BestBookItem = memo(({ book, idx, isLoggedIn, addingId, onAdd }: any) => (
+const BestBookItem = memo(({ book, idx, isLoggedIn, addingId, isSaved, onAdd }: any) => (
   <div className="group relative bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm hover:border-primary/20 transition-colors animate-fade-in-up">
     <a
       href={book.yes24Url}
@@ -516,15 +519,20 @@ const BestBookItem = memo(({ book, idx, isLoggedIn, addingId, onAdd }: any) => (
 
     {isLoggedIn && (
       <button
-        onClick={(e) => onAdd(e, book, idx)}
-        disabled={addingId === idx}
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50"
-        title="내 서재에 추가"
+        onClick={(e) => { if (!isSaved) onAdd(e, book, idx); }}
+        disabled={addingId === idx || isSaved}
+        className={cn(
+            "absolute right-3 top-1/2 -translate-y-1/2 z-10 size-10 rounded-xl flex items-center justify-center transition-all disabled:opacity-50",
+            isSaved
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                : "bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-90"
+        )}
+        title={isSaved ? "이미 저장됨" : "내 서재에 추가"}
       >
         {addingId === idx ? (
           <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
         ) : (
-          <span className="material-symbols-outlined text-xl">library_add</span>
+          <span className="material-symbols-outlined text-xl">{isSaved ? 'task_alt' : 'library_add'}</span>
         )}
       </button>
     )}

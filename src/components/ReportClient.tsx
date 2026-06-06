@@ -68,6 +68,7 @@ export default function ReportClient({
 
   // Interaction State
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set(initialSavedReports.map(r => `${r.title}|${r.institution}`)));
   const [isCopying, setIsCopying] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
 
@@ -358,6 +359,7 @@ export default function ReportClient({
           model: selectedModel,
           prompt: selectedPrompt
         });
+        setSavedKeys(prev => new Set([...Array.from(prev), `${report.title}|${report.institution}`]));
         showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`저장 실패: ${result.error}`, 'error');
@@ -898,7 +900,9 @@ export default function ReportClient({
               </div>
             ) : (
               <div className="space-y-3">
-                {sortedReports.map((report, idx) => (
+                {sortedReports.map((report, idx) => {
+                  const isSaved = savedKeys.has(`${report.title}|${report.institution}`);
+                  return (
                   <div
                     key={report.id + idx}
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
@@ -926,16 +930,25 @@ export default function ReportClient({
                           </button>
                         )}
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleSaveReport(report); }}
-                          disabled={savingId === report.id}
-                          className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-primary text-white rounded-lg font-bold text-[9px] transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-50 shadow-sm shadow-primary/10 whitespace-nowrap min-w-[48px]"
+                          onClick={(e) => {
+                              if (isSaved) return;
+                              e.stopPropagation(); handleSaveReport(report);
+                          }}
+                          disabled={savingId === report.id || isSaved}
+                          className={cn(
+                              "flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg font-bold text-[9px] transition-all whitespace-nowrap min-w-[48px] disabled:opacity-50",
+                              isSaved
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                                : "bg-primary text-white hover:bg-primary/90 active:scale-95 shadow-sm shadow-primary/10"
+                          )}
+                          title={isSaved ? "이미 저장됨" : "저장"}
                         >
                           {savingId === report.id ? (
                             <div className="size-2.5 border border-white border-t-transparent rounded-full animate-spin" />
                           ) : (
                             <>
-                              <span className="material-symbols-outlined text-[14px]">save</span>
-                              저장
+                              <span className="material-symbols-outlined text-[14px]">{isSaved ? 'task_alt' : 'save'}</span>
+                              {isSaved ? '저장됨' : '저장'}
                             </>
                           )}
                         </button>
@@ -946,7 +959,8 @@ export default function ReportClient({
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
                     </div>
                   </div>
-                ))}
+                  </div>
+                )})}
 
                 {hasMore && (
                   <div ref={lastElementRef} className="h-20 flex items-center justify-center">

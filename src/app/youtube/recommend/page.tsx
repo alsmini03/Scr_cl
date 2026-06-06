@@ -13,6 +13,7 @@ export default async function YouTubeRecommendPage() {
     <YouTubeRecommendClient
       session={session}
       initialTabs={tabs}
+      initialSavedVideos={videos}
     />
   );
 }
