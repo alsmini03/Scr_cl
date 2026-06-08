@@ -473,7 +473,7 @@ function AddContent() {
       <BottomNav activeTab="library" />
 
       {/* Fixed Bottom Action Bar */}
-      <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-20">
+      <div className="fixed bottom-[86px] left-0 right-0 p-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md border-t border-slate-100 dark:border-primary/10 z-10">
         <div className="max-w-2xl mx-auto flex justify-center">
           <button
             onClick={handleSave}
