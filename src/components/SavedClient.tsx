@@ -21,10 +21,12 @@ export const SkeletonSavedItem = memo(() => (
 
 export default function SavedClient({
   session,
-  initialItems
+  initialItems,
+  initialQueueItems = []
 }: {
   session: any;
   initialItems: any[];
+  initialQueueItems?: any[];
 }) {
   const [items, setItems] = useState<any[]>(initialItems);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -414,17 +416,21 @@ export default function SavedClient({
           <div className="py-20 text-center text-slate-400">저장된 항목이 없습니다.</div>
         ) : (
           <div className="space-y-3 pb-20">
-            {filteredItems.map((item) => (
-              <SavedItem
-                key={`${item.type}-${item.id}`}
-                item={item}
-                isEditMode={isEditMode}
-                isSelected={isItemSelected(item.type, item.id)}
-                onPointerDown={handlePointerDown}
-                onToggleSelect={toggleSelect}
-                onToggleLike={handleToggleLike}
-              />
-            ))}
+                {filteredItems.map((item) => {
+                  const errorItem = initialQueueItems.find(q => q.target_id === item.id && q.status === 'failed');
+                  return (
+                    <SavedItem
+                        key={`${item.type}-${item.id}`}
+                        item={item}
+                        isEditMode={isEditMode}
+                        isSelected={isItemSelected(item.type, item.id)}
+                        hasError={!!errorItem}
+                        onPointerDown={handlePointerDown}
+                        onToggleSelect={toggleSelect}
+                        onToggleLike={handleToggleLike}
+                    />
+                  );
+                })}
           </div>
         )}
       </main>
@@ -434,7 +440,7 @@ export default function SavedClient({
   );
 }
 
-const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleSelect, onToggleLike }: any) => {
+const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown, onToggleSelect, onToggleLike }: any) => {
   let href = '';
   let icon = '';
   let iconColor = '';
@@ -510,10 +516,13 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
           <h3 className={cn(
-            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2",
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1",
             item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
           )}>
             {item.title}
+            {hasError && (
+              <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
+            )}
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
             {item.author || item.institution || ''}

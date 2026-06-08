@@ -1,4 +1,4 @@
-import { getBlogs, getYoutubeVideos, getReports, getBooks } from '@/lib/db';
+import { getBlogs, getYoutubeVideos, getReports, getBooks, getQueueItems } from '@/lib/db';
 import { auth } from '@/auth';
 import SavedClient from '@/components/SavedClient';
 
@@ -6,11 +6,12 @@ export default async function SavedPage() {
   const session = await auth();
   const user = session?.user;
 
-  const [blogs, youtubeVideos, reports, books] = await Promise.all([
+  const [blogs, youtubeVideos, reports, books, { items: queueItems }] = await Promise.all([
     getBlogs(user, true),
     getYoutubeVideos(user, true),
     getReports(user, true),
-    getBooks(user, true)
+    getBooks(user, true),
+    getQueueItems()
   ]);
 
   // Transform and combine items
@@ -27,6 +28,7 @@ export default async function SavedPage() {
     <SavedClient
       session={session}
       initialItems={combinedItems}
+      initialQueueItems={queueItems}
     />
   );
 }
