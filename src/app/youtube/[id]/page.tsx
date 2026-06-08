@@ -240,8 +240,6 @@ export default function YoutubeDetailPage() {
   };
 
   const handleRefetch = async () => {
-    if (!confirm('AI를 사용하여 정보를 다시 가져오시겠습니까? 기존 요약 내용이 덮어씌워집니다.')) return;
-
     setIsRefetching(true);
     try {
       // Load user settings for Gemini
