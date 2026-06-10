@@ -37,6 +37,13 @@ export default function SavedClient({
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const hasGeminiError = useMemo(() => {
+    return initialQueueItems.some(q =>
+        q.status === 'failed' &&
+        (q.error_message?.includes('GoogleGenerativeAI') || q.error_message?.includes('Gemini'))
+    );
+  }, [initialQueueItems]);
+
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{x: number, y: number} | null>(null);
 
@@ -310,6 +317,21 @@ export default function SavedClient({
     >
       <Header
         title="저장된 항목"
+        children={
+            <div className="flex items-center justify-center gap-1.5 min-w-0">
+                <h1 className="text-xl font-bold leading-tight tracking-tight text-center truncate text-slate-900 dark:text-slate-100">
+                    저장된 항목
+                </h1>
+                {hasGeminiError && (
+                    <span
+                        className="material-symbols-outlined text-red-500 text-[20px] animate-pulse shrink-0"
+                        title="제미나이 오류 발생"
+                    >
+                        warning
+                    </span>
+                )}
+            </div>
+        }
         rightAction={
             isEditMode ? (
                 <button
