@@ -32,6 +32,7 @@ function parseYouTubeRelativeTime(timeStr: string): number {
 }
 
 async function fetchChannelVideos(channelUrl: string, limit = 0) {
+  const isPlaylist = channelUrl.includes("playlist?list=");
   const response = await fetch(channelUrl, {
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -41,7 +42,7 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch YouTube channel page: ${channelUrl}`);
+    throw new Error(`Failed to fetch YouTube page: ${channelUrl}`);
   }
 
   const html = await response.text();
@@ -64,72 +65,56 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
   let videos = [];
 
   try {
-      const tabs = ytData.contents?.singleColumnBrowseResultsRenderer?.tabs || ytData.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
-      const videoTab = tabs.find((t: any) => t.tabRenderer?.title === "동영상" || t.tabRenderer?.title === "Videos");
+      if (isPlaylist) {
+          // Playlist parsing
+          const findPlaylistVideos = (obj: any, results: any[] = []): any[] => {
+              if (!obj || typeof obj !== 'object') return results;
 
-      if (videoTab) {
-          const gridItems = videoTab.tabRenderer.content?.richGridRenderer?.contents ||
-                            videoTab.tabRenderer.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.gridRenderer?.items || [];
-
-          const itemsToProcess = limit > 0 ? gridItems.slice(0, limit) : gridItems;
-          videos = itemsToProcess.map((item: any) => {
-              const richContent = item.richItemRenderer?.content;
-              const video = richContent?.videoRenderer || item.gridVideoRenderer;
-
-              if (video) {
-                  const videoId = video.videoId;
-                  const title = video.title?.runs?.[0]?.text ||
-                                video.title?.simpleText ||
-                                video.title?.accessibility?.accessibilityData?.label;
-                  const thumbnail = video.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
-                  const publishedTime = video.publishedTimeText?.simpleText;
-                  const viewCount = video.viewCountText?.simpleText;
-                  const duration = video.lengthText?.simpleText;
-
-                  return {
-                      videoId,
-                      title,
-                      thumbnail,
-                      url: `https://www.youtube.com/watch?v=${videoId}`,
-                      publishedTime,
-                      viewCount,
-                      duration
-                  };
+              if (obj.playlistVideoRenderer) {
+                  const v = obj.playlistVideoRenderer;
+                  results.push({
+                      videoId: v.videoId,
+                      title: v.title?.runs?.[0]?.text || v.title?.simpleText,
+                      thumbnail: v.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url,
+                      url: `https://www.youtube.com/watch?v=${v.videoId}`,
+                      publishedTime: "", // Playlists often lack relative upload time in this view
+                      viewCount: "",
+                      duration: v.lengthText?.simpleText || ""
+                  });
               }
 
-              // Support for new lockupViewModel (YouTube Mobile)
-              const lockup = richContent?.lockupViewModel;
-              if (lockup) {
-                  const videoId = lockup.contentId;
-                  const metadata = lockup.metadata?.lockupMetadataViewModel;
-                  const title = metadata?.title?.content;
+              for (const key in obj) {
+                  findPlaylistVideos(obj[key], results);
+              }
+              return results;
+          };
 
-                  const thumbnail = lockup.contentImage?.thumbnailViewModel?.image?.sources?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
+          const allPlaylistVideos = findPlaylistVideos(ytData);
+          videos = limit > 0 ? allPlaylistVideos.slice(0, limit) : allPlaylistVideos;
+      } else {
+          // Channel parsing
+          const tabs = ytData.contents?.singleColumnBrowseResultsRenderer?.tabs || ytData.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
+          const videoTab = tabs.find((t: any) => t.tabRenderer?.title === "동영상" || t.tabRenderer?.title === "Videos");
 
-                  // Meta extraction from various possible structures in contentMetadataViewModel
-                  let viewCount = "";
-                  let publishedTime = "";
+          if (videoTab) {
+              const gridItems = videoTab.tabRenderer.content?.richGridRenderer?.contents ||
+                                videoTab.tabRenderer.content?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents?.[0]?.gridRenderer?.items || [];
 
-                  const renderer = metadata?.metadata?.contentMetadataViewModel;
-                  if (renderer?.metadata) {
-                      viewCount = renderer.metadata[0]?.content || "";
-                      publishedTime = renderer.metadata[1]?.content || "";
-                  } else if (renderer?.metadataRows) {
-                      const row = renderer.metadataRows[0];
-                      const parts = row?.metadataParts || [];
-                      viewCount = parts[0]?.text?.content || "";
-                      publishedTime = parts[1]?.text?.content || "";
-                  }
+              const itemsToProcess = limit > 0 ? gridItems.slice(0, limit) : gridItems;
+              videos = itemsToProcess.map((item: any) => {
+                  const richContent = item.richItemRenderer?.content;
+                  const video = richContent?.videoRenderer || item.gridVideoRenderer;
 
-                  // Duration from overlays
-                  const overlays = lockup.contentImage?.thumbnailViewModel?.overlays || [];
-                  const durationOverlay = overlays.find((o: any) => o.thumbnailOverlayTimeStatusRenderer);
-                  const badgeOverlay = overlays.find((o: any) => o.thumbnailBottomOverlayViewModel);
+                  if (video) {
+                      const videoId = video.videoId;
+                      const title = video.title?.runs?.[0]?.text ||
+                                    video.title?.simpleText ||
+                                    video.title?.accessibility?.accessibilityData?.label;
+                      const thumbnail = video.thumbnail?.thumbnails?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
+                      const publishedTime = video.publishedTimeText?.simpleText;
+                      const viewCount = video.viewCountText?.simpleText;
+                      const duration = video.lengthText?.simpleText;
 
-                  const duration = durationOverlay?.thumbnailOverlayTimeStatusRenderer?.text?.content ||
-                                   badgeOverlay?.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel?.text || "";
-
-                  if (videoId && title) {
                       return {
                           videoId,
                           title,
@@ -140,10 +125,55 @@ async function fetchChannelVideos(channelUrl: string, limit = 0) {
                           duration
                       };
                   }
-              }
 
-              return null;
-          }).filter(Boolean);
+                  // Support for new lockupViewModel (YouTube Mobile)
+                  const lockup = richContent?.lockupViewModel;
+                  if (lockup) {
+                      const videoId = lockup.contentId;
+                      const metadata = lockup.metadata?.lockupMetadataViewModel;
+                      const title = metadata?.title?.content;
+
+                      const thumbnail = lockup.contentImage?.thumbnailViewModel?.image?.sources?.sort((a: any, b: any) => b.width - a.width)[0]?.url;
+
+                      // Meta extraction from various possible structures in contentMetadataViewModel
+                      let viewCount = "";
+                      let publishedTime = "";
+
+                      const renderer = metadata?.metadata?.contentMetadataViewModel;
+                      if (renderer?.metadata) {
+                          viewCount = renderer.metadata[0]?.content || "";
+                          publishedTime = renderer.metadata[1]?.content || "";
+                      } else if (renderer?.metadataRows) {
+                          const row = renderer.metadataRows[0];
+                          const parts = row?.metadataParts || [];
+                          viewCount = parts[0]?.text?.content || "";
+                          publishedTime = parts[1]?.text?.content || "";
+                      }
+
+                      // Duration from overlays
+                      const overlays = lockup.contentImage?.thumbnailViewModel?.overlays || [];
+                      const durationOverlay = overlays.find((o: any) => o.thumbnailOverlayTimeStatusRenderer);
+                      const badgeOverlay = overlays.find((o: any) => o.thumbnailBottomOverlayViewModel);
+
+                      const duration = durationOverlay?.thumbnailOverlayTimeStatusRenderer?.text?.content ||
+                                       badgeOverlay?.thumbnailBottomOverlayViewModel?.badges?.[0]?.thumbnailBadgeViewModel?.text || "";
+
+                      if (videoId && title) {
+                          return {
+                              videoId,
+                              title,
+                              thumbnail,
+                              url: `https://www.youtube.com/watch?v=${videoId}`,
+                              publishedTime,
+                              viewCount,
+                              duration
+                          };
+                      }
+                  }
+
+                  return null;
+              }).filter(Boolean);
+          }
       }
   } catch (e) {
       console.error("Error parsing ytData structure:", e);
