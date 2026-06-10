@@ -9,6 +9,7 @@ import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
 import { resolveBondwebPdfUrl } from './utils';
+import { extractYoutube, extractReport } from './extract-service';
 
 // Configure marked
 marked.use(gfmHeadingId());
@@ -54,6 +55,7 @@ function mapRowToBook(row: any): Book {
     inside: row.inside,
     publisherReview: row.publisher_review,
     yes24Url: row.yes24_url,
+    is_liked: row.is_liked,
   };
 }
 
@@ -65,11 +67,14 @@ function safeRevalidate(path: string) {
   }
 }
 
-export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
+export async function getBooks(prefetchedUser?: any, includeContent: boolean = false): Promise<Book[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked, description, notes, intro, toc, author_intro, inside, publisher_review"
+      : "id, title, author, cover_image, category, published_date, price, status, progress, rating, added_at, is_liked";
     const res = await query(
-      "SELECT * FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC",
+      `SELECT ${columns} FROM books WHERE deleted_at IS NULL AND (user_id = $1 OR user_id = $2) ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows.map(mapRowToBook);
@@ -82,11 +87,14 @@ export async function getBooks(prefetchedUser?: any): Promise<Book[]> {
 /**
  * Report Database Operations
  */
-export async function getReports(prefetchedUser?: any): Promise<any[]> {
+export async function getReports(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, author, institution, date, url, summary, user_id, added_at FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
@@ -116,9 +124,14 @@ export async function saveReport(report: {
     );
 
     safeRevalidate('/report');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
-    console.error('Failed to save report:', error);
+    console.error('Failed to save report:', {
+        error: error.message,
+        stack: error.stack,
+        report: { ...report, content: report.content ? 'OMITTED' : undefined }
+    });
     return { success: false, error: error.message || '리포트 정보를 저장하는 중 오류가 발생했습니다.' };
   }
 }
@@ -288,6 +301,9 @@ export async function getValidAccessToken(userId: string): Promise<string> {
     const tokens = await response.json();
     if (!response.ok) {
         console.error("Google Token Refresh Error:", tokens);
+        if (tokens.error === 'invalid_grant') {
+            throw new Error('인증이 만료되었습니다. 로그아웃 후 다시 로그인하여 Gmail 접근 권한을 허용해 주세요.');
+        }
         throw new Error(`토큰 갱신 실패 (${tokens.error || 'unknown'}): ${tokens.error_description || '다시 로그인해 주세요.'}`);
     }
 
@@ -312,7 +328,7 @@ export async function sendYoutubeEmailAction(videoId: string, toEmail: string): 
   return sendBatchEmailAction([{ type: 'youtube', id: videoId }], toEmail);
 }
 
-export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
+export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | 'report' | 'book', id: string }[], toEmail: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     if (!user.id) throw new Error('Unauthorized');
@@ -687,6 +703,7 @@ export async function saveBlog(blog: {
     );
 
     safeRevalidate('/blog');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save blog:', error);
@@ -694,11 +711,14 @@ export async function saveBlog(blog: {
   }
 }
 
-export async function getBlogs(prefetchedUser?: any): Promise<any[]> {
+export async function getBlogs(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked"
+      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, author, url, thumbnail, published_at, user_id, added_at FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
@@ -1019,6 +1039,7 @@ export async function saveBook(book: Omit<Book, 'id'>): Promise<{ success: boole
     );
 
     safeRevalidate('/');
+    safeRevalidate('/saved');
     return { success: true, data: { ...book, id, createdAt } };
   } catch (error: any) {
     console.error('Failed to save book:', error);
@@ -1134,6 +1155,7 @@ export async function saveYoutubeVideo(video: {
     );
 
     safeRevalidate('/');
+    safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
     console.error('Failed to save youtube video:', error);
@@ -1144,11 +1166,14 @@ export async function saveYoutubeVideo(video: {
   }
 }
 
-export async function getYoutubeVideos(prefetchedUser?: any): Promise<any[]> {
+export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boolean = false): Promise<any[]> {
   try {
     const user = await getSessionUser(prefetchedUser);
+    const columns = includeContent
+      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked"
+      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked";
     const res = await query(
-      "SELECT id, title, url, thumbnail, duration, published_at, user_id, added_at FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC",
+      `SELECT ${columns} FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
@@ -1185,6 +1210,41 @@ export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ pr
   } catch (error) {
     console.error('getAdjacentYoutubeVideoIdsAction error:', error);
     return {};
+  }
+}
+
+export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report' | 'book', id: string, isLiked: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const tableMap: Record<string, string> = {
+      youtube: 'youtube_videos',
+      blog: 'naver_blogs',
+      report: 'reports',
+      book: 'books'
+    };
+    const table = tableMap[type];
+    if (!table) throw new Error('Invalid type');
+
+    await query(
+      `UPDATE ${table} SET is_liked = $1 WHERE id = $2 AND (user_id = $3 OR user_id = $4)`,
+      [isLiked, id, user.id, user.email]
+    );
+
+    const revalidatePathMap: Record<string, string> = {
+      youtube: `/youtube/${id}`,
+      blog: `/blog/${id}`,
+      report: '/report',
+      book: `/book/${id}`
+    };
+    if (revalidatePathMap[type]) {
+      safeRevalidate(revalidatePathMap[type]);
+    }
+    safeRevalidate('/saved');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('toggleLikeAction error:', error);
+    return { success: false, error: error.message };
   }
 }
 
@@ -1245,5 +1305,204 @@ export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?:
   } catch (error) {
     console.error('getAdjacentReportIdsAction error:', error);
     return {};
+  }
+}
+
+// Gemini Queue Actions
+export async function addToQueue(type: 'youtube' | 'report', targetId: string, payload: any) {
+  try {
+    const user = await ensureApproved();
+    const id = randomUUID();
+    await query(
+      "INSERT INTO gemini_queue (id, user_id, type, target_id, payload) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, type, targetId, JSON.stringify(payload)]
+    );
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    return { success: true, id };
+  } catch (error: any) {
+    console.error('addToQueue error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: string | null }> {
+  try {
+    const user = await getSessionUser();
+
+    const [queueRes, lastProcessedRes] = await Promise.all([
+        query(
+          "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
+          [user.id, user.email]
+        ),
+        query(
+          "SELECT last_processed_at FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND last_processed_at IS NOT NULL ORDER BY last_processed_at DESC LIMIT 1",
+          [user.id, user.email]
+        )
+    ]);
+
+    return {
+        items: queueRes.rows,
+        lastProcessedAt: lastProcessedRes.rows[0]?.last_processed_at || null
+    };
+  } catch (error) {
+    console.error('getQueueItems error:', error);
+    return { items: [], lastProcessedAt: null };
+  }
+}
+
+export async function processNextQueueItemAction() {
+  try {
+    const user = await ensureApproved();
+
+    // Check if any item is already processing for this user
+    const processingRes = await query(
+      "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status = 'processing'",
+      [user.id, user.email]
+    );
+
+    if (processingRes.rows.length > 0) {
+      return { success: false, message: 'Processing in progress' };
+    }
+
+    // Get the next item to process
+    const nextRes = await query(
+      "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'failed') AND retry_count < 3 ORDER BY created_at ASC LIMIT 1",
+      [user.id, user.email]
+    );
+
+    const item = nextRes.rows[0];
+    if (!item) return { success: false, message: 'No items in queue' };
+
+    // Check 1 minute interval from the most recently processed item for this user
+    const lastProcessedRes = await query(
+      "SELECT last_processed_at FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND last_processed_at IS NOT NULL ORDER BY last_processed_at DESC LIMIT 1",
+      [user.id, user.email]
+    );
+
+    if (lastProcessedRes.rows.length > 0) {
+      const lastProcessed = new Date(lastProcessedRes.rows[0].last_processed_at).getTime();
+      const now = Date.now();
+      if (now - lastProcessed < 60000) {
+        return { success: false, message: 'Wait for 1 minute interval' };
+      }
+    }
+
+    // Mark as processing
+    await query(
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [item.id]
+    );
+
+    let result;
+    try {
+      const { type, target_id, payload } = item;
+      let summary = '';
+
+      if (type === 'youtube') {
+          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          summary = data.summary;
+      } else {
+          summary = await extractReport(payload.url, payload.model, payload.prompt);
+      }
+
+      // Update target table
+      if (type === 'youtube') {
+        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/youtube');
+        safeRevalidate(`/youtube/${target_id}`);
+      } else {
+        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/report');
+        safeRevalidate('/saved');
+      }
+
+      // Mark as completed
+      await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE id = $1",
+        [item.id]
+      );
+      result = { success: true };
+    } catch (err: any) {
+      console.error('Queue processing error:', err);
+      // Mark as failed and increment retry count
+      await query(
+        "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
+        [err.message, item.id]
+      );
+      result = { success: false, error: err.message };
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    return result;
+  } catch (error: any) {
+    console.error('processNextQueueItemAction error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId: string) {
+  try {
+    const user = await ensureApproved();
+
+    // Check if task exists in queue
+    const taskRes = await query(
+      "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND type = $3 AND target_id = $4",
+      [user.id, user.email, type, targetId]
+    );
+
+    if (taskRes.rows.length > 0) {
+      // Reset existing task
+      await query(
+        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL WHERE id = $1",
+        [taskRes.rows[0].id]
+      );
+    } else {
+      // Create new task if missing (need to find payload from target)
+      let payload;
+      if (type === 'report') {
+        const report = await getReportById(targetId);
+        if (!report) throw new Error('Report not found');
+
+        const models = await getGeminiModels();
+        const prompts = await getGeminiPrompts();
+        const selectedModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        const selectedPrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+
+        payload = {
+            url: report.url,
+            model: selectedModel,
+            prompt: selectedPrompt
+        };
+      } else {
+          // YouTube - find by URL from youtube_videos table
+          const ytRes = await query("SELECT url FROM youtube_videos WHERE id = $1", [targetId]);
+          const video = ytRes.rows[0];
+          if (!video) throw new Error('YouTube video not found');
+
+          const models = await getGeminiModels();
+          const prompts = await getGeminiPrompts();
+          const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+          const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+
+          payload = {
+              url: video.url,
+              model: selectedModel,
+              prompt: selectedPrompt
+          };
+      }
+
+      await addToQueue(type, targetId, payload);
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    if (type === 'youtube') safeRevalidate(`/youtube/${targetId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('retryGeminiTaskAction error:', error);
+    return { success: false, error: error.message };
   }
 }

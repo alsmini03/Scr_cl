@@ -11,13 +11,16 @@ import TabManagementModal from '@/components/TabManagementModal';
 export default function BlogClient({
   session,
   initialTabs,
+  initialSavedBlogs = []
 }: {
   session: any;
   initialTabs: any[];
+  initialSavedBlogs?: any[];
 }) {
   const [recommendPosts, setRecommendPosts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedBlogs.map(b => b.url)));
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -97,6 +100,7 @@ export default function BlogClient({
       });
 
       if (saveRes.success && saveRes.id) {
+        setSavedUrls(prev => new Set([...Array.from(prev), post.url]));
         showToast('내 서재에 추가되었습니다.');
       } else {
         showToast(saveRes.error || '저장 실패', 'error');
@@ -267,6 +271,7 @@ export default function BlogClient({
                           key={idx}
                           post={post}
                           addingUrl={addingUrl}
+                          isSaved={savedUrls.has(post.url)}
                           onAdd={handleAddBlog}
                         />
                     ))}
@@ -303,7 +308,7 @@ export const SkeletonBlogItem = memo(() => (
   </div>
 ));
 
-const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
+const RecommendItem = memo(({ post, addingUrl, isSaved, onAdd }: any) => (
   <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm flex items-center pr-3 animate-fade-in-up">
       <a href={post.url} target="_blank" rel="noopener" className="flex-1 p-4 min-w-0">
           <div className="flex flex-col justify-center">
@@ -317,11 +322,21 @@ const RecommendItem = memo(({ post, addingUrl, onAdd }: any) => (
           </div>
       </a>
       <button
-          onClick={() => onAdd(post)}
-          disabled={addingUrl === post.url}
-          className="size-10 flex-shrink-0 bg-primary/10 text-primary rounded-xl flex items-center justify-center hover:bg-primary hover:text-white transition-all disabled:opacity-50"
+          onClick={() => { if (!isSaved) onAdd(post); }}
+          disabled={addingUrl === post.url || isSaved}
+          className={cn(
+              "size-10 flex-shrink-0 rounded-xl flex items-center justify-center transition-all disabled:opacity-50",
+              isSaved
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                : "bg-primary/10 text-primary hover:bg-primary hover:text-white"
+          )}
+          title={isSaved ? "이미 저장됨" : "내 서재에 추가"}
       >
-          {addingUrl === post.url ? <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined">library_add</span>}
+          {addingUrl === post.url ? (
+              <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+              <span className="material-symbols-outlined">{isSaved ? 'task_alt' : 'library_add'}</span>
+          )}
       </button>
   </div>
 ));

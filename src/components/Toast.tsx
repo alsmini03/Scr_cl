@@ -35,24 +35,24 @@ export default function ToastContainer() {
     }, [addToast]);
 
     return (
-        <div className="fixed top-20 left-1/2 z-[200] flex flex-col items-center gap-3 w-full max-w-xs pointer-events-none">
-            {toasts.map(toast => (
-                <div
-                    key={toast.id}
-                    className={cn(
-                        "px-6 py-3 rounded-2xl shadow-xl text-white font-bold text-sm animate-fade-in-down pointer-events-auto backdrop-blur-md whitespace-nowrap",
-                        toast.type === 'success' ? "bg-primary/90" :
-                        toast.type === 'error' ? "bg-red-500/90" : "bg-slate-700/90"
-                    )}
-                >
-                    <div className="flex items-center gap-2">
-                        {toast.type === 'success' && <span className="material-symbols-outlined text-lg">check_circle</span>}
-                        {toast.type === 'error' && <span className="material-symbols-outlined text-lg">error</span>}
-                        {toast.type === 'info' && <span className="material-symbols-outlined text-lg">info</span>}
-                        {toast.message}
+        <div className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none p-6">
+            <div className="flex flex-col gap-3 w-full max-w-[200px]">
+                {toasts.map(toast => (
+                    <div
+                        key={toast.id}
+                        className={cn(
+                            "w-full p-3 rounded-xl shadow-[0_15px_35px_rgba(0,0,0,0.3)] text-white font-bold text-center animate-fade-in pointer-events-auto backdrop-blur-3xl border border-white/10",
+                            toast.type === 'success' ? "bg-primary/90" :
+                            toast.type === 'error' ? "bg-red-500/90" : "bg-slate-800/90"
+                        )}
+                    >
+                        <span className="material-symbols-outlined text-2xl mb-0.5 block">
+                            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+                        </span>
+                        <div className="text-[13px] leading-tight break-words whitespace-pre-wrap">{toast.message}</div>
                     </div>
-                </div>
-            ))}
+                ))}
+            </div>
         </div>
     );
 }

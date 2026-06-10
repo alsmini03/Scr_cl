@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, addToQueue } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -21,16 +21,20 @@ interface RecommendedVideo {
 export default function YouTubeRecommendClient({
   session,
   initialTabs,
+  initialSavedVideos = []
 }: {
   session: any;
   initialTabs: any[];
+  initialSavedVideos?: any[];
 }) {
   const [videos, setVideos] = useState<RecommendedVideo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedVideos.map(v => v.url)));
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [gridCols, setGridCols] = useState<1 | 2>(2);
 
   // Tab Management
   const [showTabManager, setShowTabManager] = useState(false);
@@ -46,6 +50,11 @@ export default function YouTubeRecommendClient({
     } else if (tabs.length > 0) {
       setActiveTabId(tabs[0].id);
     }
+
+    const savedCols = localStorage.getItem('youtube_grid_cols');
+    if (savedCols === '1' || savedCols === '2') {
+      setGridCols(parseInt(savedCols) as 1 | 2);
+    }
   }, []);
 
   useEffect(() => {
@@ -53,6 +62,10 @@ export default function YouTubeRecommendClient({
       localStorage.setItem('youtube_recommend_tab_v2', activeTabId);
     }
   }, [activeTabId]);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_grid_cols', gridCols.toString());
+  }, [gridCols]);
 
   const fetchVideos = async () => {
     if (!activeTabId) {
@@ -116,31 +129,24 @@ export default function YouTubeRecommendClient({
       const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
 
-      const response = await fetch('/api/youtube/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: video.url,
-          model: selectedModel,
-          prompt: selectedPrompt
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to extract details');
-      const data = await response.json();
-
       const result = await saveYoutubeVideo({
-        title: data.title || video.title,
+        title: video.title,
         url: video.url,
-        thumbnail: data.thumbnail || video.thumbnail,
-        duration: data.duration || video.duration,
-        published_at: data.publishDate || new Date().toISOString().split('T')[0],
-        summary: data.summary || '',
-        description: data.description || '',
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        published_at: new Date().toISOString().split('T')[0],
+        summary: '',
+        description: '',
       });
 
       if (result.success && result.id) {
-        showToast('내 서재에 추가되었습니다.');
+        await addToQueue('youtube', result.id, {
+          url: video.url,
+          model: selectedModel,
+          prompt: selectedPrompt
+        });
+        setSavedUrls(prev => new Set([...Array.from(prev), video.url]));
+        showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`추가 실패: ${result.error}`, 'error');
       }
@@ -215,6 +221,19 @@ export default function YouTubeRecommendClient({
         transparent
         rightAction={
           <div className="flex items-center gap-1">
+                <button
+                    onClick={() => {
+                        const next = gridCols === 1 ? 2 : 1;
+                        setGridCols(next);
+                        localStorage.setItem('youtube_grid_cols', next.toString());
+                    }}
+                    className="text-primary p-2"
+                    title={gridCols === 1 ? "2열 보기" : "1열 보기"}
+                >
+                    <span className="material-symbols-outlined text-2xl">
+                        {gridCols === 1 ? 'grid_view' : 'view_stream'}
+                    </span>
+                </button>
                 <button
                     onClick={() => window.location.href = '/add/youtube'}
                     className="text-primary p-2"
@@ -299,9 +318,9 @@ export default function YouTubeRecommendClient({
         )}
 
         {isLoading ? (
-          <div className="grid gap-4 grid-cols-2">
+          <div className={cn("grid gap-4", gridCols === 1 ? "grid-cols-1" : "grid-cols-2")}>
             {[...Array(6)].map((_, i) => (
-              <SkeletonVideoItem key={i} cols={2} />
+              <SkeletonVideoItem key={i} cols={gridCols} />
             ))}
           </div>
         ) : videos.length === 0 ? (
@@ -309,14 +328,15 @@ export default function YouTubeRecommendClient({
             <p>추천 영상 정보를 불러올 수 없습니다.</p>
           </div>
         ) : (
-          <div className="grid gap-4 grid-cols-2">
+          <div className={cn("grid gap-4", gridCols === 1 ? "grid-cols-1" : "grid-cols-2")}>
             {videos.map((video) => (
               <RecommendVideoItem
                 key={video.videoId}
                 video={video}
-                cols={2}
+                cols={gridCols}
                 isLoggedIn={!!session}
                 addingId={addingId}
+                isSaved={savedUrls.has(video.url)}
                 onCopyUrl={handleCopyUrl}
                 onAdd={handleAddVideo}
               />
@@ -341,12 +361,18 @@ export default function YouTubeRecommendClient({
 }
 
 export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
-  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3">
-    <div className="w-full aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-skeleton" />
-    <div className="space-y-2">
+  <div className={cn(
+    "bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl shadow-sm p-3",
+    cols === 1 ? "flex items-center gap-3" : ""
+  )}>
+    <div className={cn(
+      "aspect-video bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton",
+      cols === 1 ? "w-36 shrink-0" : "w-full mb-3"
+    )} />
+    <div className="flex-1 space-y-2">
       <div className={cn(
         "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
-        cols === 1 ? "h-5 w-3/4" : "h-4 w-5/6"
+        cols === 1 ? "h-4 w-3/4" : "h-4 w-5/6"
       )} />
       <div className={cn(
         "bg-slate-100 dark:bg-slate-800 rounded animate-skeleton",
@@ -356,7 +382,7 @@ export const SkeletonVideoItem = memo(({ cols }: { cols: 1 | 2 }) => (
   </div>
 ));
 
-const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl, onAdd }: any) => {
+const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, isSaved, onCopyUrl, onAdd }: any) => {
   const longPressHandlers = getLongPressHandlers(() => onCopyUrl(video.url));
 
   return (
@@ -370,11 +396,14 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
         target="_blank"
         rel="noopener noreferrer"
         className={cn(
-          "flex flex-col rounded-2xl",
-          cols === 1 ? "p-3" : "p-2"
+          "flex rounded-2xl",
+          cols === 1 ? "flex-row items-center p-3 gap-3" : "flex-col p-2"
         )}
       >
-        <div className="relative w-full aspect-video bg-slate-100 rounded-xl overflow-hidden mb-3">
+        <div className={cn(
+          "relative aspect-video bg-slate-100 rounded-xl overflow-hidden",
+          cols === 1 ? "w-36 shrink-0" : "w-full mb-3"
+        )}>
           <div
             className="w-full h-full bg-center bg-no-repeat bg-cover"
             style={{ backgroundImage: `url("${video.thumbnail}")` }}
@@ -387,24 +416,32 @@ const RecommendVideoItem = memo(({ video, cols, isLoggedIn, addingId, onCopyUrl,
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start gap-2 mb-1">
             <p className={cn(
-              "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-snug",
-              cols === 1 ? "text-base" : "text-[13px]"
+              "text-slate-900 dark:text-slate-100 leading-snug",
+              cols === 1 ? "text-[13px] line-clamp-3" : "text-[13px] line-clamp-3"
             )}>{video.title}</p>
 
             {isLoggedIn && (
               <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdd(e, video); }}
-                disabled={addingId === video.videoId}
+                onClick={(e) => {
+                    if (isSaved) return;
+                    e.preventDefault(); e.stopPropagation(); onAdd(e, video);
+                }}
+                disabled={addingId === video.videoId || isSaved}
                 className={cn(
-                  "flex-shrink-0 bg-primary/10 text-primary rounded-lg flex items-center justify-center hover:bg-primary hover:text-white transition-all active:scale-90 disabled:opacity-50",
-                  cols === 1 ? "size-9" : "size-7"
+                  "flex-shrink-0 rounded-lg flex items-center justify-center transition-all disabled:opacity-50",
+                  isSaved
+                    ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                    : "bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-90",
+                  cols === 1 ? "size-8" : "size-7"
                 )}
-                title="내 서재에 추가"
+                title={isSaved ? "이미 저장됨" : "내 서재에 추가"}
               >
                 {addingId === video.videoId ? (
                   <div className="size-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-lg" : "text-base")}>library_add</span>
+                  <span className={cn("material-symbols-outlined", cols === 1 ? "text-base" : "text-base")}>
+                      {isSaved ? 'task_alt' : 'library_add'}
+                  </span>
                 )}
               </button>
             )}

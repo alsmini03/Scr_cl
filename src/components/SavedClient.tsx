@@ -5,7 +5,7 @@ import BottomNav from '@/components/BottomNav';
 import { useState, memo, useMemo, useEffect, useRef, useCallback } from 'react';
 import { cn, formatDateToYMD } from '@/lib/utils';
 import Link from 'next/link';
-import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport } from '@/lib/db';
+import { sendBatchEmailAction, deleteBlog, deleteYoutubeVideo, deleteReport, toggleLikeAction, softDeleteBook } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 import { useSearchParams } from 'next/navigation';
 
@@ -21,24 +21,35 @@ export const SkeletonSavedItem = memo(() => (
 
 export default function SavedClient({
   session,
-  initialItems
+  initialItems,
+  initialQueueItems = []
 }: {
   session: any;
   initialItems: any[];
+  initialQueueItems?: any[];
 }) {
   const [items, setItems] = useState<any[]>(initialItems);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report' | 'book'>('all');
+  const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const hasGeminiError = useMemo(() => {
+    return initialQueueItems.some(q =>
+        q.status === 'failed' &&
+        (q.error_message?.includes('GoogleGenerativeAI') || q.error_message?.includes('Gemini'))
+    );
+  }, [initialQueueItems]);
 
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{x: number, y: number} | null>(null);
 
   useEffect(() => {
     const savedFilter = localStorage.getItem('saved_active_filter');
-    if (savedFilter && ['all', 'youtube', 'blog', 'report'].includes(savedFilter)) {
+    if (savedFilter && ['all', 'youtube', 'blog', 'report', 'book'].includes(savedFilter)) {
         setActiveFilter(savedFilter as any);
     }
   }, []);
@@ -48,9 +59,38 @@ export default function SavedClient({
   }, [activeFilter]);
 
   const filteredItems = useMemo(() => {
-      if (activeFilter === 'all') return items;
-      return items.filter(item => item.type === activeFilter);
-  }, [items, activeFilter]);
+      let result = items;
+      if (activeFilter !== 'all') {
+          result = result.filter(item => item.type === activeFilter);
+      }
+      if (isLikedOnly) {
+          result = result.filter(item => item.is_liked);
+      }
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        result = result.filter(item => {
+            const titleMatch = item.title?.toLowerCase().includes(query);
+            const authorMatch = (item.author || item.institution || '').toLowerCase().includes(query);
+
+            let contentMatch = false;
+            if (item.type === 'blog') {
+                contentMatch = item.content?.toLowerCase().includes(query);
+            } else if (item.type === 'youtube') {
+                contentMatch = (item.summary || item.description || '').toLowerCase().includes(query);
+            } else if (item.type === 'report') {
+                contentMatch = (item.summary || item.content || '').toLowerCase().includes(query);
+            } else if (item.type === 'book') {
+                contentMatch = (
+                    item.description || item.notes || item.intro || item.toc ||
+                    item.authorIntro || item.inside || item.publisherReview
+                )?.toLowerCase().includes(query);
+            }
+
+            return titleMatch || authorMatch || contentMatch;
+        });
+      }
+      return result;
+  }, [items, activeFilter, isLikedOnly, searchQuery]);
 
   const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {
@@ -166,9 +206,9 @@ export default function SavedClient({
     setIsProcessing(true);
     try {
       const itemsToSend = selectedItems.map(item => ({
-        type: item.type as 'youtube' | 'blog' | 'report',
+        type: item.type as 'youtube' | 'blog' | 'report' | 'book',
         id: item.id
-      }));
+      })).filter(i => i.type !== 'book'); // Books not supported in batch email yet
       const res = await sendBatchEmailAction(itemsToSend, email);
       if (res.success) {
         showToast('메일이 발송되었습니다.');
@@ -196,6 +236,10 @@ export default function SavedClient({
               if (item.type === 'blog') res = await deleteBlog(item.id);
               else if (item.type === 'youtube') res = await deleteYoutubeVideo(item.id);
               else if (item.type === 'report') res = await deleteReport(item.id);
+              else if (item.type === 'book') {
+                  await softDeleteBook(item.id);
+                  res = { success: true };
+              }
 
               if (res?.success) successCount++;
           }
@@ -221,11 +265,47 @@ export default function SavedClient({
     return selectedItems.some(item => item.type === type && item.id === id);
   };
 
+  const handleToggleLike = async (type: 'youtube' | 'blog' | 'report' | 'book', id: string, currentLiked: boolean) => {
+    const newLiked = !currentLiked;
+
+    // Optimistic update
+    setItems(prev => prev.map(item => {
+        if (item.type === type && item.id === id) {
+            return { ...item, is_liked: newLiked };
+        }
+        return item;
+    }));
+
+    try {
+        const res = await toggleLikeAction(type, id, newLiked);
+        if (!res.success) {
+            // Revert on failure
+            setItems(prev => prev.map(item => {
+                if (item.type === type && item.id === id) {
+                    return { ...item, is_liked: currentLiked };
+                }
+                return item;
+            }));
+            showToast(res.error || '실패했습니다.', 'error');
+        }
+    } catch (err) {
+        // Revert on error
+        setItems(prev => prev.map(item => {
+            if (item.type === type && item.id === id) {
+                return { ...item, is_liked: currentLiked };
+            }
+            return item;
+        }));
+        showToast('오류가 발생했습니다.', 'error');
+    }
+  };
+
   const filters = [
       { id: 'all', label: '전체' },
       { id: 'youtube', label: 'YouTube' },
       { id: 'blog', label: '블로그' },
-      { id: 'report', label: '리포트' }
+      { id: 'report', label: '리포트' },
+      { id: 'book', label: 'Yes24' }
   ];
 
   return (
@@ -255,9 +335,43 @@ export default function SavedClient({
                 </button>
             )
         }
-      />
+      >
+        <div className="flex items-center justify-center gap-1.5 min-w-0">
+            <h1 className="text-xl font-bold leading-tight tracking-tight text-center truncate text-slate-900 dark:text-slate-100">
+                저장된 항목
+            </h1>
+            {hasGeminiError && (
+                <span
+                    className="material-symbols-outlined text-red-500 text-[20px] animate-pulse shrink-0"
+                    title="제미나이 오류 발생"
+                >
+                    warning
+                </span>
+            )}
+        </div>
+      </Header>
 
       <main className="mt-4 px-4 select-none">
+        {/* Search Bar */}
+        <div className="mb-4 relative">
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="제목, 내용, 저자 검색..."
+                className="w-full bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all shadow-sm"
+            />
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+            {searchQuery && (
+                <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                >
+                    <span className="material-symbols-outlined text-lg">cancel</span>
+                </button>
+            )}
+        </div>
+
         {/* Filters */}
         <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10 py-2">
             <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-1 flex-nowrap">
@@ -274,6 +388,15 @@ export default function SavedClient({
                     </button>
                 ))}
             </div>
+            <button
+                onClick={() => setIsLikedOnly(!isLikedOnly)}
+                className={cn(
+                    "flex-shrink-0 size-9 rounded-full flex items-center justify-center transition-all",
+                    isLikedOnly ? "bg-red-500 text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-400 dark:text-slate-500"
+                )}
+            >
+                <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-1")}>favorite</span>
+            </button>
         </div>
 
         {isEditMode && (
@@ -314,16 +437,21 @@ export default function SavedClient({
           <div className="py-20 text-center text-slate-400">저장된 항목이 없습니다.</div>
         ) : (
           <div className="space-y-3 pb-20">
-            {filteredItems.map((item) => (
-              <SavedItem
-                key={`${item.type}-${item.id}`}
-                item={item}
-                isEditMode={isEditMode}
-                isSelected={isItemSelected(item.type, item.id)}
-                onPointerDown={handlePointerDown}
-                onToggleSelect={toggleSelect}
-              />
-            ))}
+                {filteredItems.map((item) => {
+                  const errorItem = initialQueueItems.find(q => q.target_id === item.id && q.status === 'failed');
+                  return (
+                    <SavedItem
+                        key={`${item.type}-${item.id}`}
+                        item={item}
+                        isEditMode={isEditMode}
+                        isSelected={isItemSelected(item.type, item.id)}
+                        hasError={!!errorItem}
+                        onPointerDown={handlePointerDown}
+                        onToggleSelect={toggleSelect}
+                        onToggleLike={handleToggleLike}
+                    />
+                  );
+                })}
           </div>
         )}
       </main>
@@ -333,7 +461,7 @@ export default function SavedClient({
   );
 }
 
-const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleSelect }: any) => {
+const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown, onToggleSelect, onToggleLike }: any) => {
   let href = '';
   let icon = '';
   let iconColor = '';
@@ -354,6 +482,11 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
     icon = 'description';
     iconColor = 'text-blue-500 bg-blue-50 dark:bg-blue-500/10';
     typeLabel = '리포트';
+  } else if (item.type === 'book') {
+    href = `/book/${item.id}`;
+    icon = 'menu_book';
+    iconColor = 'text-amber-500 bg-amber-50 dark:bg-amber-500/10';
+    typeLabel = 'Yes24';
   }
 
   return (
@@ -379,7 +512,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
         )}
       >
         {item.type === 'youtube' && item.thumbnail ? (
-          <div className="relative shrink-0 w-24 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
+          <div className="relative shrink-0 w-32 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
             <img src={item.thumbnail} alt="" className="w-full h-full object-cover pointer-events-none" />
             <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] font-bold px-1 rounded">
                 {item.duration}
@@ -396,30 +529,50 @@ const SavedItem = memo(({ item, isEditMode, isSelected, onPointerDown, onToggleS
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase",
                 item.type === 'youtube' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
                 item.type === 'blog' ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
-                "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                item.type === 'report' ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
+                "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
             )}>
                 {typeLabel}
             </span>
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
-          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm line-clamp-1 leading-tight">
+          <h3 className={cn(
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1",
+            item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
+          )}>
             {item.title}
+            {hasError && (
+              <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
+            )}
           </h3>
           <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
             {item.author || item.institution || ''}
           </p>
         </div>
 
-        <div className="flex items-center pr-3 pointer-events-none">
+        <div className="flex items-center gap-1 pr-2">
             {isEditMode ? (
                 <div className={cn(
-                    "size-5 rounded-full border-2 flex items-center justify-center transition-all",
+                    "size-5 rounded-full border-2 flex items-center justify-center transition-all mr-1",
                     isSelected ? "bg-primary border-primary" : "border-slate-200 dark:border-slate-700"
                 )}>
                     {isSelected && <span className="material-symbols-outlined text-white text-[12px] font-bold">check</span>}
                 </div>
             ) : (
-                <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-sm">chevron_right</span>
+                <button
+                    onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onToggleLike(item.type, item.id, item.is_liked);
+                    }}
+                    className={cn(
+                    "size-9 flex items-center justify-center rounded-full transition-all active:scale-125 z-10",
+                    item.is_liked ? "text-red-500 bg-red-50 dark:bg-red-500/10" : "text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800"
+                    )}
+                    title="좋아요"
+                >
+                    <span className={cn("material-symbols-outlined text-xl", item.is_liked && "fill-1")}>favorite</span>
+                </button>
             )}
         </div>
       </Link>

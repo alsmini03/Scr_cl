@@ -18,4 +18,5 @@ export interface Book {
   inside?: string;
   publisherReview?: string;
   yes24Url?: string;
+  is_liked?: boolean;
 }

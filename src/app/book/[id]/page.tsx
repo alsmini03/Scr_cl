@@ -6,7 +6,7 @@ import { Book } from '@/types/book';
 import { useParams, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useEffect, useState, useRef } from 'react';
-import { getBookById, updateBook, softDeleteBook } from '@/lib/db';
+import { getBookById, updateBook, softDeleteBook, toggleLikeAction } from '@/lib/db';
 import { showToast } from '@/components/Toast';
 
 export default function BookDetailPage() {
@@ -15,6 +15,7 @@ export default function BookDetailPage() {
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLiking, setIsLiking] = useState(false);
 
   const [status, setStatus] = useState<'READING' | 'FINISHED'>('READING');
   const [rating, setRating] = useState(0);
@@ -59,6 +60,25 @@ export default function BookDetailPage() {
     }
   };
 
+  const handleToggleLike = async () => {
+    if (!book || isLiking) return;
+    setIsLiking(true);
+    const newLiked = !book.is_liked;
+    try {
+      const res = await toggleLikeAction('book', book.id, newLiked);
+      if (res.success) {
+        setBook({ ...book, is_liked: newLiked });
+        showToast(newLiked ? '좋아요 항목에 추가되었습니다.' : '좋아요가 취소되었습니다.');
+      } else {
+        showToast(res.error || '실패했습니다.', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!book) return;
 
@@ -96,6 +116,16 @@ export default function BookDetailPage() {
         showBack
         rightAction={
           <div className="flex items-center gap-1">
+            <button
+                onClick={handleToggleLike}
+                disabled={isLiking}
+                className={cn(
+                    "flex items-center justify-center rounded-lg h-10 w-10 bg-transparent transition-all active:scale-125 disabled:opacity-50",
+                    book.is_liked ? "text-red-500" : "text-slate-400 dark:text-slate-500"
+                )}
+            >
+                <span className={cn("material-symbols-outlined", book.is_liked && "fill-1")}>favorite</span>
+            </button>
             <button
               onClick={handleDelete}
               className="flex items-center justify-center rounded-lg h-10 w-10 bg-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
