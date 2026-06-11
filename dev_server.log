@@ -1,0 +1,38 @@
+
+> book-journal@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+ ⚠ Port 3001 is in use, trying 3002 instead.
+ ⚠ Port 3002 is in use, trying 3003 instead.
+ ⚠ Port 3003 is in use, trying 3004 instead.
+ ⚠ Port 3004 is in use, trying 3005 instead.
+ ⚠ Port 3005 is in use, trying 3006 instead.
+ ⚠ Port 3006 is in use, trying 3007 instead.
+ ⚠ Port 3007 is in use, trying 3008 instead.
+ ⚠ Port 3008 is in use, trying 3009 instead.
+   ▲ Next.js 15.1.9
+   - Local:        http://localhost:3009
+   - Network:      http://192.168.0.2:3009
+
+ ✓ Starting...
+ ✓ Ready in 4.6s
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 2.1s (233 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 6.6s (639 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+ GET /login 200 in 55ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 2.6s (634 modules)
+ GET /_next/static/css/app/layout.css?v=1781149109260 404 in 2833ms
+ GET /_next/static/chunks/app-pages-internals.js 404 in 2407ms
+ GET /_next/static/chunks/app/layout.js 404 in 2407ms
+ GET /_next/static/chunks/app/login/page.js 404 in 2407ms
+ GET /_next/static/chunks/main-app.js?v=1781149109260 404 in 2412ms
+ GET /_next/static/chunks/webpack.js?v=1781149109260 404 in 2415ms
