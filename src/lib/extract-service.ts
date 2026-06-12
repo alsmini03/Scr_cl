@@ -165,26 +165,20 @@ export async function extractYoutube(url: string, requestedModel?: string, reque
       console.warn("Manual transcript scraping failed:", e);
     }
 
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const geminiModel = requestedModel || "gemini-1.5-flash";
-        const model = genAI.getGenerativeModel({ model: geminiModel });
-
-        const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
-
-        const parts = [
-          { text: `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}` }
-        ];
-
-        const result = await model.generateContent(parts);
-        summary = result.response.text();
-      } catch (geminiError: any) {
-        console.error("Gemini processing failed:", geminiError);
-        summary = `### 제미나이 요약 오류\n\n영상 분석 중 오류가 발생했습니다: ${geminiError.message || '알 수 없는 오류'}\n\n스크립트를 가져오지 못했거나 영상이 너무 깁니다.`;
-      }
-    } else {
-      summary = "### 설정 오류\n\nGEMINI_API_KEY가 설정되지 않았습니다. AI 요약을 사용하려면 API 키를 등록해 주세요.";
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY is not configured.");
     }
+
+    const geminiModel = requestedModel || "gemini-1.5-flash";
+    const model = genAI.getGenerativeModel({ model: geminiModel });
+    const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
+
+    const parts = [
+      { text: `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}` }
+    ];
+
+    const result = await model.generateContent(parts);
+    summary = result.response.text();
 
     let duration = "";
     const lengthSeconds = playerResponse?.videoDetails?.lengthSeconds ||

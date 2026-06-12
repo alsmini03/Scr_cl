@@ -40,7 +40,7 @@ export default function SavedClient({
   const hasGeminiError = useMemo(() => {
     return initialQueueItems.some(q =>
         q.status === 'failed' &&
-        (q.error_message?.includes('GoogleGenerativeAI') || q.error_message?.includes('Gemini'))
+        (q.error_message?.toLowerCase().includes('googlegenerativeai') || q.error_message?.toLowerCase().includes('gemini'))
     );
   }, [initialQueueItems]);
 
@@ -341,12 +341,15 @@ export default function SavedClient({
                 저장된 항목
             </h1>
             {hasGeminiError && (
-                <span
-                    className="material-symbols-outlined text-red-500 text-[20px] animate-pulse shrink-0"
-                    title="제미나이 오류 발생"
-                >
-                    warning
-                </span>
+                    <div className="flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded-full border border-red-500/20 animate-pulse shrink-0">
+                        <span
+                            className="material-symbols-outlined text-red-500 text-[16px]"
+                            title="제미나이 오류 발생"
+                        >
+                            warning
+                        </span>
+                        <span className="text-[10px] font-bold text-red-500 whitespace-nowrap">AI ERROR</span>
+                    </div>
             )}
         </div>
       </Header>
