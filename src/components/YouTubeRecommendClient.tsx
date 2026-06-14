@@ -192,10 +192,6 @@ export default function YouTubeRecommendClient({
     }
   };
 
-  const handleTabLongPress = (id: string) => {
-    setIsModalOpen(true);
-  };
-
   const moveTab = (draggedId: string, hoverId: string) => {
     if (draggedId === hoverId) return;
     const draggedIndex = tabs.findIndex(t => t.id === draggedId);
@@ -253,14 +249,12 @@ export default function YouTubeRecommendClient({
             "flex flex-1 overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap"
           )}>
             {tabs.map(tab => {
-              const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
               return (
               <div
                 key={tab.id}
                 className={cn(
                   "relative flex-shrink-0 group transition-all"
                 )}
-                {...longPressHandlers}
               >
                 <button
                   onClick={() => {
@@ -280,12 +274,25 @@ export default function YouTubeRecommendClient({
               </div>
             );})}
           </div>
-          <button
-            onClick={() => setShowTabManager(!showTabManager)}
-            className="flex-shrink-0 size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center"
-          >
-            <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
-          </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+                onClick={() => setShowTabManager(!showTabManager)}
+                className={cn(
+                    "size-9 rounded-full flex items-center justify-center transition-all",
+                    showTabManager ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                )}
+                title="탭 추가"
+            >
+                <span className="material-symbols-outlined text-xl">{showTabManager ? 'close' : 'add'}</span>
+            </button>
+            <button
+                onClick={() => setIsModalOpen(true)}
+                className="size-9 rounded-full bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-all hover:bg-slate-300 dark:hover:bg-black/50"
+                title="탭 관리"
+            >
+                <span className="material-symbols-outlined text-xl">settings</span>
+            </button>
+          </div>
         </div>
 
         {showTabManager && (
