@@ -36,6 +36,7 @@ export default function SavedClient({
   const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState('');
 
   const hasGeminiError = useMemo(() => {
     return initialQueueItems.some(q =>
@@ -65,6 +66,14 @@ export default function SavedClient({
       }
       if (isLikedOnly) {
           result = result.filter(item => item.is_liked);
+      }
+      if (selectedDate) {
+        result = result.filter(item => {
+            if (!item.added_at) return false;
+            // added_at is ISO string: 2024-06-12T... or YYYY-MM-DD
+            const itemDate = item.added_at.split('T')[0];
+            return itemDate === selectedDate;
+        });
       }
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
@@ -376,30 +385,58 @@ export default function SavedClient({
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10 py-2">
-            <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-1 flex-nowrap">
-                {filters.map(f => (
-                    <button
-                        key={f.id}
-                        onClick={() => setActiveFilter(f.id as any)}
-                        className={cn(
-                            "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                            activeFilter === f.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                        )}
-                    >
-                        {f.label}
-                    </button>
-                ))}
+        <div className="flex flex-col gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10 py-2 shadow-sm border-b border-slate-100 dark:border-primary/5">
+            <div className="flex items-center gap-2">
+                <div className="flex flex-1 overflow-x-auto no-scrollbar gap-2 py-1 flex-nowrap">
+                    {filters.map(f => (
+                        <button
+                            key={f.id}
+                            onClick={() => setActiveFilter(f.id as any)}
+                            className={cn(
+                                "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                                activeFilter === f.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                            )}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+                <button
+                    onClick={() => setIsLikedOnly(!isLikedOnly)}
+                    className={cn(
+                        "flex-shrink-0 size-9 rounded-full flex items-center justify-center transition-all",
+                        isLikedOnly ? "bg-red-500 text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-400 dark:text-slate-500"
+                    )}
+                >
+                    <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-1")}>favorite</span>
+                </button>
             </div>
-            <button
-                onClick={() => setIsLikedOnly(!isLikedOnly)}
-                className={cn(
-                    "flex-shrink-0 size-9 rounded-full flex items-center justify-center transition-all",
-                    isLikedOnly ? "bg-red-500 text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-400 dark:text-slate-500"
+
+            {/* Date Selector */}
+            <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        className="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-xl py-2 px-3 pl-10 text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-primary/30 transition-all appearance-none"
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">calendar_today</span>
+                    {selectedDate && (
+                        <button
+                            onClick={() => setSelectedDate('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-base">cancel</span>
+                        </button>
+                    )}
+                </div>
+                {selectedDate && (
+                    <div className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-2 rounded-xl whitespace-nowrap">
+                        {selectedDate.replace(/-/g, '.')} 저장분
+                    </div>
                 )}
-            >
-                <span className={cn("material-symbols-outlined text-xl", isLikedOnly && "fill-1")}>favorite</span>
-            </button>
+            </div>
         </div>
 
         {isEditMode && (
