@@ -71,7 +71,8 @@ export default function SavedClient({
         result = result.filter(item => {
             if (!item.added_at) return false;
             // added_at is ISO string: 2024-06-12T... or YYYY-MM-DD
-            const itemDate = item.added_at.split('T')[0];
+            // Convert to YYYY-MM-DD in local time
+            const itemDate = formatDateToYMD(item.added_at);
             return itemDate === selectedDate;
         });
       }
@@ -99,7 +100,7 @@ export default function SavedClient({
         });
       }
       return result;
-  }, [items, activeFilter, isLikedOnly, searchQuery]);
+  }, [items, activeFilter, isLikedOnly, searchQuery, selectedDate]);
 
   const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {

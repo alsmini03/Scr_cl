@@ -48,6 +48,7 @@ function mapRowToBook(row: any): Book {
     progress: row.progress,
     rating: row.rating,
     notes: row.notes,
+    added_at: row.added_at,
     createdAt: row.added_at,
     intro: row.intro,
     toc: row.toc,

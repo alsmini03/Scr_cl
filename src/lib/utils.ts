@@ -34,19 +34,20 @@ export function formatDateToYMD(dateStr?: string): string {
 
   let cleanDate = dateStr.trim();
 
-  // Handle ISO-like strings with time (e.g., 2024-07-19T23:58:34+09:00)
-  if (cleanDate.includes('T')) {
-    return cleanDate.split('T')[0];
+  // If already YYYY-MM-DD, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+    return cleanDate;
   }
 
   // Support "YYYY. MM. DD."
-  if (/^\d{4}\.\s?\d{1,2}\.\s?\d{1,2}/.test(cleanDate)) {
-    cleanDate = cleanDate.replace(/\.\s?/g, '-').replace(/-$/, '');
+  const dotMatch = cleanDate.match(/^(\d{4})\.\s?(\d{1,2})\.\s?(\d{1,2})/);
+  if (dotMatch) {
+    return `${dotMatch[1]}-${dotMatch[2].padStart(2, '0')}-${dotMatch[3].padStart(2, '0')}`;
   }
 
+  // Handle ISO or other formats via Date object
   const d = new Date(cleanDate);
   if (isNaN(d.getTime())) {
-    // Last ditch effort: try to match YYYY-MM-DD pattern directly
     const match = cleanDate.match(/(\d{4}-\d{1,2}-\d{1,2})/);
     return match ? match[1] : cleanDate;
   }
