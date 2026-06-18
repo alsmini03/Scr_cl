@@ -37,6 +37,7 @@ export default function SavedClient({
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
+  const [dateRangeOffset, setDateRangeOffset] = useState(0); // 0, 1, 3, 7 days
 
   const hasGeminiError = useMemo(() => {
     return initialQueueItems.some(q =>
@@ -68,12 +69,19 @@ export default function SavedClient({
           result = result.filter(item => item.is_liked);
       }
       if (selectedDate) {
+        const targetDate = new Date(selectedDate);
+        targetDate.setHours(0, 0, 0, 0);
+
         result = result.filter(item => {
             if (!item.added_at) return false;
-            // added_at is ISO string: 2024-06-12T... or YYYY-MM-DD
-            // Convert to YYYY-MM-DD in local time
-            const itemDate = formatDateToYMD(item.added_at);
-            return itemDate === selectedDate;
+
+            const itemDate = new Date(item.added_at);
+            itemDate.setHours(0, 0, 0, 0);
+
+            const diffTime = Math.abs(itemDate.getTime() - targetDate.getTime());
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+            return diffDays <= dateRangeOffset;
         });
       }
       if (searchQuery.trim()) {
@@ -100,7 +108,7 @@ export default function SavedClient({
         });
       }
       return result;
-  }, [items, activeFilter, isLikedOnly, searchQuery, selectedDate]);
+  }, [items, activeFilter, isLikedOnly, searchQuery, selectedDate, dateRangeOffset]);
 
   const toggleSelect = useCallback((type: string, id: string) => {
     setSelectedItems(prev => {
@@ -414,27 +422,49 @@ export default function SavedClient({
             </div>
 
             {/* Date Selector */}
-            <div className="flex items-center gap-2">
-                <div className="relative flex-1">
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-xl py-2 px-3 pl-10 text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-primary/30 transition-all appearance-none"
-                    />
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">calendar_today</span>
+            <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-xl py-2 px-3 pl-10 text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-1 focus:ring-primary/30 transition-all appearance-none"
+                        />
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">calendar_today</span>
+                        {selectedDate && (
+                            <button
+                                onClick={() => setSelectedDate('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                            >
+                                <span className="material-symbols-outlined text-base">cancel</span>
+                            </button>
+                        )}
+                    </div>
                     {selectedDate && (
-                        <button
-                            onClick={() => setSelectedDate('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                        >
-                            <span className="material-symbols-outlined text-base">cancel</span>
-                        </button>
+                        <div className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-2 rounded-xl whitespace-nowrap">
+                            {selectedDate.replace(/-/g, '.')} {dateRangeOffset > 0 ? `±${dateRangeOffset}일` : ''} 저장분
+                        </div>
                     )}
                 </div>
+
                 {selectedDate && (
-                    <div className="bg-primary/10 text-primary text-[10px] font-bold px-3 py-2 rounded-xl whitespace-nowrap">
-                        {selectedDate.replace(/-/g, '.')} 저장분
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mr-1 shrink-0">범위 설정:</span>
+                        {[0, 1, 3, 7].map(offset => (
+                            <button
+                                key={offset}
+                                onClick={() => setDateRangeOffset(offset)}
+                                className={cn(
+                                    "px-3 py-1 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap border",
+                                    dateRangeOffset === offset
+                                        ? "bg-primary/10 text-primary border-primary/20"
+                                        : "bg-slate-50 dark:bg-white/5 text-slate-500 border-slate-100 dark:border-white/5"
+                                )}
+                            >
+                                {offset === 0 ? '당일' : `±${offset}일`}
+                            </button>
+                        ))}
                     </div>
                 )}
             </div>
