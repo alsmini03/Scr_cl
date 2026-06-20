@@ -2,14 +2,14 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { useEffect, useState, memo, useRef } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction } from '@/lib/db';
+import { useEffect, useState, memo, useRef, useMemo } from 'react';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { marked } from 'marked';
-import { useMemo } from 'react';
+import QueueStatus from '@/components/QueueStatus';
 
 interface Report {
   id: string;
@@ -23,6 +23,7 @@ interface Report {
   scrapPath?: string;
   hasFile: boolean;
   fileSize?: string;
+  is_liked?: boolean;
 }
 
 interface ReportContent {
@@ -56,12 +57,20 @@ export default function ReportClient({
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
 
+  // Search/Filter State
+  const [srhDate, setSrhDate] = useState('');
+  const [srhWord, setSrhWord] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [activeDatePreset, setActiveDatePreset] = useState('0'); // 0: 오늘, 1: 1주, 2: 1개월, 3: 3개월, 4: 6개월, 5: 1년, 6: 전체
+
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Search State
+  // Interaction State
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set(initialSavedReports.map(r => `${r.title}|${r.institution}`)));
   const [isCopying, setIsCopying] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -69,44 +78,60 @@ export default function ReportClient({
 
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
+  const [currentQueueItem, setCurrentQueueItem] = useState<any>(null);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const observer = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useRef<HTMLDivElement | null>(null);
 
+  const selectedSavedReport = useMemo(() => {
+      if (selectedReportId) return initialSavedReports.find(r => r.id === selectedReportId);
+      if (selectedRecommendReport) return initialSavedReports.find(r => r.title === selectedRecommendReport.title && r.institution === selectedRecommendReport.institution);
+      return null;
+  }, [selectedReportId, selectedRecommendReport, initialSavedReports]);
+  const isDetailView = !!selectedReportId || !!selectedRecommendReport;
+
   useEffect(() => {
     const urlId = searchParams.get('id');
     if (urlId) {
-        setSelectedReportId(urlId);
+      setSelectedReportId(urlId);
     }
 
     const savedTab = localStorage.getItem('report_active_tab');
     if (savedTab && tabs.some(t => t.id === savedTab)) {
-        setActiveTabId(savedTab);
+      setActiveTabId(savedTab);
     } else if (tabs.length > 0) {
-        setActiveTabId(tabs[0].id);
+      setActiveTabId(tabs[0].id);
     }
-  }, [tabs]);
+  }, [tabs, searchParams]);
 
   useEffect(() => {
     if (activeTabId) {
-        localStorage.setItem('report_active_tab', activeTabId);
-        fetchReports(true);
+      localStorage.setItem('report_active_tab', activeTabId);
+      fetchReports(true);
     } else if (tabs.length === 0) {
-        setIsLoading(false);
+      setIsLoading(false);
     }
-  }, [activeTabId]);
+  }, [activeTabId, srhDate, srhWord]);
+
+  const handleSearch = () => {
+    setSrhWord(searchInput);
+    // fetchReports(true) will be triggered by useEffect
+  };
 
   const fetchReports = async (isInitial = false) => {
     if (!activeTabId && tabs.length > 0) return;
 
     if (isInitial) {
-        setIsLoading(true);
-        setReports([]);
-        setLastId('0');
-        setHasMore(true);
+      setIsLoading(true);
+      setReports([]);
+      setLastId('0');
+      setHasMore(true);
     } else {
-        if (!hasMore || isMoreLoading) return;
-        setIsMoreLoading(true);
+      if (!hasMore || isMoreLoading) return;
+      setIsMoreLoading(true);
     }
 
     try {
@@ -117,28 +142,28 @@ export default function ReportClient({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            url,
-            lstNumO: isInitial ? '0' : lastId,
-            actNum: isInitial ? '0' : '2',
-            srhDate: '',
-            srhWord: ''
+          url,
+          lstNumO: isInitial ? '0' : lastId,
+          actNum: isInitial ? '0' : '2',
+          srhDate,
+          srhWord
         })
       });
 
       const data = await res.json();
       if (Array.isArray(data)) {
         if (data.length === 0) {
-            setHasMore(false);
+          setHasMore(false);
         } else {
-            if (isInitial) {
-              setReports(data);
-            } else {
-              setReports(prev => [...prev, ...data]);
-            }
-            setLastId(data[data.length - 1].index);
+          if (isInitial) {
+            setReports(data);
+          } else {
+            setReports(prev => [...prev, ...data]);
+          }
+          setLastId(data[data.length - 1].index);
         }
       } else {
-          setHasMore(false);
+        setHasMore(false);
       }
     } catch (err) {
       console.error(err);
@@ -166,88 +191,124 @@ export default function ReportClient({
 
   const fetchContent = async (reportId: string) => {
     if (viewingContent?.id === reportId) {
-        return;
+      return;
     }
 
     setIsContentLoading(true);
     setIsDetailLoading(true);
     try {
-        const [res, adj] = await Promise.all([
-            fetch('/api/report/content', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ num: reportId, code: '01' })
-            }),
-            getAdjacentReportIdsAction(reportId)
-        ]);
-        const html = await res.text();
-        setViewingContent({ id: reportId, content: html });
-        setAdjacentIds(adj);
+      const [res, adj, { items, lastProcessedAt: last }] = await Promise.all([
+        fetch('/api/report/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ num: reportId, code: '01' })
+        }),
+        getAdjacentReportIdsAction(reportId),
+        getQueueItems()
+      ]);
+      const html = await res.text();
+      setViewingContent({ id: reportId, content: html });
+      setAdjacentIds(adj);
+
+      const qItem = items.find(i => i.type === 'report' && i.target_id === reportId);
+      setCurrentQueueItem(qItem || null);
+      setLastProcessedAt(last);
     } catch (err) {
-        console.error(err);
-        showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
+      console.error(err);
+      showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
     } finally {
-        setIsContentLoading(false);
-        setIsDetailLoading(false);
+      setIsContentLoading(false);
+      setIsDetailLoading(false);
     }
   };
 
   const handleRecommendClick = (report: Report) => {
-      setSelectedRecommendReport(report);
-      fetchContent(report.id);
+    setSelectedRecommendReport(report);
+    fetchContent(report.id);
+  };
+
+  const handleDatePreset = (preset: string) => {
+    setActiveDatePreset(preset);
+    if (preset === '1') { // 전체 (Bondweb uses empty string for latest)
+      setSrhDate('');
+      return;
+    }
+
+    const d = new Date();
+    const formatDate = (date: Date) => date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0') + String(date.getDate()).padStart(2, '0');
+    setSrhDate(formatDate(d));
   };
 
   const handleCopyUrl = (url?: string) => {
-      if (!url) return;
-      navigator.clipboard.writeText(url).then(() => {
-          showToast('URL이 복사되었습니다.');
-      }).catch(err => {
-          console.error('Copy failed:', err);
-          showToast('URL 복사에 실패했습니다.', 'error');
-      });
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('URL이 복사되었습니다.');
+    }).catch(err => {
+      console.error('Copy failed:', err);
+      showToast('URL 복사에 실패했습니다.', 'error');
+    });
   };
 
   const handleDownload = async (report: any) => {
     let downloadUrl = '';
 
     if (report.scrapPath) {
-        window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
-        return;
+      window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
+      return;
     }
 
     if (report.url) {
-        downloadUrl = report.url;
-        if (downloadUrl.includes('/api/report/download') && !downloadUrl.includes('&title=')) {
-            downloadUrl += `&title=${encodeURIComponent(report.title)}`;
-        }
+      downloadUrl = report.url;
+      if (downloadUrl.includes('/api/report/download') && !downloadUrl.includes('&title=')) {
+        downloadUrl += `&title=${encodeURIComponent(report.title)}`;
+      }
     } else if (report.fileId && report.fileNum) {
-        const encodedTitle = encodeURIComponent(report.title);
-        downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
+      const encodedTitle = encodeURIComponent(report.title);
+      downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
     }
 
     if (!downloadUrl) return;
 
     if (downloadUrl.includes('bondweb.co.kr')) {
-        window.open(downloadUrl, '_blank');
-        return;
+      window.open(downloadUrl, '_blank');
+      return;
     }
 
     try {
-        const res = await fetch(downloadUrl, { method: 'GET' });
-        if (!res.ok) throw new Error('Download failed');
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_');
-        a.download = safeTitle + '.pdf';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
+      const res = await fetch(downloadUrl, { method: 'GET' });
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_');
+      a.download = safeTitle + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-        console.error('Download error:', error);
-        showToast('다운로드 중 오류가 발생했습니다.', 'error');
+      console.error('Download error:', error);
+      showToast('다운로드 중 오류가 발생했습니다.', 'error');
+    }
+  };
+
+  const handleToggleLike = async (report: any) => {
+    if (!report || isLiking) return;
+    setIsLiking(true);
+    const newLiked = !report.is_liked;
+    try {
+      const res = await toggleLikeAction('report', report.id, newLiked);
+      if (res.success) {
+        showToast(newLiked ? '좋아요 항목에 추가되었습니다.' : '좋아요가 취소되었습니다.');
+        router.refresh();
+      } else {
+        showToast(res.error || '실패했습니다.', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsLiking(false);
     }
   };
 
@@ -266,41 +327,40 @@ export default function ReportClient({
 
       let pdfUrl = '';
       if (report.scrapPath) {
-          pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
+        pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
       } else if (report.fileId && report.fileNum) {
-          const encodedTitle = encodeURIComponent(report.title);
-          pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
+        const encodedTitle = encodeURIComponent(report.title);
+        pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
       }
 
       if (!pdfUrl) throw new Error('PDF URL not found');
 
-      const response = await fetch('/api/report/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: pdfUrl,
-          model: selectedModel,
-          prompt: selectedPrompt
-        }),
+      const directPdfUrl = await getResolvedReportUrlAction({
+        fileId: report.fileId,
+        fileNum: report.fileNum,
+        url: pdfUrl
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || '리포트 분석 중 오류가 발생했습니다.');
-      }
+      if (!directPdfUrl) throw new Error('PDF direct URL resolution failed');
 
       const result = await saveReport({
         title: report.title,
         author: report.author,
         institution: report.institution,
         date: report.date,
-        url: pdfUrl,
-        summary: data.result,
+        url: directPdfUrl,
+        summary: '',
         content: viewingContent?.id === report.id ? viewingContent.content : ''
       });
 
       if (result.success && result.id) {
-        showToast('내 서재에 추가되었습니다.');
+        await addToQueue('report', result.id, {
+          url: directPdfUrl,
+          model: selectedModel,
+          prompt: selectedPrompt
+        });
+        setSavedKeys(prev => new Set([...Array.from(prev), `${report.title}|${report.institution}`]));
+        showToast('내 서재에 추가되었습니다. 요약은 잠시 후 완료됩니다.');
       } else {
         showToast(`저장 실패: ${result.error}`, 'error');
       }
@@ -338,7 +398,7 @@ export default function ReportClient({
       const remainingTabs = tabs.filter(t => t.id !== id);
       setTabs(remainingTabs);
       if (activeTabId === id) {
-          setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
+        setActiveTabId(remainingTabs.length > 0 ? remainingTabs[0].id : null);
       }
       showToast('탭이 삭제되었습니다.');
     } else {
@@ -368,32 +428,82 @@ export default function ReportClient({
   };
 
   const parseSize = (sizeStr?: string) => {
-      if (!sizeStr) return 0;
-      const num = parseFloat(sizeStr);
-      if (sizeStr.includes('MB')) return num * 1024 * 1024;
-      if (sizeStr.includes('KB')) return num * 1024;
-      return num;
+    if (!sizeStr) return 0;
+    const num = parseFloat(sizeStr);
+    if (sizeStr.includes('MB')) return num * 1024 * 1024;
+    if (sizeStr.includes('KB')) return num * 1024;
+    return num;
   };
 
   const sortedReports = useMemo(() => {
-      if (sortType === 'date') return reports;
+    if (sortType === 'date') return reports;
 
-      return [...reports].sort((a, b) => {
-          const sizeA = parseSize(a.fileSize);
-          const sizeB = parseSize(b.fileSize);
-          return sortType === 'size-asc' ? sizeA - sizeB : sizeB - sizeA;
-      });
+    return [...reports].sort((a, b) => {
+      const sizeA = parseSize(a.fileSize);
+      const sizeB = parseSize(b.fileSize);
+      return sortType === 'size-asc' ? sizeA - sizeB : sizeB - sizeA;
+    });
   }, [reports, sortType]);
 
-  const selectedSavedReport = initialSavedReports.find(r => r.id === selectedReportId);
-  const isDetailView = !!selectedReportId || !!selectedRecommendReport;
-
-  // If redirected with ID, automatically fetch content
   useEffect(() => {
-      if (selectedReportId && !selectedRecommendReport) {
-          fetchContent(selectedReportId);
+    if (selectedReportId && !selectedRecommendReport) {
+      fetchContent(selectedReportId);
+    }
+  }, [selectedReportId, selectedRecommendReport]);
+
+  const handleRetrySummary = async () => {
+    const report = selectedRecommendReport || selectedSavedReport;
+    if (!report || isRetrying) return;
+
+    setIsRetrying(true);
+    try {
+      const res = await retryGeminiTaskAction('report', report.id);
+      if (res.success) {
+        showToast('재시도 작업이 큐에 추가되었습니다.');
+        // Refresh queue status
+        const { items, lastProcessedAt: last } = await getQueueItems();
+        const qItem = items.find(i => i.type === 'report' && i.target_id === report.id);
+        setCurrentQueueItem(qItem || null);
+        setLastProcessedAt(last);
+      } else {
+        showToast(res.error || '재시도 실패', 'error');
       }
-  }, [selectedReportId]);
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    if (!confirm('리포트를 삭제하시겠습니까?')) return;
+    const res = await deleteReport(id);
+    if (res.success) {
+      showToast('삭제되었습니다.');
+      setSelectedReportId(null);
+      router.push('/saved?filter=report');
+    } else {
+      showToast(res.error || '삭제 실패', 'error');
+    }
+  };
+
+  useEffect(() => {
+    const updateCountdown = () => {
+        if (!lastProcessedAt || !currentQueueItem || currentQueueItem.status === 'processing') {
+            setTimeLeft(0);
+            return;
+        }
+
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
+        setTimeLeft(diff);
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [lastProcessedAt, currentQueueItem]);
 
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 overflow-x-hidden">
@@ -401,309 +511,466 @@ export default function ReportClient({
         title={isDetailView ? "리포트 상세" : "리포트"}
         showBack={isDetailView}
         onBack={() => {
-            if (selectedReportId) {
-                router.push('/saved?filter=report');
-            }
-            setSelectedReportId(null);
-            setSelectedRecommendReport(null);
+          if (selectedReportId) {
+            router.push('/saved?filter=report');
+          }
+          setSelectedReportId(null);
+          setSelectedRecommendReport(null);
         }}
         transparent
         rightAction={
           !isDetailView && (
-          <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => window.location.href = '/settings/gemini'}
-                    className="text-primary p-2"
-                    title="Gemini 설정"
-                  >
-                    <span className="material-symbols-outlined text-2xl">settings_suggest</span>
-                  </button>
-                  <button
-                    onClick={() => setShowTabManager(!showTabManager)}
-                    className="text-primary p-2"
-                  >
-                    <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-                  </button>
-          </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => window.location.href = '/settings/gemini'}
+                className="text-primary p-2"
+                title="Gemini 설정"
+              >
+                <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+              </button>
+              <button
+                onClick={() => setShowTabManager(!showTabManager)}
+                className="text-primary p-2"
+              >
+                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+              </button>
+            </div>
           )
         }
       />
 
       <main className="mt-4 px-4">
         {isDetailLoading ? (
-            <SkeletonReportDetail />
+          <SkeletonReportDetail />
         ) : selectedRecommendReport || (selectedReportId && selectedSavedReport) ? (
-            /* Detail View (both recommended and saved) */
-            <div className="space-y-6 animate-fade-in-up pb-20">
-                {/* Navigation Bar */}
-                {selectedReportId && (
-                <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
-                    <button
-                        onClick={() => adjacentIds.prevId && setSelectedReportId(adjacentIds.prevId)}
-                        disabled={!adjacentIds.prevId}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
-                    >
-                        <span className="material-symbols-outlined text-lg">chevron_left</span>
-                        이전
-                    </button>
-                    <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
-                    <button
-                        onClick={() => adjacentIds.nextId && setSelectedReportId(adjacentIds.nextId)}
-                        disabled={!adjacentIds.nextId}
-                        className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
-                    >
-                        다음
-                        <span className="material-symbols-outlined text-lg">chevron_right</span>
-                    </button>
-                </div>
-                )}
+          <div className="space-y-6 animate-fade-in-up pb-20">
+            {selectedReportId && (
+              <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+                <button
+                  onClick={() => adjacentIds.prevId && setSelectedReportId(adjacentIds.prevId)}
+                  disabled={!adjacentIds.prevId}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-lg">chevron_left</span>
+                  이전
+                </button>
+                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+                <button
+                  onClick={() => adjacentIds.nextId && setSelectedReportId(adjacentIds.nextId)}
+                  disabled={!adjacentIds.nextId}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                >
+                  다음
+                  <span className="material-symbols-outlined text-lg">chevron_right</span>
+                </button>
+              </div>
+            )}
 
-                <div className="grid grid-cols-3 gap-2">
-                    <button
-                        onClick={async () => {
-                            setIsCopying(true);
-                            const current = selectedRecommendReport || selectedSavedReport;
-                            const directUrl = await getResolvedReportUrlAction({
-                                fileId: current.fileId,
-                                fileNum: current.fileNum,
-                                url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url
-                            });
-                            handleCopyUrl(directUrl || '');
-                            setIsCopying(false);
-                        }}
-                        disabled={isCopying}
-                        className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px] disabled:opacity-50"
-                    >
-                        {isCopying ? (
-                            <div className="size-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>
-                                <span className="material-symbols-outlined text-lg">content_copy</span>
-                                URL 복사
-                            </>
-                        )}
-                    </button>
-                    {(selectedRecommendReport?.hasFile || selectedSavedReport?.url) && (
-                            <button
-                            onClick={() => handleDownload(selectedRecommendReport || selectedSavedReport)}
-                            className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px]"
-                        >
-                            <span className="material-symbols-outlined text-lg">download</span>
-                            PDF
-                        </button>
-                    )}
-                    {selectedRecommendReport && (
-                        <button
-                            onClick={() => handleSaveReport(selectedRecommendReport)}
-                            disabled={savingId === selectedRecommendReport.id}
-                            className={cn(
-                                "flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl font-bold text-[12px] shadow-lg shadow-primary/10 disabled:opacity-50",
-                                !selectedRecommendReport.hasFile && "col-span-2"
-                            )}
-                        >
-                            {savingId === selectedRecommendReport.id ? (
-                                <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>
-                                    <span className="material-symbols-outlined text-lg">auto_awesome</span>
-                                    저장
-                                </>
-                            )}
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                        <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                            {(selectedRecommendReport || selectedSavedReport).title}
-                        </h2>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                            {(selectedRecommendReport || selectedSavedReport).author} • {(selectedRecommendReport || selectedSavedReport).date}
-                        </p>
-                    </div>
-                </div>
-
-                {selectedSavedReport?.summary && (
-                    <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm">
-                        <h3 className="text-xs font-bold text-primary uppercase mb-4 flex items-center gap-2">
-                            <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                            AI 요약 분석
-                        </h3>
-                        <div
-                            className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
-                            dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
-                        />
-                    </div>
-                )}
-
-                {isContentLoading ? (
-                    <div className="p-10 flex flex-col items-center justify-center gap-4 text-slate-400">
-                        <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                        <p className="text-sm">내용을 불러오는 중...</p>
-                    </div>
-                ) : viewingContent ? (
-                    <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm">
-                        <div
-                            className="prose prose-sm dark:prose-invert max-w-none break-words p-6"
-                            dangerouslySetInnerHTML={{ __html: viewingContent.content }}
-                        />
-                    </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={async () => {
+                  setIsCopying(true);
+                  const current = selectedRecommendReport || selectedSavedReport;
+                  const directUrl = await getResolvedReportUrlAction({
+                    fileId: current.fileId,
+                    fileNum: current.fileNum,
+                    url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url
+                  });
+                  handleCopyUrl(directUrl || '');
+                  setIsCopying(false);
+                }}
+                disabled={isCopying}
+                className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px] disabled:opacity-50"
+              >
+                {isCopying ? (
+                  <div className="size-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                    <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
+                  <>
+                    <span className="material-symbols-outlined text-lg">content_copy</span>
+                    URL
+                  </>
                 )}
+              </button>
+
+              {(selectedRecommendReport?.hasFile || selectedSavedReport?.url) && (
+                <button
+                  onClick={() => handleDownload(selectedRecommendReport || selectedSavedReport)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-bold text-[12px]"
+                >
+                  <span className="material-symbols-outlined text-lg">download</span>
+                  PDF
+                </button>
+              )}
+
+              {selectedSavedReport ? (
+                <button
+                  onClick={() => handleDeleteReport(selectedSavedReport.id)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl font-bold text-[12px]"
+                >
+                  <span className="material-symbols-outlined text-lg">delete</span>
+                  삭제
+                </button>
+              ) : selectedRecommendReport && (
+                <button
+                  onClick={() => handleSaveReport(selectedRecommendReport)}
+                  disabled={savingId === selectedRecommendReport.id}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 py-2.5 bg-primary text-white rounded-xl font-bold text-[12px] shadow-lg shadow-primary/10 disabled:opacity-50",
+                    !selectedRecommendReport.hasFile && "col-span-2"
+                  )}
+                >
+                  {savingId === selectedRecommendReport.id ? (
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-lg">auto_awesome</span>
+                      저장
+                    </>
+                  )}
+                </button>
+              )}
             </div>
-        ) : (
-            /* List View */
-            <>
-            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-            <div className="flex flex-col flex-1 gap-3">
-            <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap pt-3 mt-1 pr-16 relative">
-                {tabs.map(tab => {
-                    const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
-                    return (
-                        <div
-                            key={tab.id}
-                            className="relative flex-shrink-0 group transition-all"
-                            onContextMenu={(e) => e.preventDefault()}
-                            {...longPressHandlers}
+
+            <div className="flex justify-between items-start gap-4">
+              <div className="space-y-1 flex-1 min-w-0">
+                <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight break-words">
+                  {(selectedRecommendReport || selectedSavedReport).title}
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {(selectedRecommendReport || selectedSavedReport).author} • {(selectedRecommendReport || selectedSavedReport).date}
+                </p>
+              </div>
+              {selectedSavedReport && (
+                <button
+                  onClick={() => handleToggleLike(selectedSavedReport)}
+                  disabled={isLiking}
+                  className={cn(
+                    "flex-shrink-0 p-1.5 transition-all active:scale-125 disabled:opacity-50",
+                    selectedSavedReport.is_liked ? "text-red-500" : "text-slate-300 dark:text-slate-700"
+                  )}
+                >
+                  <span className={cn("material-symbols-outlined text-3xl", selectedSavedReport.is_liked && "fill-1")}>favorite</span>
+                </button>
+              )}
+            </div>
+
+            {(selectedSavedReport || currentQueueItem) && (
+              <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                        AI 요약 분석
+                    </h3>
+                    <div className="flex items-center gap-2">
+                        {currentQueueItem && (
+                            <span className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                currentQueueItem.status === 'processing' ? "bg-primary/10 text-primary animate-pulse" :
+                                currentQueueItem.status === 'failed' ? "bg-red-100 text-red-600" :
+                                "bg-slate-100 text-slate-500"
+                            )}>
+                                {currentQueueItem.status === 'processing' ? '처리 중' :
+                                 currentQueueItem.status === 'failed' ? '실패' : '대기 중'}
+                            </span>
+                        )}
+                        <button
+                            onClick={handleRetrySummary}
+                            disabled={isRetrying || currentQueueItem?.status === 'processing'}
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-bold active:scale-95 transition-all disabled:opacity-50"
                         >
-                            <button
-                                onClick={() => setActiveTabId(tab.id)}
-                                className={cn(
-                                    "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                                    activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                                )}
-                            >
-                                {tab.name}
-                            </button>
+                            <span className={cn("material-symbols-outlined text-[14px]", isRetrying && "animate-spin")}>refresh</span>
+                            다시 가져오기
+                        </button>
+                    </div>
+                </div>
+
+                {currentQueueItem?.status === 'failed' ? (
+                    <div className="p-5 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/20">
+                        <div className="flex items-center gap-2 text-red-600 dark:text-red-400 mb-2">
+                            <span className="material-symbols-outlined text-sm">error</span>
+                            <p className="text-xs font-bold">분석 중 오류가 발생했습니다</p>
                         </div>
-                    );
-                })}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm pl-2 py-2">
-                    <button
+                        <div className="bg-white/50 dark:bg-black/20 rounded-lg p-3 mb-4">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
+                                {currentQueueItem.error_message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={handleRetrySummary}
+                            disabled={isRetrying}
+                            className="w-full py-2.5 bg-red-500 text-white text-xs font-bold rounded-lg shadow-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            {isRetrying ? (
+                                <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <span className="material-symbols-outlined text-sm">refresh</span>
+                            )}
+                            다시 시도
+                        </button>
+                    </div>
+                ) : selectedSavedReport?.summary && (!currentQueueItem || currentQueueItem.status === 'completed') ? (
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+                      dangerouslySetInnerHTML={{ __html: marked.parse(selectedSavedReport.summary) }}
+                    />
+                ) : (
+                    <div className="py-8 flex flex-col items-center justify-center gap-3 text-slate-400">
+                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        <p className="text-xs font-medium">AI가 리포트를 분석하고 있습니다...</p>
+                        {timeLeft > 0 ? (
+                            <p className="text-[10px] text-primary font-bold">{timeLeft}초 후 분석 시작 예정</p>
+                        ) : (
+                            <p className="text-[9px] opacity-60">잠시만 기다려 주세요 (순차 처리 중)</p>
+                        )}
+                    </div>
+                )}
+              </div>
+            )}
+
+            {isContentLoading ? (
+              <div className="p-10 flex flex-col items-center justify-center gap-4 text-slate-400">
+                <div className="size-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm">내용을 불러오는 중...</p>
+              </div>
+            ) : viewingContent ? (
+              <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 overflow-hidden shadow-sm">
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none break-words p-6"
+                  dangerouslySetInnerHTML={{ __html: viewingContent.content }}
+                />
+              </div>
+            ) : (
+              <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
+              <div className="flex flex-col flex-1 gap-3">
+                <div className="space-y-4 pt-3">
+                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm space-y-4">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={searchInput}
+                          onChange={(e) => setSearchInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                          placeholder="검색어를 입력하세요..."
+                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
+                        />
+                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                        {searchInput && (
+                          <button
+                            onClick={() => { setSearchInput(''); setSrhWord(''); }}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-lg">cancel</span>
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleSearch}
+                        className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                      >
+                        조회
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <input
+                          type="date"
+                          value={srhDate ? `${srhDate.slice(0,4)}-${srhDate.slice(4,6)}-${srhDate.slice(6,8)}` : ''}
+                          onChange={(e) => {
+                            const val = e.target.value.split('-').join('');
+                            setSrhDate(val);
+                            setActiveDatePreset('-1');
+                          }}
+                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 px-4 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 transition-all"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        {[
+                          { label: '오늘', id: '0' },
+                          { label: '전체', id: '1' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.id}
+                            onClick={() => handleDatePreset(preset.id)}
+                            className={cn(
+                              "px-4 py-2.5 rounded-xl text-sm font-bold transition-all border",
+                              activeDatePreset === preset.id
+                                ? "bg-primary/10 text-primary border-primary/20"
+                                : "bg-transparent text-slate-500 border-slate-200 dark:border-primary/10 hover:border-primary/30"
+                            )}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap mt-1 pr-16 relative">
+                    {tabs.map(tab => {
+                      const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
+                      return (
+                        <div
+                          key={tab.id}
+                          className="relative flex-shrink-0 group transition-all"
+                          onContextMenu={(e) => e.preventDefault()}
+                          {...longPressHandlers}
+                        >
+                          <button
+                            onClick={() => setActiveTabId(tab.id)}
+                            className={cn(
+                              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
+                              activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                            )}
+                          >
+                            {tab.name}
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm pl-2 py-2">
+                      <button
                         onClick={() => {
-                            if (sortType === 'date') setSortType('size-desc');
-                            else if (sortType === 'size-desc') setSortType('size-asc');
-                            else setSortType('date');
+                          if (sortType === 'date') setSortType('size-desc');
+                          else if (sortType === 'size-desc') setSortType('size-asc');
+                          else setSortType('date');
                         }}
                         className={cn(
-                            "p-2 rounded-full transition-all active:scale-95",
-                            sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
+                          "p-2 rounded-full transition-all active:scale-95",
+                          sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
                         )}
-                        title={sortType === 'date' ? '날짜순' : sortType === 'size-desc' ? '용량 큰순' : '용량 작은순'}
-                    >
+                      >
                         <span className="material-symbols-outlined text-xl">
-                            {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
+                          {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
                         </span>
-                    </button>
+                      </button>
+                    </div>
+                  </div>
                 </div>
-            </div>
-            </div>
+              </div>
             </div>
 
             {showTabManager && (
-            <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
+              <div className="mb-6 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 space-y-3">
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase ml-1">리포트 URL 추가</p>
                 <input
-                type="text"
-                value={newTabName}
-                onChange={(e) => setNewTabName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
-                placeholder="탭 이름 (예: 채권)"
-                className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                  type="text"
+                  value={newTabName}
+                  onChange={(e) => setNewTabName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
+                  placeholder="탭 이름 (예: 채권)"
+                  className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
                 />
                 <input
-                type="text"
-                value={newTabUrl}
-                onChange={(e) => setNewTabUrl(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
-                placeholder="리포트 Ajax URL"
-                className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
+                  type="text"
+                  value={newTabUrl}
+                  onChange={(e) => setNewTabUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
+                  placeholder="리포트 Ajax URL"
+                  className="w-full rounded-xl border dark:border-primary/20 bg-white dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-slate-100"
                 />
                 <button
-                onClick={handleAddTab}
-                disabled={isAddingTab || !newTabName || !newTabUrl}
-                className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
+                  onClick={handleAddTab}
+                  disabled={isAddingTab || !newTabName || !newTabUrl}
+                  className="w-full py-3 bg-primary text-white rounded-xl font-bold text-sm disabled:opacity-50"
                 >
-                {isAddingTab ? '추가 중...' : '탭 추가하기'}
+                  {isAddingTab ? '추가 중...' : '탭 추가하기'}
                 </button>
-            </div>
+              </div>
             )}
 
+        <QueueStatus type="report" />
+
             {isLoading ? (
-            <div className="space-y-4">
+              <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                <SkeletonReportItem key={i} />
+                  <SkeletonReportItem key={i} />
                 ))}
-            </div>
+              </div>
             ) : reports.length === 0 ? (
-            <div className="text-center py-20 text-slate-400 dark:text-slate-600">
+              <div className="text-center py-20 text-slate-400 dark:text-slate-600">
                 <p>{tabs.length === 0 ? '탭을 추가해 주세요.' : '리포트 정보가 없습니다.'}</p>
-            </div>
+              </div>
             ) : (
-            <div className="space-y-3">
-                {sortedReports.map((report, idx) => (
-                <div
+              <div className="space-y-3">
+                {sortedReports.map((report, idx) => {
+                  const isSaved = savedKeys.has(`${report.title}|${report.institution}`);
+                  return (
+                  <div
                     key={report.id + idx}
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
-                >
+                  >
                     <div className="flex justify-between items-start mb-1.5">
-                        <span className="text-[10px] font-bold text-primary uppercase">{report.institution}</span>
-                        <span className="text-[10px] text-slate-400">{report.date}</span>
+                      <span className="text-[10px] font-bold text-primary uppercase">{report.institution}</span>
+                      <span className="text-[10px] text-slate-400">{report.date}</span>
                     </div>
 
                     <div className="flex justify-between items-start gap-3">
-                        <div onClick={() => handleRecommendClick(report)} className="flex-1 cursor-pointer group">
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                                {report.title}
-                            </h3>
-                        </div>
+                      <div onClick={() => handleRecommendClick(report)} className="flex-1 cursor-pointer group">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-3 group-hover:text-primary transition-colors">
+                          {report.title}
+                        </h3>
+                      </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                            {report.hasFile && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); handleDownload(report); }}
-                                    className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg font-bold text-[9px] border border-slate-100 dark:border-primary/5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 whitespace-nowrap min-w-[48px]"
-                                >
-                                    <span className="material-symbols-outlined text-[14px]">download</span>
-                                    {report.fileSize || 'PDF'}
-                                </button>
-                            )}
-                            <button
-                                onClick={(e) => { e.stopPropagation(); handleSaveReport(report); }}
-                                disabled={savingId === report.id}
-                                className="flex items-center justify-center gap-1 px-2.5 py-1.5 bg-primary text-white rounded-lg font-bold text-[9px] transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-50 shadow-sm shadow-primary/10 whitespace-nowrap min-w-[48px]"
-                            >
-                                {savingId === report.id ? (
-                                    <div className="size-2.5 border border-white border-t-transparent rounded-full animate-spin" />
-                                ) : (
-                                    <>
-                                        <span className="material-symbols-outlined text-[14px]">save</span>
-                                        저장
-                                    </>
-                                )}
-                            </button>
-                        </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {report.hasFile && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDownload(report); }}
+                            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg font-bold text-[9px] border border-slate-100 dark:border-primary/5 transition-colors hover:bg-slate-100 dark:hover:bg-slate-700 whitespace-nowrap min-w-[48px]"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">download</span>
+                            {report.fileSize || 'PDF'}
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => {
+                              if (isSaved) return;
+                              e.stopPropagation(); handleSaveReport(report);
+                          }}
+                          disabled={savingId === report.id || isSaved}
+                          className={cn(
+                              "flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg font-bold text-[9px] transition-all whitespace-nowrap min-w-[48px] disabled:opacity-50",
+                              isSaved
+                                ? "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                                : "bg-primary text-white hover:bg-primary/90 active:scale-95 shadow-sm shadow-primary/10"
+                          )}
+                          title={isSaved ? "이미 저장됨" : "저장"}
+                        >
+                          {savingId === report.id ? (
+                            <div className="size-2.5 border border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined text-[14px]">{isSaved ? 'task_alt' : 'save'}</span>
+                              {isSaved ? '저장됨' : '저장'}
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     <div onClick={() => handleRecommendClick(report)} className="cursor-pointer mt-1">
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
                     </div>
-                </div>
-                ))}
+                  </div>
+                )})}
 
                 {hasMore && (
-                <div ref={lastElementRef} className="h-20 flex items-center justify-center">
+                  <div ref={lastElementRef} className="h-20 flex items-center justify-center">
                     {isMoreLoading && (
-                        <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      <div className="size-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     )}
-                </div>
+                  </div>
                 )}
-            </div>
+              </div>
             )}
-            </>
+          </>
         )}
       </main>
 
@@ -723,43 +990,40 @@ export default function ReportClient({
 }
 
 export const SkeletonReportDetail = memo(() => (
-    <div className="space-y-6 animate-fade-in-up pb-20">
-        <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
-            <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
-            <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
-            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
-            <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
-        </div>
-
-        <div className="space-y-2">
-            <div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
-            <div className="h-8 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
-            <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
-        </div>
-
-        <div className="h-48 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
-        <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+  <div className="space-y-6 animate-fade-in-up pb-20">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+      <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+      <div className="h-8 w-20 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
     </div>
+    <div className="grid grid-cols-3 gap-2">
+      <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+      <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+      <div className="h-10 bg-slate-100 dark:bg-slate-800 rounded-xl animate-skeleton" />
+    </div>
+    <div className="space-y-2">
+      <div className="h-4 w-16 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      <div className="h-8 w-3/4 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+      <div className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton" />
+    </div>
+    <div className="h-48 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+    <div className="h-64 w-full bg-slate-100 dark:bg-slate-800 rounded-2xl animate-skeleton" />
+  </div>
 ));
 
 export const SkeletonReportItem = memo(() => (
-    <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm space-y-3">
-        <div className="flex justify-between items-center">
-            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
-            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
-        </div>
-        <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
-        <div className="flex justify-between items-center pt-1">
-            <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/6" />
-            <div className="flex gap-2">
-                <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
-                <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
-            </div>
-        </div>
+  <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm space-y-3">
+    <div className="flex justify-between items-center">
+      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/4" />
+      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/5" />
     </div>
+    <div className="h-5 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-3/4" />
+    <div className="flex justify-between items-center pt-1">
+      <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded animate-skeleton w-1/6" />
+      <div className="flex gap-2">
+        <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
+        <div className="h-7 w-16 bg-slate-100 dark:bg-slate-800 rounded-lg animate-skeleton" />
+      </div>
+    </div>
+  </div>
 ));

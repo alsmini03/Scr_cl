@@ -198,7 +198,7 @@ export default function GeminiSettingsPage() {
                         <button
                             onClick={handleAddModel}
                             disabled={!newModelName}
-                            className="bg-primary text-white px-5 rounded-xl text-sm font-bold disabled:opacity-50"
+                            className="bg-primary text-white px-5 rounded-xl text-sm font-bold disabled:opacity-50 whitespace-nowrap flex-shrink-0"
                         >
                             {editingModelId ? '수정' : '추가'}
                         </button>

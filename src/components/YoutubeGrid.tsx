@@ -83,26 +83,33 @@ export default function YoutubeGrid({
                 }
               }}
               className={cn(
-                "flex flex-col bg-slate-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border transition-all",
+                "flex bg-slate-50 dark:bg-slate-900/50 rounded-2xl overflow-hidden border transition-all",
+                viewMode === '1' ? "flex-row items-center p-3 gap-3" : "flex-col",
                 isSelected ? "border-primary ring-1 ring-primary" : "border-slate-100 dark:border-primary/10 shadow-sm",
                 !isSelectionMode && "active:scale-[0.98]"
               )}
             >
-              <div className="aspect-video relative w-full overflow-hidden">
+              <div className={cn(
+                "aspect-video relative overflow-hidden rounded-xl",
+                viewMode === '1' ? "w-36 shrink-0" : "w-full"
+              )}>
                  {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
-                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                 <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                    {video.duration}
                  </div>
               </div>
-              <div className="p-4 flex flex-col justify-between flex-1">
+              <div className={cn(
+                "flex flex-col justify-between flex-1 min-w-0",
+                viewMode === '1' ? "" : "p-4 min-h-[110px]"
+              )}>
                 <h3 className={cn(
-                  "font-bold text-slate-900 dark:text-slate-100 line-clamp-2 mb-1",
-                  viewMode === '2' ? "text-sm" : "text-base"
+                  "text-slate-900 dark:text-slate-100 leading-snug mb-1",
+                  viewMode === '1' ? "text-[13px] line-clamp-3" : "text-[13px] line-clamp-3"
                 )}>
                   {video.title}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{video.published_at}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{video.published_at}</p>
               </div>
             </Link>
           </div>

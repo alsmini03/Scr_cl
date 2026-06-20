@@ -29,33 +29,43 @@ export function isThumbnailInContent(thumbnail?: string, content?: string): bool
 /**
  * Parses various date formats and returns a simple YYYY-MM-DD string.
  */
-export function formatDateToYMD(dateStr?: string): string {
-  if (!dateStr) return '';
+export function formatDateToYMD(date: any): string {
+  if (!date) return '';
 
-  let cleanDate = dateStr.trim();
+  try {
+    // 1. Handle string inputs with specific formats
+    if (typeof date === 'string') {
+      const clean = date.trim();
 
-  // Handle ISO-like strings with time (e.g., 2024-07-19T23:58:34+09:00)
-  if (cleanDate.includes('T')) {
-    return cleanDate.split('T')[0];
+      // ISO Date part only: YYYY-MM-DD
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
+
+      // Dot separated: YYYY. MM. DD. or YYYY.MM.DD
+      const dotMatch = clean.match(/^(\d{4})\.\s?(\d{1,2})\.\s?(\d{1,2})/);
+      if (dotMatch) {
+        return `${dotMatch[1]}-${dotMatch[2].padStart(2, '0')}-${dotMatch[3].padStart(2, '0')}`;
+      }
+    }
+
+    // 2. Use Date object for everything else (ISO strings, Date objects, timestamps)
+    const d = new Date(date);
+    if (isNaN(d.getTime())) {
+      // Last ditch regex effort if Date parsing fails
+      if (typeof date === 'string') {
+        const match = date.match(/(\d{4}-\d{1,2}-\d{1,2})/);
+        if (match) return match[1];
+      }
+      return String(date);
+    }
+
+    // Use local time components for consistent display and filtering
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return String(date);
   }
-
-  // Support "YYYY. MM. DD."
-  if (/^\d{4}\.\s?\d{1,2}\.\s?\d{1,2}/.test(cleanDate)) {
-    cleanDate = cleanDate.replace(/\.\s?/g, '-').replace(/-$/, '');
-  }
-
-  const d = new Date(cleanDate);
-  if (isNaN(d.getTime())) {
-    // Last ditch effort: try to match YYYY-MM-DD pattern directly
-    const match = cleanDate.match(/(\d{4}-\d{1,2}-\d{1,2})/);
-    return match ? match[1] : cleanDate;
-  }
-
-  const year = d.getFullYear();
-  const month = (d.getMonth() + 1).toString().padStart(2, '0');
-  const day = d.getDate().toString().padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
 }
 
 /**

@@ -11,6 +11,7 @@ export interface Book {
   progress?: number; // 0-100
   rating?: number; // 0-5
   notes?: string;
+  added_at?: string; // ISO date string
   createdAt?: string; // ISO date string
   intro?: string;
   toc?: string;
@@ -18,4 +19,5 @@ export interface Book {
   inside?: string;
   publisherReview?: string;
   yes24Url?: string;
+  is_liked?: boolean;
 }

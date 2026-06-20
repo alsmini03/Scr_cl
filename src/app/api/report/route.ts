@@ -70,8 +70,9 @@ export async function POST(req: NextRequest) {
         return Array.from(buffer).map(b => '%' + b.toString(16).padStart(2, '0').toUpperCase()).join('');
     };
 
-    // If search word is provided, we might need a wide date range for results to appear
-    const finalSrhDate = (srhWord && !srhDate) ? '19900101-20991231' : srhDate;
+    // If search word is provided and no date, we use empty string to let Bondweb handle it
+    // Note: Bondweb Ajax API seems to only support single date (YYYYMMDD) or empty for latest.
+    const finalSrhDate = srhDate;
 
     const bodyParts = [
         `selMnuT=${encodeURIComponent(selMnuT)}`,

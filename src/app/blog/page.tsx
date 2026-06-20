@@ -13,6 +13,7 @@ export default async function BlogListPage() {
     <BlogClient
       session={session}
       initialTabs={tabs}
+      initialSavedBlogs={blogs}
     />
   );
 }

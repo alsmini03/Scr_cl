@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS books (
   author_intro TEXT,
   inside TEXT,
   publisher_review TEXT,
-  yes24_url TEXT
+  yes24_url TEXT,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- YouTube Videos Table
@@ -35,7 +36,8 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   summary TEXT,
   description TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Gemini Models Table
@@ -110,7 +112,8 @@ CREATE TABLE IF NOT EXISTS reports (
   content TEXT,
   summary TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Naver Blogs Table
@@ -123,7 +126,8 @@ CREATE TABLE IF NOT EXISTS naver_blogs (
   content TEXT,
   published_at TEXT,
   user_id TEXT NOT NULL,
-  added_at TEXT NOT NULL
+  added_at TEXT NOT NULL,
+  is_liked BOOLEAN DEFAULT FALSE
 );
 
 -- Auth.js Tables (PostgreSQL Adapter)
@@ -168,3 +172,19 @@ CREATE TABLE IF NOT EXISTS verification_token (
   expires TIMESTAMPTZ NOT NULL,
   PRIMARY KEY (identifier, token)
 );
+
+-- Gemini Queue Table
+CREATE TABLE IF NOT EXISTS gemini_queue (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL, -- 'youtube', 'report'
+  target_id TEXT NOT NULL, -- ID in youtube_videos or reports table
+  payload JSONB NOT NULL, -- contains model, prompt, url etc.
+  status TEXT DEFAULT 'pending', -- 'pending', 'processing', 'completed', 'failed'
+  retry_count INTEGER DEFAULT 0,
+  error_message TEXT,
+  last_processed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_gemini_queue_user_status ON gemini_queue(user_id, status);
