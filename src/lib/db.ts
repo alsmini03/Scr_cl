@@ -1363,7 +1363,14 @@ export async function getDetailedQueueItems(): Promise<any[]> {
       LEFT JOIN reports r ON q.type = 'report' AND q.target_id = r.id
       WHERE (q.user_id = $1 OR q.user_id = $2)
       AND q.status IN ('pending', 'processing', 'failed')
-      ORDER BY q.created_at DESC`,
+      ORDER BY
+        CASE q.status
+          WHEN 'processing' THEN 1
+          WHEN 'pending' THEN 2
+          WHEN 'failed' THEN 3
+          ELSE 4
+        END ASC,
+        q.created_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
