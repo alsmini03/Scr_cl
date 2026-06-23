@@ -136,6 +136,19 @@ export default function ProfilePage() {
           <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider ml-1 mb-3">설정 및 관리</h3>
 
           <Link
+            href="/profile/queue"
+            className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 active:scale-[0.98] transition-all group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="size-10 bg-amber-100 dark:bg-amber-500/10 rounded-xl flex items-center justify-center text-amber-600">
+                <span className="material-symbols-outlined">auto_awesome_motion</span>
+              </div>
+              <span className="font-bold text-slate-700 dark:text-slate-200">AI 요약 작업 관리</span>
+            </div>
+            <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 group-hover:text-primary transition-colors">chevron_right</span>
+          </Link>
+
+          <Link
             href="/settings/gemini"
             className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 active:scale-[0.98] transition-all group"
           >

@@ -1351,6 +1351,44 @@ export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: 
   }
 }
 
+export async function getDetailedQueueItems(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      `SELECT
+        q.*,
+        COALESCE(v.title, r.title) as target_title
+      FROM gemini_queue q
+      LEFT JOIN youtube_videos v ON q.type = 'youtube' AND q.target_id = v.id
+      LEFT JOIN reports r ON q.type = 'report' AND q.target_id = r.id
+      WHERE (q.user_id = $1 OR q.user_id = $2)
+      AND q.status IN ('pending', 'processing', 'failed')
+      ORDER BY q.created_at DESC`,
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('getDetailedQueueItems error:', error);
+    return [];
+  }
+}
+
+export async function deleteQueueItemAction(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query(
+      "DELETE FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    return { success: true };
+  } catch (error: any) {
+    console.error('deleteQueueItemAction error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function processNextQueueItemAction() {
   try {
     const user = await ensureApproved();
