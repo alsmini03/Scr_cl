@@ -52,3 +52,7 @@ DATABASE_URL is missing from environment variables.
     at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
  GET /api/auth/session 500 in 22ms
 DATABASE_URL is missing from environment variables.
+ ✓ Compiled in 4.2s (305 modules)
+ ✓ Compiled in 404ms (305 modules)
+ ✓ Compiled in 673ms (305 modules)
+ ✓ Compiled in 339ms (305 modules)

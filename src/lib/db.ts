@@ -1393,6 +1393,12 @@ export async function processNextQueueItemAction() {
   try {
     const user = await ensureApproved();
 
+    // Reset stale processing items (older than 5 minutes)
+    await query(
+      "UPDATE gemini_queue SET status = 'failed', error_message = '처리 시간 초과 (5분 이상 경과)', retry_count = retry_count + 1 WHERE (user_id = $1 OR user_id = $2) AND status = 'processing' AND last_processed_at < (CURRENT_TIMESTAMP - INTERVAL '5 minutes')",
+      [user.id, user.email]
+    );
+
     // Check if any item is already processing for this user
     const processingRes = await query(
       "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status = 'processing'",

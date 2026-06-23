@@ -16,12 +16,9 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
     setLastProcessedAt(last);
 
     // If there's something to process and we're not currently processing
-    const hasWork = items.some(item => item.status === 'pending' || item.status === 'failed');
+    const hasWork = items.some(item => item.status === 'pending' || item.status === 'failed' || item.status === 'processing');
     if (hasWork && !isProcessing) {
-        const processing = items.some(item => item.status === 'processing');
-        if (!processing) {
-            processQueue();
-        }
+        processQueue();
     }
   }, [type, isProcessing]);
 

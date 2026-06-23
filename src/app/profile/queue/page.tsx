@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getDetailedQueueItems, deleteQueueItemAction, retryGeminiTaskAction } from '@/lib/db';
+import { getDetailedQueueItems, deleteQueueItemAction, retryGeminiTaskAction, getQueueItems, processNextQueueItemAction } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -13,12 +13,43 @@ export default function QueuePage() {
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
 
   const fetchItems = useCallback(async () => {
-    const data = await getDetailedQueueItems();
-    setItems(data);
+    // We also fetch the global queue status to trigger processing if needed
+    const [{ items: queueData, lastProcessedAt: last }, detailedData] = await Promise.all([
+      getQueueItems(),
+      getDetailedQueueItems()
+    ]);
+
+    setItems(detailedData);
+    setLastProcessedAt(last);
     setLoading(false);
-  }, []);
+
+    // Trigger processing if needed
+    const hasWork = queueData.some((item: any) =>
+        item.status === 'pending' ||
+        item.status === 'failed' ||
+        item.status === 'processing'
+    );
+
+    if (hasWork && !isProcessing) {
+        processQueue();
+    }
+  }, [isProcessing]);
+
+  const processQueue = async () => {
+    setIsProcessing(true);
+    try {
+        await processNextQueueItemAction();
+    } finally {
+        setIsProcessing(false);
+        // Refresh items after processing attempt
+        const data = await getDetailedQueueItems();
+        setItems(data);
+    }
+  };
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -75,8 +106,14 @@ export default function QueuePage() {
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-xs font-bold text-slate-400 px-1 uppercase tracking-wider">
-              총 {items.length}개의 작업
+            <p className="text-xs font-bold text-slate-400 px-1 uppercase tracking-wider flex justify-between items-center">
+              <span>총 {items.length}개의 작업</span>
+              {isProcessing && (
+                <span className="flex items-center gap-1 text-primary animate-pulse normal-case">
+                    <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                    처리 중...
+                </span>
+              )}
             </p>
             {items.map((item) => (
               <div
