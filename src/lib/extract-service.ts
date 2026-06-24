@@ -235,6 +235,10 @@ export async function extractYoutube(url: string, requestedModel?: string, reque
                 {
                     type: "text",
                     text: fullPrompt
+                },
+                {
+                    type: "video",
+                    uri: url
                 }
             ]);
         } else {
