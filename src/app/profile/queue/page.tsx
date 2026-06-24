@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getDetailedQueueItems, deleteQueueItemAction, retryGeminiTaskAction, getQueueItems, processNextQueueItemAction } from '@/lib/db';
+import {
+  getDetailedQueueItems,
+  deleteQueueItemAction,
+  retryGeminiTaskAction,
+  getQueueItems,
+  processNextQueueItemAction,
+  processQueueItemManuallyAction
+} from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -15,9 +22,26 @@ export default function QueuePage() {
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
+  const [mode, setMode] = useState<'auto' | 'manual'>('auto');
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const modeRef = useRef<'auto' | 'manual'>('auto');
+
+  // Load mode from localStorage
+  useEffect(() => {
+    const savedMode = localStorage.getItem('queue_mode') as 'auto' | 'manual';
+    if (savedMode) {
+        setMode(savedMode);
+        modeRef.current = savedMode;
+    }
+  }, []);
+
+  const handleModeChange = (newMode: 'auto' | 'manual') => {
+      setMode(newMode);
+      modeRef.current = newMode;
+      localStorage.setItem('queue_mode', newMode);
+  };
 
   const fetchItems = useCallback(async () => {
-    // We also fetch the global queue status to trigger processing if needed
     const [{ items: queueData, lastProcessedAt: last }, detailedData] = await Promise.all([
       getQueueItems(),
       getDetailedQueueItems()
@@ -27,15 +51,17 @@ export default function QueuePage() {
     setLastProcessedAt(last);
     setLoading(false);
 
-    // Trigger processing if needed
-    const hasWork = queueData.some((item: any) =>
-        item.status === 'pending' ||
-        item.status === 'failed' ||
-        item.status === 'processing'
-    );
+    // Trigger processing if needed and in auto mode
+    if (modeRef.current === 'auto') {
+        const hasWork = queueData.some((item: any) =>
+            item.status === 'pending' ||
+            item.status === 'failed' ||
+            item.status === 'processing'
+        );
 
-    if (hasWork && !isProcessing) {
-        processQueue();
+        if (hasWork && !isProcessing) {
+            processQueue();
+        }
     }
   }, [isProcessing]);
 
@@ -45,10 +71,22 @@ export default function QueuePage() {
         await processNextQueueItemAction();
     } finally {
         setIsProcessing(false);
-        // Refresh items after processing attempt
         const data = await getDetailedQueueItems();
         setItems(data);
     }
+  };
+
+  const handleManualProcess = async (id: string) => {
+      setIsProcessing(true);
+      try {
+          const res = await processQueueItemManuallyAction(id);
+          if (!res.success) {
+              alert(res.error || '작업 시작 실패');
+          }
+      } finally {
+          setIsProcessing(false);
+          fetchItems();
+      }
   };
 
   useEffect(() => {
@@ -56,10 +94,28 @@ export default function QueuePage() {
       router.push('/login');
     } else if (status === 'authenticated') {
       fetchItems();
-      const timer = setInterval(fetchItems, 10000); // Poll every 10 seconds
+      const timer = setInterval(fetchItems, 10000);
       return () => clearInterval(timer);
     }
   }, [status, router, fetchItems]);
+
+  // Elapsed timer logic
+  useEffect(() => {
+      const updateElapsed = () => {
+          if (!lastProcessedAt) {
+              setElapsedTime(0);
+              return;
+          }
+          const last = new Date(lastProcessedAt).getTime();
+          const now = Date.now();
+          const diff = Math.floor((now - last) / 1000);
+          setElapsedTime(Math.min(diff, 180)); // Cap at 3 minutes
+      };
+
+      updateElapsed();
+      const timer = setInterval(updateElapsed, 1000);
+      return () => clearInterval(timer);
+  }, [lastProcessedAt]);
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 작업을 삭제하시겠습니까?')) return;
@@ -98,23 +154,73 @@ export default function QueuePage() {
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
       <Header title="AI 요약 작업 현황" />
 
-      <main className="p-4 space-y-4">
+      <main className="p-4 space-y-6">
+        {/* Mode & Timer Section */}
+        <section className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">timer</span>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">마지막 작업 후</span>
+                        <span className={cn(
+                            "text-lg font-black leading-none",
+                            elapsedTime >= 60 ? "text-primary" : "text-slate-700 dark:text-slate-200"
+                        )}>
+                            {elapsedTime}초 경과
+                        </span>
+                    </div>
+                </div>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                    <button
+                        onClick={() => handleModeChange('auto')}
+                        className={cn(
+                            "px-4 py-1.5 rounded-lg text-xs font-black transition-all",
+                            mode === 'auto' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500"
+                        )}
+                    >
+                        자동
+                    </button>
+                    <button
+                        onClick={() => handleModeChange('manual')}
+                        className={cn(
+                            "px-4 py-1.5 rounded-lg text-xs font-black transition-all",
+                            mode === 'manual' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-500"
+                        )}
+                    >
+                        수동
+                    </button>
+                </div>
+            </div>
+            {mode === 'auto' && (
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-black/20 p-2.5 rounded-lg">
+                    <span className="text-primary font-bold">자동 모드:</span> 제미나이 API 제한을 준수하기 위해 1분 간격으로 대기 중인 작업을 순차적으로 처리합니다.
+                </p>
+            )}
+            {mode === 'manual' && (
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed bg-amber-50 dark:bg-amber-500/5 p-2.5 rounded-lg">
+                    <span className="text-amber-600 font-bold">수동 모드:</span> 자동 처리가 중단됩니다. 각 작업의 <span className="font-bold">시작</span> 버튼을 눌러 즉시 실행할 수 있습니다. (잦은 호출 시 에러 발생 가능)
+                </p>
+            )}
+        </section>
+
         {items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-            <span className="material-symbols-outlined text-6xl mb-4">task_alt</span>
+          <div className="flex flex-col items-center justify-center py-10 text-slate-400">
+            <span className="material-symbols-outlined text-6xl mb-4 opacity-20">task_alt</span>
             <p className="font-medium">진행 중인 작업이 없습니다.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="text-xs font-bold text-slate-400 px-1 uppercase tracking-wider flex justify-between items-center">
-              <span>총 {items.length}개의 작업</span>
-              {isProcessing && (
-                <span className="flex items-center gap-1 text-primary animate-pulse normal-case">
-                    <span className="material-symbols-outlined text-xs animate-spin">sync</span>
-                    처리 중...
-                </span>
-              )}
-            </p>
+            <div className="flex justify-between items-center px-1">
+                <p className="text-xs font-black text-slate-400 uppercase tracking-wider">
+                    Queue ({items.length})
+                </p>
+                {isProcessing && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary animate-pulse">
+                        <span className="material-symbols-outlined text-xs animate-spin">sync</span>
+                        처리 중...
+                    </span>
+                )}
+            </div>
             {items.map((item) => (
               <div
                 key={item.id}
@@ -144,7 +250,16 @@ export default function QueuePage() {
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    {item.status === 'failed' && (
+                    {(item.status === 'pending' || item.status === 'failed') && mode === 'manual' && (
+                        <button
+                            onClick={() => handleManualProcess(item.id)}
+                            disabled={isProcessing}
+                            className="h-8 px-3 flex items-center justify-center bg-primary text-white text-[11px] font-black rounded-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+                        >
+                            시작
+                        </button>
+                    )}
+                    {item.status === 'failed' && mode === 'auto' && (
                       <button
                         onClick={() => handleRetry(item.type, item.target_id)}
                         className="size-8 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-white transition-colors"
@@ -202,9 +317,9 @@ export default function QueuePage() {
                 안내사항
             </h5>
             <ul className="text-[10px] text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-4">
-                <li>제미나이 무료 티어 API 제한으로 인해 1분 간격으로 순차 처리됩니다.</li>
+                <li>제미나이 무료 티어 API 제한으로 인해 자동 모드에서는 1분 간격으로 순차 처리됩니다.</li>
+                <li>수동 모드에서는 제한 없이 즉시 시작할 수 있으나, 짧은 간격으로 실행 시 구글 정책에 따라 오류가 발생할 수 있습니다.</li>
                 <li>실패한 작업은 최대 3회까지 자동으로 재시도됩니다.</li>
-                <li>지속적으로 실패하는 경우 모델이나 프롬프트 설정을 확인해 주세요.</li>
             </ul>
         </div>
       </main>

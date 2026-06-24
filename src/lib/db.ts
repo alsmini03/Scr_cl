@@ -161,6 +161,74 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+export async function processQueueItemManuallyAction(id: string) {
+  try {
+    const user = await ensureApproved();
+
+    // Get the specific item
+    const itemRes = await query(
+      "SELECT * FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+
+    const item = itemRes.rows[0];
+    if (!item) return { success: false, message: 'Item not found' };
+
+    // Mark as processing
+    await query(
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
+      [item.id]
+    );
+
+    let result;
+    try {
+      const { type, target_id, payload } = item;
+      let summary = '';
+
+      if (type === 'youtube') {
+          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          summary = data.summary;
+      } else {
+          summary = await extractReport(payload.url, payload.model, payload.prompt);
+      }
+
+      // Update target table
+      if (type === 'youtube') {
+        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/youtube');
+        safeRevalidate(`/youtube/${target_id}`);
+      } else {
+        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        safeRevalidate('/report');
+        safeRevalidate('/saved');
+      }
+
+      // Mark as completed
+      await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE id = $1",
+        [item.id]
+      );
+      result = { success: true };
+    } catch (err: any) {
+      console.error('Manual processing error:', err);
+      // Mark as failed and increment retry count
+      await query(
+        "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
+        [err.message, item.id]
+      );
+      result = { success: false, error: err.message };
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    safeRevalidate('/profile/queue');
+    return result;
+  } catch (error: any) {
+    console.error('processQueueItemManuallyAction error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
   try {
     if (params.fileId && params.fileNum) {
