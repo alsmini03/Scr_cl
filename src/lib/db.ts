@@ -174,10 +174,26 @@ export async function processQueueItemManuallyAction(id: string) {
     const item = itemRes.rows[0];
     if (!item) return { success: false, message: 'Item not found' };
 
-    // Mark as processing
+    // Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = item.payload.model;
+    let activePrompt = item.payload.prompt;
+
+    if (item.type === 'report') {
+        activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+        activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
+    // Mark as processing and update payload with latest settings
+    const newPayload = { ...item.payload, model: activeModel, prompt: activePrompt };
     await query(
-      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [item.id]
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP, payload = $1 WHERE id = $2",
+      [JSON.stringify(newPayload), item.id]
     );
 
     let result;
@@ -186,10 +202,10 @@ export async function processQueueItemManuallyAction(id: string) {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          const data = await extractYoutube(payload.url, activeModel, activePrompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, payload.model, payload.prompt);
+          summary = await extractReport(payload.url, activeModel, activePrompt);
       }
 
       // Update target table
