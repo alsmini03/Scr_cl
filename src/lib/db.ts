@@ -168,11 +168,19 @@ export async function getGeminiKeyPreference(): Promise<number> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2",
-      [user.id, user.email]
+      "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
+      [user.id, user.email, user.email?.toLowerCase()]
     );
     return res.rows[0]?.gemini_key_index || 1;
-  } catch (error) {
+  } catch (error: any) {
+    // If column doesn't exist, we'll try to add it once (graceful migration)
+    if (error.message.includes('column "gemini_key_index" does not exist')) {
+        try {
+            await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_index INTEGER DEFAULT 1");
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('getGeminiKeyPreference error:', error);
     return 1;
   }
@@ -181,13 +189,20 @@ export async function getGeminiKeyPreference(): Promise<number> {
 export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query(
-      "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR email = $3",
-      [index, user.id, user.email]
+    const email = user.email?.toLowerCase();
+    const res = await query(
+      "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR LOWER(email) = $3",
+      [index, user.id, email]
     );
+
+    if (res.rowCount === 0) {
+        throw new Error('사용자 정보를 찾을 수 없거나 업데이트에 실패했습니다.');
+    }
+
     return { success: true };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    console.error('updateGeminiKeyPreferenceAction error:', error);
+    return { success: false, error: error.message || '데이터베이스 오류' };
   }
 }
 

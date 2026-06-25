@@ -156,6 +156,8 @@ export default function GeminiSettingsPage() {
       if (res.success) {
           setKeyPreference(index);
           showToast(`API 키 ${index}번이 선택되었습니다.`);
+      } else {
+          showToast(res.error || '설정 변경 실패', 'error');
       }
   };
 
