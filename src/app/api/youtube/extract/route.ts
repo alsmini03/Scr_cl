@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractYoutube } from "@/lib/extract-service";
+import { getGeminiApiKeys } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +14,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = await extractYoutube(url, requestedModel, requestedPrompt);
+    const apiKeys = await getGeminiApiKeys();
+    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+
+    if (!activeKey) {
+        return NextResponse.json(
+            { error: "GEMINI_API_KEY is not configured" },
+            { status: 500 }
+        );
+    }
+
+    const data = await extractYoutube(url, activeKey, requestedModel, requestedPrompt);
 
     return NextResponse.json(data);
   } catch (error: any) {

@@ -161,6 +161,64 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+/**
+ * Gemini API Key management
+ */
+export async function getGeminiApiKeys(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      "SELECT id, name, key_value, is_active FROM gemini_api_keys WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error) {
+    console.error('getGeminiApiKeys error:', error);
+    return [];
+  }
+}
+
+export async function addGeminiApiKey(name: string, key: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const existing = await getGeminiApiKeys();
+    if (existing.length >= 2) {
+        throw new Error('API 키는 최대 2개까지 등록할 수 있습니다.');
+    }
+
+    const id = randomUUID();
+    const isActive = existing.length === 0;
+
+    await query(
+      "INSERT INTO gemini_api_keys (id, user_id, name, key_value, is_active) VALUES ($1, $2, $3, $4, $5)",
+      [id, user.email || user.id, name, key, isActive]
+    );
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteGeminiApiKey(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query("DELETE FROM gemini_api_keys WHERE id = $1 AND (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function setActiveGeminiApiKey(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    await query("UPDATE gemini_api_keys SET is_active = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export async function processQueueItemManuallyAction(id: string) {
   try {
     const user = await ensureApproved();
@@ -189,6 +247,14 @@ export async function processQueueItemManuallyAction(id: string) {
         activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
     }
 
+    // Fetch active API key
+    const apiKeys = await getGeminiApiKeys();
+    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+
+    if (!activeKey) {
+        throw new Error('사용 가능한 제미나이 API 키가 없습니다. 설정에서 키를 등록해 주세요.');
+    }
+
     // Mark as processing and update payload with latest settings
     const newPayload = { ...item.payload, model: activeModel, prompt: activePrompt };
     await query(
@@ -202,10 +268,10 @@ export async function processQueueItemManuallyAction(id: string) {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, activeModel, activePrompt);
+          const data = await extractYoutube(payload.url, activeKey, activeModel, activePrompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, activeModel, activePrompt);
+          summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
       }
 
       // Update target table
@@ -1523,6 +1589,14 @@ export async function processNextQueueItemAction() {
       }
     }
 
+    // Fetch active API key
+    const apiKeys = await getGeminiApiKeys();
+    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+
+    if (!activeKey) {
+        throw new Error('사용 가능한 제미나이 API 키가 없습니다. 설정에서 키를 등록해 주세요.');
+    }
+
     // Mark as processing
     await query(
       "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
@@ -1535,10 +1609,10 @@ export async function processNextQueueItemAction() {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          const data = await extractYoutube(payload.url, activeKey, payload.model, payload.prompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, payload.model, payload.prompt);
+          summary = await extractReport(payload.url, activeKey, payload.model, payload.prompt);
       }
 
       // Update target table

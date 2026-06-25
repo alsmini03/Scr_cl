@@ -13,7 +13,11 @@ import {
   addGeminiPrompt,
   updateGeminiPrompt,
   deleteGeminiPrompt,
-  setDefaultGeminiPrompt
+  setDefaultGeminiPrompt,
+  getGeminiApiKeys,
+  addGeminiApiKey,
+  deleteGeminiApiKey,
+  setActiveGeminiApiKey
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -34,6 +38,13 @@ interface GeminiPrompt {
   report_default: boolean;
 }
 
+interface GeminiApiKey {
+    id: string;
+    name: string;
+    key_value: string;
+    is_active: boolean;
+}
+
 export default function GeminiSettingsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'youtube' | 'report'>('youtube');
@@ -46,13 +57,19 @@ export default function GeminiSettingsPage() {
   const [newPromptText, setNewPromptText] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
 
+  const [apiKeys, setApiKeys] = useState<GeminiApiKey[]>([]);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newKeyValue, setNewKeyValue] = useState('');
+
   const loadSettings = async () => {
-    const [dbModels, dbPrompts] = await Promise.all([
+    const [dbModels, dbPrompts, dbKeys] = await Promise.all([
       getGeminiModels(),
-      getGeminiPrompts()
+      getGeminiPrompts(),
+      getGeminiApiKeys()
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
+    setApiKeys(dbKeys);
   };
 
   useEffect(() => {
@@ -145,11 +162,121 @@ export default function GeminiSettingsPage() {
     }
   };
 
+  const handleAddApiKey = async () => {
+      if (newKeyName && newKeyValue) {
+          const res = await addGeminiApiKey(newKeyName, newKeyValue);
+          if (res.success) {
+              setNewKeyName('');
+              setNewKeyValue('');
+              await loadSettings();
+              showToast('API 키가 등록되었습니다.');
+          } else {
+              showToast(res.error || '실패', 'error');
+          }
+      }
+  };
+
+  const handleDeleteApiKey = async (id: string) => {
+      if (!confirm('API 키를 삭제하시겠습니까?')) return;
+      const res = await deleteGeminiApiKey(id);
+      if (res.success) {
+          await loadSettings();
+      }
+  };
+
+  const handleSetActiveApiKey = async (id: string) => {
+      const res = await setActiveGeminiApiKey(id);
+      if (res.success) {
+          await loadSettings();
+      }
+  };
+
   return (
     <div className="font-display min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 pb-24">
       <Header title="Gemini 설정" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-10">
+
+        {/* API Key Section */}
+        <section className="space-y-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">key</span>
+                API 키 관리
+            </h2>
+
+            <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-4">
+                {apiKeys.length < 2 && (
+                    <div className="flex flex-col gap-3">
+                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">새 API 키 추가</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <input
+                                type="text"
+                                value={newKeyName}
+                                onChange={(e) => setNewKeyName(e.target.value)}
+                                placeholder="키 별칭 (예: 키 1)"
+                                className="rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-black/20 p-3 text-sm outline-none focus:border-primary transition-colors"
+                            />
+                            <input
+                                type="password"
+                                value={newKeyValue}
+                                onChange={(e) => setNewKeyValue(e.target.value)}
+                                placeholder="API 키 값"
+                                className="rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-black/20 p-3 text-sm outline-none focus:border-primary transition-colors"
+                            />
+                        </div>
+                        <button
+                            onClick={handleAddApiKey}
+                            disabled={!newKeyName || !newKeyValue}
+                            className="bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 disabled:opacity-50"
+                        >
+                            API 키 등록
+                        </button>
+                    </div>
+                )}
+
+                <div className="space-y-3 pt-2">
+                    {apiKeys.map((k) => (
+                        <div key={k.id} className={cn(
+                            "flex items-center justify-between p-4 rounded-2xl border transition-all",
+                            k.is_active ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5"
+                        )}>
+                            <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                    <span className={cn("text-sm font-bold", k.is_active ? "text-primary" : "text-slate-900 dark:text-slate-100")}>
+                                        {k.name}
+                                    </span>
+                                    {k.is_active && (
+                                        <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-bold">사용 중</span>
+                                    )}
+                                </div>
+                                <span className="text-xs text-slate-400 mt-0.5">••••••••{k.key_value.slice(-4)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {!k.is_active && (
+                                    <button
+                                        onClick={() => handleSetActiveApiKey(k.id)}
+                                        className="px-3 py-1.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary transition-colors"
+                                    >
+                                        선택
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => handleDeleteApiKey(k.id)}
+                                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                    {apiKeys.length === 0 && (
+                        <div className="py-6 text-center text-slate-400 text-xs italic bg-slate-50 dark:bg-black/10 rounded-2xl border border-dashed border-slate-200 dark:border-primary/10">
+                            등록된 API 키가 없습니다. 환경 변수의 기본 키를 사용합니다.
+                        </div>
+                    )}
+                </div>
+            </div>
+        </section>
 
         {/* Tab Picker */}
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-primary/10">

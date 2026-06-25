@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS gemini_models (
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Gemini API Keys Table
+CREATE TABLE IF NOT EXISTS gemini_api_keys (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  key_value TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Gemini Prompts Table
 CREATE TABLE IF NOT EXISTS gemini_prompts (
   id TEXT PRIMARY KEY,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractReport } from "@/lib/extract-service";
+import { getGeminiApiKeys } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -29,7 +30,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid URL format." }, { status: 400 });
     }
 
-    const text = await extractReport(url, model, prompt);
+    const apiKeys = await getGeminiApiKeys();
+    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+
+    if (!activeKey) {
+        return NextResponse.json({ error: "GEMINI_API_KEY is not configured" }, { status: 500 });
+    }
+
+    const text = await extractReport(url, activeKey, model, prompt);
 
     return NextResponse.json({ result: text });
   } catch (error: any) {

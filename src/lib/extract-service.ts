@@ -2,10 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
 import he from "he";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-
-async function callGeminiInteractionsAPI(model: string, inputs: any[]) {
-  const apiKey = process.env.GEMINI_API_KEY;
+async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
@@ -49,7 +46,8 @@ async function callGeminiInteractionsAPI(model: string, inputs: any[]) {
   return JSON.stringify(data);
 }
 
-export async function extractReport(url: string, modelName?: string, promptText?: string) {
+export async function extractReport(url: string, apiKey: string, modelName?: string, promptText?: string) {
+    const genAI = new GoogleGenerativeAI(apiKey || "");
     // 1. Fetch the PDF
     const response = await fetch(url, {
         headers: {
@@ -76,7 +74,7 @@ export async function extractReport(url: string, modelName?: string, promptText?
 
     // Special handling for gemini-3.5-flash using Interactions API
     if (modelName === "gemini-3.5-flash") {
-        return await callGeminiInteractionsAPI(modelName, [
+        return await callGeminiInteractionsAPI(apiKey, modelName, [
             {
                 type: "document",
                 data: base64Pdf,
@@ -106,7 +104,8 @@ export async function extractReport(url: string, modelName?: string, promptText?
     return result.response.text();
 }
 
-export async function extractYoutube(url: string, requestedModel?: string, requestedPrompt?: string) {
+export async function extractYoutube(url: string, apiKey: string, requestedModel?: string, requestedPrompt?: string) {
+    const genAI = new GoogleGenerativeAI(apiKey || "");
     // First attempt with a browser user agent
     let response = await fetch(url, {
       headers: {
@@ -225,13 +224,13 @@ export async function extractYoutube(url: string, requestedModel?: string, reque
       console.warn("Manual transcript scraping failed:", e);
     }
 
-    if (process.env.GEMINI_API_KEY) {
+    if (apiKey) {
         const geminiModel = requestedModel || "gemini-1.5-flash";
         const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
         const fullPrompt = `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`;
 
         if (geminiModel === "gemini-3.5-flash") {
-            summary = await callGeminiInteractionsAPI(geminiModel, [
+            summary = await callGeminiInteractionsAPI(apiKey, geminiModel, [
                 {
                     type: "text",
                     text: fullPrompt
