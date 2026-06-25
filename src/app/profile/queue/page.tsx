@@ -291,18 +291,22 @@ export default function QueuePage() {
                     <span className="font-bold block text-slate-400 mb-0.5">요청 시간</span>
                     <span className="text-slate-700 dark:text-slate-200">{new Date(item.created_at).toLocaleString()}</span>
                   </div>
-                  <div className="col-span-2">
-                    <span className="font-bold block text-slate-400 mb-0.5">프롬프트</span>
-                    <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
-                      {item.payload.prompt || '기본 프롬프트'}
-                    </p>
+                  <div className="col-span-2 space-y-1">
+                    <span className="font-bold block text-slate-400">프롬프트</span>
+                    <div className="max-h-24 overflow-y-auto bg-slate-50 dark:bg-black/20 p-2 rounded-lg border border-slate-100 dark:border-white/5 shadow-inner">
+                        <p className="text-[10px] text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                            {item.payload.prompt || '기본 프롬프트'}
+                        </p>
+                    </div>
                   </div>
                   {item.error_message && (
-                    <div className="col-span-2 bg-red-50 dark:bg-red-500/5 p-3 rounded-xl border border-red-100 dark:border-red-900/20 mt-1">
-                      <span className="font-bold block text-red-500 mb-1">오류 메시지 전체</span>
-                      <p className="text-red-600 dark:text-red-400 break-words whitespace-pre-wrap leading-relaxed text-[10px]">
-                        {item.error_message}
-                      </p>
+                    <div className="col-span-2 mt-1 space-y-1">
+                      <span className="font-bold block text-red-500">오류 메시지 전체</span>
+                      <div className="max-h-32 overflow-y-auto bg-red-50 dark:bg-red-500/5 p-3 rounded-xl border border-red-100 dark:border-red-900/20 shadow-inner">
+                        <p className="text-red-600 dark:text-red-400 break-words whitespace-pre-wrap leading-relaxed text-[10px]">
+                            {item.error_message}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
