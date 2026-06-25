@@ -51,14 +51,6 @@ CREATE TABLE IF NOT EXISTS gemini_models (
 );
 
 -- Gemini API Keys Table
-CREATE TABLE IF NOT EXISTS gemini_api_keys (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  name TEXT NOT NULL,
-  key_value TEXT NOT NULL,
-  is_active BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
 
 -- Gemini Prompts Table
 CREATE TABLE IF NOT EXISTS gemini_prompts (
@@ -149,7 +141,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE,
   "emailVerified" TIMESTAMPTZ,
   image TEXT,
-  is_approved BOOLEAN DEFAULT FALSE
+  is_approved BOOLEAN DEFAULT FALSE,
+  gemini_key_index INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS accounts (

@@ -162,57 +162,29 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
 }
 
 /**
- * Gemini API Key management
+ * Gemini API Key Preference management
  */
-export async function getGeminiApiKeys(): Promise<any[]> {
+export async function getGeminiKeyPreference(): Promise<number> {
   try {
     const user = await getSessionUser();
     const res = await query(
-      "SELECT id, name, key_value, is_active FROM gemini_api_keys WHERE user_id = $1 OR user_id = $2 ORDER BY created_at ASC",
+      "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2",
       [user.id, user.email]
     );
-    return res.rows;
+    return res.rows[0]?.gemini_key_index || 1;
   } catch (error) {
-    console.error('getGeminiApiKeys error:', error);
-    return [];
+    console.error('getGeminiKeyPreference error:', error);
+    return 1;
   }
 }
 
-export async function addGeminiApiKey(name: string, key: string): Promise<{ success: boolean; error?: string }> {
+export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const existing = await getGeminiApiKeys();
-    if (existing.length >= 2) {
-        throw new Error('API 키는 최대 2개까지 등록할 수 있습니다.');
-    }
-
-    const id = randomUUID();
-    const isActive = existing.length === 0;
-
     await query(
-      "INSERT INTO gemini_api_keys (id, user_id, name, key_value, is_active) VALUES ($1, $2, $3, $4, $5)",
-      [id, user.email || user.id, name, key, isActive]
+      "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR email = $3",
+      [index, user.id, user.email]
     );
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
-export async function deleteGeminiApiKey(id: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await ensureApproved();
-    await query("DELETE FROM gemini_api_keys WHERE id = $1 AND (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
-    return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
-  }
-}
-
-export async function setActiveGeminiApiKey(id: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const user = await ensureApproved();
-    await query("UPDATE gemini_api_keys SET is_active = (id = $1) WHERE (user_id = $2 OR user_id = $3)", [id, user.id, user.email]);
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -247,12 +219,12 @@ export async function processQueueItemManuallyAction(id: string) {
         activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
     }
 
-    // Fetch active API key
-    const apiKeys = await getGeminiApiKeys();
-    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+    // Fetch active API key from environment based on preference
+    const keyIndex = await getGeminiKeyPreference();
+    const activeKey = keyIndex === 2 ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
 
     if (!activeKey) {
-        throw new Error('사용 가능한 제미나이 API 키가 없습니다. 설정에서 키를 등록해 주세요.');
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
     // Mark as processing and update payload with latest settings
@@ -1589,12 +1561,12 @@ export async function processNextQueueItemAction() {
       }
     }
 
-    // Fetch active API key
-    const apiKeys = await getGeminiApiKeys();
-    const activeKey = apiKeys.find(k => k.is_active)?.key_value || process.env.GEMINI_API_KEY;
+    // Fetch active API key from environment based on preference
+    const keyIndex = await getGeminiKeyPreference();
+    const activeKey = keyIndex === 2 ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
 
     if (!activeKey) {
-        throw new Error('사용 가능한 제미나이 API 키가 없습니다. 설정에서 키를 등록해 주세요.');
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
     // Mark as processing
