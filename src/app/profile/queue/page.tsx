@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { showToast } from '@/components/Toast';
 
 export default function QueuePage() {
   const { status } = useSession();
@@ -134,6 +135,12 @@ export default function QueuePage() {
     } else {
       alert(res.error || '재시도 실패');
     }
+  };
+
+  const handleCopyError = (msg: string) => {
+      navigator.clipboard.writeText(msg).then(() => {
+          showToast('오류 메시지가 복사되었습니다.');
+      });
   };
 
   if (loading) {
@@ -301,7 +308,16 @@ export default function QueuePage() {
                   </div>
                   {item.error_message && (
                     <div className="col-span-2 mt-1 space-y-1">
-                      <span className="font-bold block text-red-500">오류 메시지 전체</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold block text-red-500">오류 메시지 전체</span>
+                        <button
+                            onClick={() => handleCopyError(item.error_message)}
+                            className="flex items-center gap-1 text-red-400 hover:text-red-600 transition-colors text-[10px] font-bold"
+                        >
+                            <span className="material-symbols-outlined text-[14px]">content_copy</span>
+                            복사
+                        </button>
+                      </div>
                       <div className="max-h-32 overflow-y-auto bg-red-50 dark:bg-red-500/5 p-3 rounded-xl border border-red-100 dark:border-red-900/20 shadow-inner">
                         <p className="text-red-600 dark:text-red-400 break-words whitespace-pre-wrap leading-relaxed text-[10px]">
                             {item.error_message}

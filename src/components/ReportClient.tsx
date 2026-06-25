@@ -691,10 +691,23 @@ export default function ReportClient({
                             <span className="material-symbols-outlined text-sm">error</span>
                             <p className="text-xs font-bold">분석 중 오류가 발생했습니다</p>
                         </div>
-                        <div className="bg-white/50 dark:bg-black/20 rounded-lg p-3 mb-4">
-                            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap">
+                        <div className="bg-white/50 dark:bg-black/20 rounded-lg p-3 mb-4 relative group">
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap pr-10">
                                 {currentQueueItem.error_message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'}
                             </p>
+                            {currentQueueItem.error_message && (
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(currentQueueItem.error_message).then(() => {
+                                            showToast('오류 메시지가 복사되었습니다.');
+                                        });
+                                    }}
+                                    className="absolute top-2 right-2 p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-primary rounded-lg transition-colors"
+                                    title="오류 메시지 복사"
+                                >
+                                    <span className="material-symbols-outlined text-sm">content_copy</span>
+                                </button>
+                            )}
                         </div>
                         <button
                             onClick={handleRetrySummary}
