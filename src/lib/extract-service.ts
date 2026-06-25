@@ -5,6 +5,8 @@ import he from "he";
 async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
+  const modelId = model.startsWith('models/') ? model : `models/${model}`;
+
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
     method: 'POST',
     headers: {
@@ -12,15 +14,16 @@ async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model,
+      model: modelId,
       input: inputs,
     }),
   });
 
   const data = await response.json();
   if (!response.ok) {
-    console.error("Gemini Interactions API error:", data);
-    throw new Error(data.error?.message || "Failed to call Gemini Interactions API");
+    console.error("Gemini Interactions API error:", JSON.stringify(data, null, 2));
+    const details = data.error?.details ? ` - ${JSON.stringify(data.error.details)}` : '';
+    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details}`);
   }
 
   // According to docs, we can access output_text if using SDK,
@@ -269,6 +272,13 @@ export async function extractYoutube(url: string, apiKey: string, requestedModel
         const fullPrompt = `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`;
 
         if (geminiModel === "gemini-3.5-flash") {
+            // Normalize URL to standard watch?v= format for Gemini API
+            let videoUri = url;
+            const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/);
+            if (videoIdMatch) {
+                videoUri = `https://www.youtube.com/watch?v=${videoIdMatch[1]}`;
+            }
+
             summary = await callGeminiInteractionsAPI(apiKey, geminiModel, [
                 {
                     type: "text",
@@ -276,7 +286,7 @@ export async function extractYoutube(url: string, apiKey: string, requestedModel
                 },
                 {
                     type: "video",
-                    uri: url
+                    uri: videoUri
                 }
             ]);
         } else {
