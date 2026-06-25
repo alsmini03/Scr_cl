@@ -293,14 +293,14 @@ export default function QueuePage() {
                   </div>
                   <div className="col-span-2">
                     <span className="font-bold block text-slate-400 mb-0.5">프롬프트</span>
-                    <p className="line-clamp-2 text-slate-700 dark:text-slate-200">
+                    <p className="text-slate-700 dark:text-slate-200 whitespace-pre-wrap">
                       {item.payload.prompt || '기본 프롬프트'}
                     </p>
                   </div>
                   {item.error_message && (
-                    <div className="col-span-2 bg-red-50 dark:bg-red-500/5 p-2 rounded-lg border border-red-100 dark:border-red-900/20 mt-1">
-                      <span className="font-bold block text-red-500 mb-0.5">오류 메시지</span>
-                      <p className="text-red-600 dark:text-red-400 break-all leading-relaxed">
+                    <div className="col-span-2 bg-red-50 dark:bg-red-500/5 p-3 rounded-xl border border-red-100 dark:border-red-900/20 mt-1">
+                      <span className="font-bold block text-red-500 mb-1">오류 메시지 전체</span>
+                      <p className="text-red-600 dark:text-red-400 break-words whitespace-pre-wrap leading-relaxed text-[10px]">
                         {item.error_message}
                       </p>
                     </div>

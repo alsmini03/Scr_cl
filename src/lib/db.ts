@@ -280,12 +280,13 @@ export async function processQueueItemManuallyAction(id: string) {
       result = { success: true };
     } catch (err: any) {
       console.error('Manual processing error:', err);
+      const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
         "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
-        [err.message, item.id]
+        [fullError, item.id]
       );
-      result = { success: false, error: err.message };
+      result = { success: false, error: fullError };
     }
 
     safeRevalidate('/youtube');
@@ -1621,12 +1622,13 @@ export async function processNextQueueItemAction() {
       result = { success: true };
     } catch (err: any) {
       console.error('Queue processing error:', err);
+      const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
         "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
-        [err.message, item.id]
+        [fullError, item.id]
       );
-      result = { success: false, error: err.message };
+      result = { success: false, error: fullError };
     }
 
     safeRevalidate('/youtube');
