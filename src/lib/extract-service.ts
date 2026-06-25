@@ -46,6 +46,43 @@ async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: 
   return JSON.stringify(data);
 }
 
+async function uploadToGeminiFiles(apiKey: string, buffer: Buffer, mimeType: string) {
+    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`;
+
+    // Boundary for multipart request
+    const boundary = '-------' + Math.random().toString(16).substring(2);
+
+    const metadata = JSON.stringify({
+        file: { display_name: `upload-${Date.now()}` }
+    });
+
+    const header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+    const footer = `\r\n--${boundary}--`;
+
+    const body = Buffer.concat([
+        Buffer.from(header),
+        buffer,
+        Buffer.from(footer)
+    ]);
+
+    const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'X-Goog-Upload-Protocol': 'multipart',
+            'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: body
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        console.error("Gemini File Upload error:", data);
+        throw new Error(data.error?.message || "Failed to upload file to Gemini");
+    }
+
+    return data.file; // contains uri, mimeType etc.
+}
+
 export async function extractReport(url: string, apiKey: string, modelName?: string, promptText?: string) {
     const genAI = new GoogleGenerativeAI(apiKey || "");
     // 1. Fetch the PDF
@@ -70,15 +107,15 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
         throw new Error("올바른 PDF 형식이 아닙니다.");
     }
 
-    const base64Pdf = buffer.toString("base64");
-
     // Special handling for gemini-3.5-flash using Interactions API
     if (modelName === "gemini-3.5-flash") {
+        const geminiFile = await uploadToGeminiFiles(apiKey, buffer, "application/pdf");
+
         return await callGeminiInteractionsAPI(apiKey, modelName, [
             {
                 type: "document",
-                data: base64Pdf,
-                mime_type: "application/pdf"
+                uri: geminiFile.uri,
+                mime_type: geminiFile.mimeType
             },
             {
                 type: "text",
@@ -86,6 +123,8 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
             }
         ]);
     }
+
+    const base64Pdf = buffer.toString("base64");
 
     // 2. Initialize Gemini model
     const geminiModel = genAI.getGenerativeModel({ model: modelName || "gemini-1.5-flash" });
