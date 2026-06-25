@@ -5,23 +5,25 @@ import he from "he";
 async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
+  const modelId = model.startsWith('models/') ? model : `models/${model}`;
+  const payload = {
+    model: modelId,
+    input: inputs,
+  };
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`, {
     method: 'POST',
     headers: {
-      'x-goog-api-key': apiKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      input: inputs,
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await response.json();
   if (!response.ok) {
     console.error("Gemini Interactions API error:", JSON.stringify(data, null, 2));
     const details = data.error?.details ? ` - ${JSON.stringify(data.error.details)}` : '';
-    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${model})`);
+    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${modelId}, Payload: ${JSON.stringify(payload)})`);
   }
 
   // According to docs, we can access output_text if using SDK,
@@ -77,10 +79,11 @@ async function uploadToGeminiFiles(apiKey: string, buffer: Buffer, mimeType: str
 
     const data = await response.json();
     if (!response.ok) {
-        console.error("Gemini File Upload error:", data);
+        console.error("Gemini File Upload error:", JSON.stringify(data, null, 2));
         throw new Error(data.error?.message || "Failed to upload file to Gemini");
     }
 
+    console.log("Gemini File Upload success:", JSON.stringify(data.file, null, 2));
     return data.file; // contains uri, mimeType etc.
 }
 
@@ -115,7 +118,7 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
         return await callGeminiInteractionsAPI(apiKey, modelName, [
             {
                 type: "document",
-                uri: geminiFile.uri || geminiFile.uri,
+                uri: geminiFile.uri,
                 mime_type: geminiFile.mimeType || geminiFile.mime_type
             },
             {
