@@ -5,9 +5,8 @@ import he from "he";
 async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const modelId = model.startsWith('models/') ? model : `models/${model}`;
   const payload = {
-    model: modelId,
+    model: model,
     input: inputs,
   };
 
@@ -23,7 +22,7 @@ async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: 
   if (!response.ok) {
     console.error("Gemini Interactions API error:", JSON.stringify(data, null, 2));
     const details = data.error?.details ? ` - ${JSON.stringify(data.error.details)}` : '';
-    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${modelId}, Payload: ${JSON.stringify(payload)})`);
+    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${model}, Payload: ${JSON.stringify(payload)})`);
   }
 
   // According to docs, we can access output_text if using SDK,
