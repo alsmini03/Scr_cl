@@ -5,8 +5,6 @@ import he from "he";
 async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
   if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-  const modelId = model.startsWith('models/') ? model : `models/${model}`;
-
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions`, {
     method: 'POST',
     headers: {
@@ -14,7 +12,7 @@ async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: 
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: modelId,
+      model,
       input: inputs,
     }),
   });
@@ -23,7 +21,7 @@ async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: 
   if (!response.ok) {
     console.error("Gemini Interactions API error:", JSON.stringify(data, null, 2));
     const details = data.error?.details ? ` - ${JSON.stringify(data.error.details)}` : '';
-    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details}`);
+    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${model})`);
   }
 
   // According to docs, we can access output_text if using SDK,
@@ -117,8 +115,8 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
         return await callGeminiInteractionsAPI(apiKey, modelName, [
             {
                 type: "document",
-                uri: geminiFile.uri,
-                mime_type: geminiFile.mimeType
+                uri: geminiFile.uri || geminiFile.uri,
+                mime_type: geminiFile.mimeType || geminiFile.mime_type
             },
             {
                 type: "text",
@@ -282,7 +280,7 @@ export async function extractYoutube(url: string, apiKey: string, requestedModel
             summary = await callGeminiInteractionsAPI(apiKey, geminiModel, [
                 {
                     type: "text",
-                    text: fullPrompt
+                    text: promptText || "이 영상을 분석해 주세요."
                 },
                 {
                     type: "video",
