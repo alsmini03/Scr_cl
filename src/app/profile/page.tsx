@@ -37,46 +37,6 @@ export default function ProfilePage() {
       <Header title="프로필" />
 
       <main className="p-6 space-y-8">
-        {/* User Info Section */}
-        <section className="flex flex-col items-center gap-4 py-6">
-          <div className="relative">
-            {session?.user?.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={session.user.image}
-                alt={session.user.name || "User"}
-                className="size-24 rounded-full border-4 border-primary/10"
-              />
-            ) : (
-              <div className="size-24 bg-primary/10 rounded-full flex items-center justify-center">
-                <span className="material-symbols-outlined text-5xl text-primary">person</span>
-              </div>
-            )}
-            {session?.user?.isApproved ? (
-              <div className="absolute -bottom-1 -right-1 size-8 bg-green-500 rounded-full border-4 border-white dark:border-slate-800 flex items-center justify-center" title="승인된 사용자">
-                <span className="material-symbols-outlined text-white text-xs">verified</span>
-              </div>
-            ) : (
-              <div className="absolute -bottom-1 -right-1 size-8 bg-amber-500 rounded-full border-4 border-white dark:border-slate-800 flex items-center justify-center" title="승인 대기 중">
-                <span className="material-symbols-outlined text-white text-xs">hourglass_empty</span>
-              </div>
-            )}
-          </div>
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{session?.user?.name || "사용자님"}</h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-1">{session?.user?.email || "email@example.com"}</p>
-            {session?.user?.isApproved ? (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                정식 승인됨
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                승인 대기 중
-              </span>
-            )}
-          </div>
-        </section>
-
         {/* Theme Settings Section */}
         {mounted && (
           <section className="space-y-3">
@@ -185,6 +145,42 @@ export default function ProfilePage() {
               <span className="font-bold text-slate-700 dark:text-slate-200">로그아웃</span>
             </div>
           </button>
+        </section>
+
+        {/* User Info Section moved to bottom */}
+        <section className="flex flex-col items-center gap-4 py-10 border-t border-slate-100 dark:border-white/5 opacity-80">
+          <div className="relative">
+            {session?.user?.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={session.user.image}
+                alt={session.user.name || "User"}
+                className="size-20 rounded-full border-4 border-primary/5 grayscale-[0.5]"
+              />
+            ) : (
+              <div className="size-20 bg-primary/5 rounded-full flex items-center justify-center">
+                <span className="material-symbols-outlined text-4xl text-slate-400">person</span>
+              </div>
+            )}
+            {session?.user?.isApproved && (
+              <div className="absolute -bottom-1 -right-1 size-7 bg-green-500 rounded-full border-4 border-white dark:border-slate-800 flex items-center justify-center" title="승인된 사용자">
+                <span className="material-symbols-outlined text-white text-[10px]">verified</span>
+              </div>
+            )}
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-slate-600 dark:text-slate-300">{session?.user?.name || "사용자님"}</h2>
+            <p className="text-slate-400 text-xs mb-1">{session?.user?.email || "email@example.com"}</p>
+            {session?.user?.isApproved ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500">
+                정식 승인됨
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                승인 대기 중
+              </span>
+            )}
+          </div>
         </section>
       </main>
 
