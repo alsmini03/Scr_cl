@@ -494,7 +494,7 @@ export default function ReportClient({
             return;
         }
 
-        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 180000;
         const now = Date.now();
         const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
         setTimeLeft(diff);

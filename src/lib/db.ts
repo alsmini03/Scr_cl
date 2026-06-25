@@ -1572,8 +1572,8 @@ export async function processNextQueueItemAction() {
     if (lastProcessedRes.rows.length > 0) {
       const lastProcessed = new Date(lastProcessedRes.rows[0].last_processed_at).getTime();
       const now = Date.now();
-      if (now - lastProcessed < 60000) {
-        return { success: false, message: 'Wait for 1 minute interval' };
+      if (now - lastProcessed < 180000) {
+        return { success: false, message: 'Wait for 3 minute interval' };
       }
     }
 
