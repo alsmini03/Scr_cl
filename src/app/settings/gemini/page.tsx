@@ -175,36 +175,26 @@ export default function GeminiSettingsPage() {
             </h2>
 
             <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-4">
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => handleSetKeyPreference(1)}
-                        className={cn(
-                            "flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
-                            keyPreference === 1
-                                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                : "bg-slate-50 dark:bg-black/20 text-slate-500 border-slate-100 dark:border-primary/5 hover:border-primary/30"
-                        )}
-                    >
-                        <span className="material-symbols-outlined text-3xl">filter_1</span>
-                        <span className="text-sm font-black tracking-tight">API 키 1번</span>
-                        <span className="text-[10px] opacity-60">기본 키 사용</span>
-                    </button>
-                    <button
-                        onClick={() => handleSetKeyPreference(2)}
-                        className={cn(
-                            "flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border transition-all gap-2",
-                            keyPreference === 2
-                                ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
-                                : "bg-slate-50 dark:bg-black/20 text-slate-500 border-slate-100 dark:border-primary/5 hover:border-primary/30"
-                        )}
-                    >
-                        <span className="material-symbols-outlined text-3xl">filter_2</span>
-                        <span className="text-sm font-black tracking-tight">API 키 2번</span>
-                        <span className="text-[10px] opacity-60">보조 키 사용</span>
-                    </button>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {[1, 2, 3, 4, 5].map((idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSetKeyPreference(idx)}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-4 px-2 rounded-2xl border transition-all gap-1.5",
+                                keyPreference === idx
+                                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                    : "bg-slate-50 dark:bg-black/20 text-slate-500 border-slate-100 dark:border-primary/5 hover:border-primary/30"
+                            )}
+                        >
+                            <span className="material-symbols-outlined text-2xl">filter_{idx}</span>
+                            <span className="text-[11px] font-black tracking-tighter whitespace-nowrap">키 {idx}번</span>
+                            <span className="text-[8px] opacity-60 font-medium">{idx === 1 ? '기본' : '보조'}</span>
+                        </button>
+                    ))}
                 </div>
                 <p className="text-[10px] text-slate-400 text-center bg-slate-50 dark:bg-black/10 py-2 rounded-lg">
-                    무료 할당량 소진 시 다른 키로 전환하여 사용할 수 있습니다.
+                    무료 할당량 소진 시 다른 키로 전환하여 사용할 수 있습니다. (최대 5개 지원)
                 </p>
             </div>
         </section>

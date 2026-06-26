@@ -236,7 +236,12 @@ export async function processQueueItemManuallyAction(id: string) {
 
     // Fetch active API key from environment based on preference
     const keyIndex = await getGeminiKeyPreference();
-    const activeKey = keyIndex === 2 ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
+    const activeKey =
+        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
+        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
+        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
+        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
+        process.env.GEMINI_API_KEY;
 
     if (!activeKey) {
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
@@ -1580,7 +1585,12 @@ export async function processNextQueueItemAction() {
 
     // Fetch active API key from environment based on preference
     const keyIndex = await getGeminiKeyPreference();
-    const activeKey = keyIndex === 2 ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
+    const activeKey =
+        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
+        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
+        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
+        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
+        process.env.GEMINI_API_KEY;
 
     if (!activeKey) {
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);

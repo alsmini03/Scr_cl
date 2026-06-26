@@ -15,7 +15,12 @@ export async function POST(req: NextRequest) {
     }
 
     const keyIndex = await getGeminiKeyPreference();
-    const activeKey = keyIndex === 2 ? process.env.GEMINI_API_KEY_2 : process.env.GEMINI_API_KEY;
+    const activeKey =
+        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
+        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
+        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
+        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
+        process.env.GEMINI_API_KEY;
 
     if (!activeKey) {
         return NextResponse.json(
