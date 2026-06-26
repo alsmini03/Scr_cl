@@ -159,7 +159,19 @@ export default function QueuePage() {
 
   return (
     <div className="font-display min-h-screen pb-24 bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100">
-      <Header title="AI 요약 작업 현황" />
+      <Header
+        title="AI 요약 작업 현황"
+        showBack
+        rightAction={
+            <button
+                onClick={() => router.push('/settings/gemini')}
+                className="size-10 flex items-center justify-center text-primary hover:bg-primary/5 rounded-full transition-colors"
+                title="제미나이 설정"
+            >
+                <span className="material-symbols-outlined">settings_suggest</span>
+            </button>
+        }
+      />
 
       <main className="p-4 space-y-6">
         {/* Mode & Timer Section */}
