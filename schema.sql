@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   duration TEXT,
   published_at TEXT,
   summary TEXT,
+  gemini_model TEXT,
   description TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
@@ -113,6 +114,7 @@ CREATE TABLE IF NOT EXISTS reports (
   url TEXT,
   content TEXT,
   summary TEXT,
+  gemini_model TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
   is_liked BOOLEAN DEFAULT FALSE

@@ -897,13 +897,14 @@ export async function updateYoutubeVideo(id: string, video: {
   duration?: string;
   published_at?: string;
   summary?: string;
+  gemini_model?: string;
   description?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     await query(
-      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, description = $6 WHERE id = $7",
-      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.description, id]
+      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, gemini_model = $6, description = $7 WHERE id = $8",
+      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.gemini_model, video.description, id]
     );
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);

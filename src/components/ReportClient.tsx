@@ -24,6 +24,9 @@ interface Report {
   hasFile: boolean;
   fileSize?: string;
   is_liked?: boolean;
+  summary?: string;
+  gemini_model?: string;
+  url?: string;
 }
 
 interface ReportContent {

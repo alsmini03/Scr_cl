@@ -32,6 +32,7 @@ interface YoutubeVideo {
   duration: string;
   published_at: string;
   summary: string;
+  gemini_model?: string;
   description: string;
   added_at: string;
   user_id: string;
@@ -320,6 +321,7 @@ export default function YoutubeDetailPage() {
         duration: data.duration || video.duration,
         published_at: data.publishDate || video.published_at,
         summary: data.summary || '',
+        gemini_model: defaultModel?.name,
         description: data.description || '',
       });
 
@@ -331,6 +333,7 @@ export default function YoutubeDetailPage() {
           duration: data.duration || video.duration,
           published_at: data.publishDate || video.published_at,
           summary: data.summary || '',
+          gemini_model: defaultModel?.name,
           description: data.description || '',
         });
         showToast('정보가 업데이트되었습니다.');
