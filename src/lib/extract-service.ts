@@ -86,7 +86,7 @@ async function uploadToGeminiFiles(apiKey: string, buffer: Buffer, mimeType: str
     return data.file; // contains uri, mimeType etc.
 }
 
-export async function extractReport(url: string, apiKey: string, modelName?: string, promptText?: string) {
+export async function extractReport(url: string, apiKey: string, modelName?: string, promptText?: string, skipAi: boolean = false) {
     const genAI = new GoogleGenerativeAI(apiKey || "");
     // 1. Fetch the PDF
     const response = await fetch(url, {
@@ -109,6 +109,8 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
         }
         throw new Error("올바른 PDF 형식이 아닙니다.");
     }
+
+    if (skipAi) return "";
 
     // Special handling for gemini-3.5-flash using Interactions API
     if (modelName === "gemini-3.5-flash") {
@@ -146,7 +148,7 @@ export async function extractReport(url: string, apiKey: string, modelName?: str
     return result.response.text();
 }
 
-export async function extractYoutube(url: string, apiKey: string, requestedModel?: string, requestedPrompt?: string) {
+export async function extractYoutube(url: string, apiKey: string, requestedModel?: string, requestedPrompt?: string, skipAi: boolean = false) {
     const genAI = new GoogleGenerativeAI(apiKey || "");
     // First attempt with a browser user agent
     let response = await fetch(url, {
@@ -266,7 +268,7 @@ export async function extractYoutube(url: string, apiKey: string, requestedModel
       console.warn("Manual transcript scraping failed:", e);
     }
 
-    if (apiKey) {
+    if (apiKey && !skipAi) {
         const geminiModel = requestedModel || "gemini-1.5-flash";
         const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
         const fullPrompt = `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`;

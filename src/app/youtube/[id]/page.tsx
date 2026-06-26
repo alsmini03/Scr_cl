@@ -292,37 +292,31 @@ export default function YoutubeDetailPage() {
   };
 
   const handleRefetch = async () => {
+    if (!video) return;
     setIsRefetching(true);
     try {
-      // Load user settings for Gemini
-      const dbModels = await getGeminiModels();
-      const dbPrompts = await getGeminiPrompts();
-
-      const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
-      const defaultPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];
-
+      // Refresh metadata only (includeAi: false)
       const response = await fetch('/api/youtube/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: video.url,
-          model: defaultModel?.name,
-          prompt: defaultPrompt?.content
+          includeAi: false
         }),
       });
 
       const data = await response.json();
-
       if (!response.ok) throw new Error(data.error || 'Failed to extract video info');
 
+      // Update basic metadata, preserving existing summary/model
       const updateResult = await updateYoutubeVideo(video.id, {
         title: data.title || video.title,
         thumbnail: data.thumbnail || video.thumbnail,
         duration: data.duration || video.duration,
         published_at: data.publishDate || video.published_at,
-        summary: data.summary || '',
-        gemini_model: defaultModel?.name,
-        description: data.description || '',
+        summary: video.summary,
+        gemini_model: video.gemini_model,
+        description: data.description || video.description,
       });
 
       if (updateResult.success) {
@@ -332,11 +326,15 @@ export default function YoutubeDetailPage() {
           thumbnail: data.thumbnail || video.thumbnail,
           duration: data.duration || video.duration,
           published_at: data.publishDate || video.published_at,
-          summary: data.summary || '',
-          gemini_model: defaultModel?.name,
-          description: data.description || '',
+          description: data.description || video.description,
         });
-        showToast('정보가 업데이트되었습니다.');
+
+        // Also trigger a background AI task if the user wants to refresh EVERYTHING
+        await retryGeminiTaskAction('youtube', video.id);
+        const q = await getQueueItems();
+        setQueueItems(q.items);
+
+        showToast('기본 정보가 업데이트되었으며 요약 작업이 대기열에 추가되었습니다.');
       } else {
         showToast(`업데이트 실패: ${updateResult.error}`, 'error');
       }

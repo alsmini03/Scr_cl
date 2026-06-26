@@ -5,7 +5,7 @@ import { getGeminiKeyPreference } from "@/lib/db";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { url, model: requestedModel, prompt: requestedPrompt } = body;
+    const { url, model: requestedModel, prompt: requestedPrompt, includeAi = false } = body;
 
     if (!url || (!url.includes("youtube.com") && !url.includes("youtu.be"))) {
       return NextResponse.json(
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    const data = await extractYoutube(url, activeKey, requestedModel, requestedPrompt);
+    const data = await extractYoutube(url, activeKey, requestedModel, requestedPrompt, !includeAi);
 
     return NextResponse.json(data);
   } catch (error: any) {

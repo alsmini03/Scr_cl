@@ -104,9 +104,8 @@ function AddContent() {
       else if (contentType === 'blog') endpoint = '/api/blog/extract';
       else if (contentType === 'youtube') {
         endpoint = '/api/youtube/extract';
-        const p = prompts.find(p => p.id === selectedPromptId);
-        body.model = selectedModel;
-        body.prompt = p?.content;
+        // Skip AI summary during initial extraction to save quota and speed up preview
+        body.includeAi = false;
       }
 
       const response = await fetch(endpoint, {
@@ -205,9 +204,8 @@ function AddContent() {
       else if (contentType === 'blog') endpoint = '/api/blog/extract';
       else if (contentType === 'youtube') {
           endpoint = '/api/youtube/extract';
-          const p = prompts.find(p => p.id === selectedPromptId);
-          body.model = selectedModel;
-          body.prompt = p?.content;
+          // Skip AI summary during initial extraction to save quota and speed up preview
+          body.includeAi = false;
       }
 
       const res = await fetch(endpoint, {
