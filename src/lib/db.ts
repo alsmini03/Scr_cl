@@ -98,7 +98,15 @@ export async function getReports(prefetchedUser?: any, includeContent: boolean =
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return getReports(prefetchedUser, includeContent);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('getReports error:', error);
     return [];
   }
@@ -127,6 +135,14 @@ export async function saveReport(report: {
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return saveReport(report);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('Failed to save report:', {
         error: error.message,
         stack: error.stack,
@@ -921,6 +937,14 @@ export async function updateYoutubeVideo(id: string, video: {
     safeRevalidate(`/youtube/${id}`);
     return { success: true };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return updateYoutubeVideo(id, video);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error(`Failed to update youtube video with id ${id}:`, error);
     return { success: false, error: error.message || '업데이트 중 오류가 발생했습니다.' };
   }
@@ -1308,6 +1332,14 @@ export async function saveYoutubeVideo(video: {
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return saveYoutubeVideo(video);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('Failed to save youtube video:', error);
     return {
       success: false,
@@ -1327,7 +1359,15 @@ export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boo
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return getYoutubeVideos(prefetchedUser, includeContent);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('getYoutubeVideos error:', error);
     return [];
   }
@@ -1504,7 +1544,10 @@ export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: 
         items: queueRes.rows,
         lastProcessedAt: lastProcessedRes.rows[0]?.last_processed_at || null
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column v.title does not exist') || error.message.includes('column r.title does not exist')) {
+        console.error('Possible schema mismatch in getQueueItems');
+    }
     console.error('getQueueItems error:', error);
     return { items: [], lastProcessedAt: null };
   }
@@ -1533,7 +1576,11 @@ export async function getDetailedQueueItems(): Promise<any[]> {
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column q.target_title does not exist') || error.message.includes('column v.title does not exist')) {
+        // This might happen if tables were partially migrated or during extreme edge cases
+        console.error('Possible schema mismatch in getDetailedQueueItems');
+    }
     console.error('getDetailedQueueItems error:', error);
     return [];
   }
