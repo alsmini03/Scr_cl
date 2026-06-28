@@ -1527,12 +1527,18 @@ export async function getDetailedQueueItems(): Promise<any[]> {
 export async function deleteQueueItemAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    await query(
-      "DELETE FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
-      [id, user.id, user.email]
+    const res = await query(
+      "DELETE FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4)",
+      [id, user.id, user.email, user.email?.toLowerCase()]
     );
+
+    if (res.rowCount === 0) {
+        throw new Error('해당 작업을 찾을 수 없거나 삭제 권한이 없습니다.');
+    }
+
     safeRevalidate('/youtube');
     safeRevalidate('/report');
+    safeRevalidate('/profile/queue');
     return { success: true };
   } catch (error: any) {
     console.error('deleteQueueItemAction error:', error);
