@@ -26,6 +26,8 @@ export default function QueuePage() {
   const [mode, setMode] = useState<'auto' | 'manual'>('auto');
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const modeRef = useRef<'auto' | 'manual'>('auto');
+  const prevItemsRef = useRef<any[]>([]);
+  const deletedIdsRef = useRef<Set<string>>(new Set());
 
   // Load mode from localStorage
   useEffect(() => {
@@ -47,6 +49,29 @@ export default function QueuePage() {
       getQueueItems(),
       getDetailedQueueItems()
     ]);
+
+    // Check for completed items
+    const prevItems = prevItemsRef.current;
+    if (prevItems.length > 0) {
+        // Items that were in the queue but are now gone
+        const completed = prevItems.filter(prev =>
+            !detailedData.some(curr => curr.id === prev.id) &&
+            !deletedIdsRef.current.has(prev.id)
+        );
+
+        completed.forEach(item => {
+            showToast(`${item.target_title || '항목'} 요약 완료`, 'success');
+        });
+
+        // Clean up deletedIdsRef for items that are no longer in prevItems either
+        const currentIds = new Set(detailedData.map(i => i.id));
+        deletedIdsRef.current.forEach(id => {
+            if (!currentIds.has(id)) {
+                deletedIdsRef.current.delete(id);
+            }
+        });
+    }
+    prevItemsRef.current = detailedData;
 
     setItems(detailedData);
     setLastProcessedAt(last);
@@ -120,10 +145,12 @@ export default function QueuePage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('이 작업을 삭제하시겠습니까?')) return;
+    deletedIdsRef.current.add(id);
     const res = await deleteQueueItemAction(id);
     if (res.success) {
       fetchItems();
     } else {
+      deletedIdsRef.current.delete(id);
       alert(res.error || '삭제 실패');
     }
   };
