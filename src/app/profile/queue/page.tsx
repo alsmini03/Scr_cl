@@ -212,7 +212,7 @@ export default function QueuePage() {
             </div>
             {mode === 'auto' && (
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-black/20 p-2.5 rounded-lg">
-                    <span className="text-primary font-bold">자동 모드:</span> 제미나이 API 제한을 준수하기 위해 3분 간격으로 대기 중인 작업을 순차적으로 처리합니다.
+                    <span className="text-primary font-bold">자동 모드:</span> 제미나이 API 제한을 준수하기 위해 1분 간격으로 대기 중인 작업을 순차적으로 처리합니다.
                 </p>
             )}
             {mode === 'manual' && (
@@ -349,7 +349,7 @@ export default function QueuePage() {
                 안내사항
             </h5>
             <ul className="text-[10px] text-slate-500 dark:text-slate-400 space-y-1 list-disc pl-4">
-                <li>제미나이 무료 티어 API 제한으로 인해 자동 모드에서는 3분 간격으로 순차 처리됩니다.</li>
+                <li>제미나이 무료 티어 API 제한으로 인해 자동 모드에서는 1분 간격으로 순차 처리됩니다.</li>
                 <li>수동 모드에서는 제한 없이 즉시 시작할 수 있으나, 짧은 간격으로 실행 시 구글 정책에 따라 오류가 발생할 수 있습니다.</li>
                 <li>실패한 작업은 최대 3회까지 자동으로 재시도됩니다.</li>
             </ul>

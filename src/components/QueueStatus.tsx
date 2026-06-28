@@ -45,7 +45,7 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
             return;
         }
 
-        const nextAllowed = new Date(lastProcessedAt).getTime() + 180000;
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
         const now = Date.now();
         const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
         setTimeLeft(diff);
@@ -107,7 +107,7 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
       </div>
 
       <p className="text-[9px] text-slate-400 mt-3 text-center">
-        제미나이 무료 티어 제한으로 인해 3분 간격으로 순차 처리됩니다.
+        제미나이 무료 티어 제한으로 인해 1분 간격으로 순차 처리됩니다.
       </p>
     </div>
   );
