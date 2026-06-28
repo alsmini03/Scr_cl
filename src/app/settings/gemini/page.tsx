@@ -48,7 +48,7 @@ export default function GeminiSettingsPage() {
   const [newPromptText, setNewPromptText] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
 
-  const [keyPreference, setKeyPreference] = useState<number>(1);
+  const [keyPreference, setKeyPreference] = useState<number | null>(null);
 
   const loadSettings = async () => {
     const [dbModels, dbPrompts, dbKeyPref] = await Promise.all([
