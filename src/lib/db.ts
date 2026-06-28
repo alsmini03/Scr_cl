@@ -91,8 +91,8 @@ export async function getReports(prefetchedUser?: any, includeContent: boolean =
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked"
-      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked";
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
@@ -186,6 +186,17 @@ export async function getGeminiKeyPreference(): Promise<number> {
   }
 }
 
+export async function getActiveGeminiKey(): Promise<string | undefined> {
+    const keyIndex = await getGeminiKeyPreference();
+    const activeKey =
+        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
+        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
+        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
+        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
+        process.env.GEMINI_API_KEY;
+    return activeKey;
+}
+
 export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
@@ -235,15 +246,10 @@ export async function processQueueItemManuallyAction(id: string) {
     }
 
     // Fetch active API key from environment based on preference
-    const keyIndex = await getGeminiKeyPreference();
-    const activeKey =
-        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
-        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
-        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
-        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
-        process.env.GEMINI_API_KEY;
+    const activeKey = await getActiveGeminiKey();
 
     if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
@@ -268,11 +274,11 @@ export async function processQueueItemManuallyAction(id: string) {
 
       // Update target table
       if (type === 'youtube') {
-        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
-        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         safeRevalidate('/report');
         safeRevalidate('/saved');
       }
@@ -1314,8 +1320,8 @@ export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boo
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked"
-      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked";
+      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked, gemini_model"
+      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
@@ -1476,7 +1482,16 @@ export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: 
 
     const [queueRes, lastProcessedRes] = await Promise.all([
         query(
-          "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
+          `SELECT
+            q.*,
+            COALESCE(v.title, r.title) as target_title
+          FROM gemini_queue q
+          LEFT JOIN youtube_videos v ON q.type = 'youtube' AND q.target_id = v.id
+          LEFT JOIN reports r ON q.type = 'report' AND q.target_id = r.id
+          WHERE (q.user_id = $1 OR q.user_id = $2)
+          AND q.status IN ('pending', 'processing', 'failed')
+          AND q.retry_count < 3
+          ORDER BY q.created_at ASC`,
           [user.id, user.email]
         ),
         query(
@@ -1590,15 +1605,10 @@ export async function processNextQueueItemAction() {
     }
 
     // Fetch active API key from environment based on preference
-    const keyIndex = await getGeminiKeyPreference();
-    const activeKey =
-        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
-        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
-        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
-        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
-        process.env.GEMINI_API_KEY;
+    const activeKey = await getActiveGeminiKey();
 
     if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
@@ -1622,11 +1632,11 @@ export async function processNextQueueItemAction() {
 
       // Update target table
       if (type === 'youtube') {
-        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
-        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
         safeRevalidate('/report');
         safeRevalidate('/saved');
       }

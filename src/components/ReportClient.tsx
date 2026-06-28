@@ -661,10 +661,17 @@ export default function ReportClient({
             {(selectedSavedReport || currentQueueItem) && (
               <div className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-5 shadow-sm space-y-4">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                        AI 요약 분석
-                    </h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                            AI 요약 분석
+                        </h3>
+                        {selectedSavedReport?.summary && selectedSavedReport?.gemini_model && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 text-primary rounded uppercase tracking-tighter">
+                                {selectedSavedReport.gemini_model}
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-2">
                         {currentQueueItem && (
                             <span className={cn(

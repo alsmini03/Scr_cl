@@ -503,10 +503,17 @@ export default function YoutubeDetailPage() {
 
         <section className="space-y-6">
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-               <span className="material-symbols-outlined text-primary">auto_awesome</span>
-               AI 요약 분석
-            </h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                   <span className="material-symbols-outlined text-primary">auto_awesome</span>
+                   AI 요약 분석
+                </h2>
+                {video.summary && video.gemini_model && (
+                    <span className="text-[10px] font-black px-2 py-0.5 bg-primary/10 text-primary rounded-md uppercase tracking-tighter">
+                        {video.gemini_model}
+                    </span>
+                )}
+            </div>
 
             {/* AI Status Section */}
             {(() => {

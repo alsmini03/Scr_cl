@@ -22,6 +22,7 @@ export default function QueuePage() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const processingItem = items.find(i => i.status === 'processing');
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [mode, setMode] = useState<'auto' | 'manual'>('auto');
   const [elapsedTime, setElapsedTime] = useState<number>(0);
@@ -261,10 +262,17 @@ export default function QueuePage() {
                     Queue ({items.length})
                 </p>
                 {isProcessing && (
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold text-primary animate-pulse">
-                        <span className="material-symbols-outlined text-xs animate-spin">sync</span>
-                        처리 중...
-                    </span>
+                    <div className="flex flex-col items-end gap-0.5">
+                        <span className="flex items-center gap-1.5 text-[10px] font-black text-primary animate-pulse">
+                            <span className="material-symbols-outlined text-[14px] animate-spin">sync</span>
+                            현재 처리 중...
+                        </span>
+                        {processingItem && (
+                            <span className="text-[9px] text-primary/70 font-bold max-w-[150px] truncate">
+                                {processingItem.target_title}
+                            </span>
+                        )}
+                    </div>
                 )}
             </div>
             {items.map((item) => (
@@ -272,7 +280,7 @@ export default function QueuePage() {
                 key={item.id}
                 className={cn(
                   "bg-white dark:bg-slate-900 rounded-2xl border p-4 shadow-sm transition-all",
-                  item.status === 'processing' ? "border-primary ring-1 ring-primary/20" :
+                  item.status === 'processing' ? "border-primary ring-2 ring-primary/20 bg-primary/5 dark:bg-primary/5" :
                   item.status === 'failed' ? "border-red-200 dark:border-red-900/30" :
                   "border-slate-100 dark:border-primary/10"
                 )}

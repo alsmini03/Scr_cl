@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractYoutube } from "@/lib/extract-service";
-import { getGeminiKeyPreference } from "@/lib/db";
+import { getGeminiKeyPreference, getActiveGeminiKey } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,15 +14,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const keyIndex = await getGeminiKeyPreference();
-    const activeKey =
-        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
-        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
-        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
-        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
-        process.env.GEMINI_API_KEY;
+    const activeKey = await getActiveGeminiKey();
 
     if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
         return NextResponse.json(
             { error: `GEMINI_API_KEY(${keyIndex}) is not configured` },
             { status: 500 }
