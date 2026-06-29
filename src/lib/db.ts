@@ -209,10 +209,22 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
     const summary = data.summary;
 
     // 6. Update video record
-    await query(
-        "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
-        [summary, selectedModel, id]
-    );
+    try {
+        await query(
+            "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
+            [summary, selectedModel, id]
+        );
+    } catch (dbErr: any) {
+        if (dbErr.message.includes('column "gemini_model" does not exist')) {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            await query(
+                "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
+                [summary, selectedModel, id]
+            );
+        } else {
+            throw dbErr;
+        }
+    }
 
     // 7. Mark queue item as completed if it exists
     await query(
@@ -350,11 +362,25 @@ export async function processQueueItemManuallyAction(id: string) {
 
       // Update target table
       if (type === 'youtube') {
-        await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        try {
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
-        await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        try {
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/report');
         safeRevalidate('/saved');
       }
@@ -1739,11 +1765,25 @@ export async function processNextQueueItemAction() {
 
       // Update target table
       if (type === 'youtube') {
-        await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        try {
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
-        await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        try {
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/report');
         safeRevalidate('/saved');
       }

@@ -174,22 +174,22 @@ export default function GeminiSettingsPage() {
                 API 키 선택
             </h2>
 
-            <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-3">
+                <div className="grid grid-cols-5 gap-1.5">
                     {[1, 2, 3, 4, 5].map((idx) => (
                         <button
                             key={idx}
                             onClick={() => handleSetKeyPreference(idx)}
                             className={cn(
-                                "flex flex-col items-center justify-center py-4 px-2 rounded-2xl border transition-all gap-1.5",
+                                "flex flex-col items-center justify-center py-3 px-1 rounded-xl border transition-all gap-1",
                                 keyPreference === idx
-                                    ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                                    ? "bg-primary text-white border-primary shadow-md"
                                     : "bg-slate-50 dark:bg-black/20 text-slate-500 border-slate-100 dark:border-primary/5 hover:border-primary/30"
                             )}
                         >
-                            <span className="material-symbols-outlined text-2xl">filter_{idx}</span>
-                            <span className="text-[11px] font-black tracking-tighter whitespace-nowrap">키 {idx}번</span>
-                            <span className="text-[8px] opacity-60 font-medium">{idx === 1 ? '기본' : '보조'}</span>
+                            <span className="material-symbols-outlined text-xl">filter_{idx}</span>
+                            <span className="text-[10px] font-black tracking-tighter whitespace-nowrap">키 {idx}</span>
+                            <span className="text-[8px] opacity-60 font-medium leading-none">{idx === 1 ? '기본' : '보조'}</span>
                         </button>
                     ))}
                 </div>
