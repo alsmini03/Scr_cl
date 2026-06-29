@@ -177,6 +177,66 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+export async function processYoutubeSummaryImmediatelyAction(id: string) {
+  try {
+    const user = await ensureApproved();
+
+    // 1. Get video info
+    const video = await getYoutubeVideoById(id);
+    if (!video) throw new Error('Video not found');
+
+    // 2. Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+    const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+    const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+
+    // 3. Get active API key
+    const activeKey = await getActiveGeminiKey();
+    if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
+    // 4. Check/Mark queue item as processing if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE target_id = $1 AND type = 'youtube'",
+        [id]
+    );
+
+    // 5. Extract immediately
+    const data = await extractYoutube(video.url, activeKey, selectedModel, selectedPrompt);
+    const summary = data.summary;
+
+    // 6. Update video record
+    await query(
+        "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
+        [summary, selectedModel, id]
+    );
+
+    // 7. Mark queue item as completed if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE target_id = $1 AND type = 'youtube'",
+        [id]
+    );
+
+    safeRevalidate('/youtube');
+    safeRevalidate(`/youtube/${id}`);
+    safeRevalidate('/saved');
+    safeRevalidate('/profile/queue');
+
+    return { success: true, summary };
+  } catch (error: any) {
+    console.error('processYoutubeSummaryImmediatelyAction error:', error);
+    // Mark queue item as failed if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'failed', error_message = $1 WHERE target_id = $2 AND type = 'youtube'",
+        [error.message || String(error), id]
+    );
+    return { success: false, error: error.message };
+  }
+}
+
 /**
  * Gemini API Key Preference management
  */

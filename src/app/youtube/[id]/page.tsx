@@ -12,7 +12,8 @@ import {
   sendYoutubeEmailAction,
   getAdjacentYoutubeVideoIdsAction,
   getQueueItems,
-  retryGeminiTaskAction
+  retryGeminiTaskAction,
+  processYoutubeSummaryImmediatelyAction
 } from '@/lib/db';
 import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -278,11 +279,20 @@ export default function YoutubeDetailPage() {
       if (!video) return;
       setIsRefetching(true);
       try {
-          const res = await retryGeminiTaskAction('youtube', video.id);
+          const res = await processYoutubeSummaryImmediatelyAction(video.id);
           if (res.success) {
+              const updatedVideo = await getYoutubeVideoById(video.id);
+              if (updatedVideo) {
+                setVideo({
+                    ...updatedVideo,
+                    title: he.decode(updatedVideo.title || ''),
+                    summary: he.decode(updatedVideo.summary || ''),
+                    description: he.decode(updatedVideo.description || '')
+                });
+              }
               const q = await getQueueItems();
               setQueueItems(q.items);
-              showToast('대기열에 추가되었습니다.');
+              showToast('AI 요약이 완료되었습니다.');
           } else {
               showToast(res.error || '실패', 'error');
           }
@@ -329,12 +339,24 @@ export default function YoutubeDetailPage() {
           description: data.description || video.description,
         });
 
-        // Also trigger a background AI task if the user wants to refresh EVERYTHING
-        await retryGeminiTaskAction('youtube', video.id);
+        // Also trigger immediate AI summary update
+        const aiRes = await processYoutubeSummaryImmediatelyAction(video.id);
+        if (aiRes.success) {
+            const updatedVideo = await getYoutubeVideoById(video.id);
+            if (updatedVideo) {
+              setVideo({
+                  ...updatedVideo,
+                  title: he.decode(updatedVideo.title || ''),
+                  summary: he.decode(updatedVideo.summary || ''),
+                  description: he.decode(updatedVideo.description || '')
+              });
+            }
+        }
+
         const q = await getQueueItems();
         setQueueItems(q.items);
 
-        showToast('기본 정보가 업데이트되었으며 요약 작업이 대기열에 추가되었습니다.');
+        showToast('기본 정보와 AI 요약이 업데이트되었습니다.');
       } else {
         showToast(`업데이트 실패: ${updateResult.error}`, 'error');
       }

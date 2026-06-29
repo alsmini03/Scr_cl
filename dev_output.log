@@ -155,3 +155,5 @@ DATABASE_URL is missing from environment variables.
  ✓ Compiled in 242ms (305 modules)
  ✓ Compiled in 361ms (305 modules)
  ✓ Compiled in 264ms (305 modules)
+ ✓ Compiled in 4.6s (305 modules)
+ ✓ Compiled in 550ms (305 modules)
