@@ -757,9 +757,13 @@ export async function getBlogTabs(): Promise<any[]> {
 export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getBlogTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 블로그 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -793,9 +797,13 @@ export async function getReportTabs(): Promise<any[]> {
 export async function addReportTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getReportTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 리포트 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -868,9 +876,13 @@ export async function getYes24Tabs(): Promise<any[]> {
 export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getYes24Tabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 Yes24 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -1087,9 +1099,13 @@ export async function getYoutubeTabs(): Promise<any[]> {
 export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getYoutubeTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 유튜브 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
