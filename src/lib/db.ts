@@ -91,14 +91,22 @@ export async function getReports(prefetchedUser?: any, includeContent: boolean =
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked"
-      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked";
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return getReports(prefetchedUser, includeContent);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('getReports error:', error);
     return [];
   }
@@ -127,6 +135,14 @@ export async function saveReport(report: {
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return saveReport(report);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('Failed to save report:', {
         error: error.message,
         stack: error.stack,
@@ -157,6 +173,241 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function processYoutubeSummaryImmediatelyAction(id: string) {
+  try {
+    const user = await ensureApproved();
+
+    // 1. Get video info
+    const video = await getYoutubeVideoById(id);
+    if (!video) throw new Error('Video not found');
+
+    // 2. Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+    const selectedModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+    const selectedPrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+
+    // 3. Get active API key
+    const activeKey = await getActiveGeminiKey();
+    if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
+    // 4. Check/Mark queue item as processing if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE target_id = $1 AND type = 'youtube'",
+        [id]
+    );
+
+    // 5. Extract immediately
+    const data = await extractYoutube(video.url, activeKey, selectedModel, selectedPrompt);
+    const summary = data.summary;
+
+    // 6. Update video record
+    try {
+        await query(
+            "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
+            [summary, selectedModel, id]
+        );
+    } catch (dbErr: any) {
+        if (dbErr.message.includes('column "gemini_model" does not exist')) {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            await query(
+                "UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3",
+                [summary, selectedModel, id]
+            );
+        } else {
+            throw dbErr;
+        }
+    }
+
+    // 7. Mark queue item as completed if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE target_id = $1 AND type = 'youtube'",
+        [id]
+    );
+
+    safeRevalidate('/youtube');
+    safeRevalidate(`/youtube/${id}`);
+    safeRevalidate('/saved');
+    safeRevalidate('/profile/queue');
+
+    return { success: true, summary };
+  } catch (error: any) {
+    console.error('processYoutubeSummaryImmediatelyAction error:', error);
+    // Mark queue item as failed if it exists
+    await query(
+        "UPDATE gemini_queue SET status = 'failed', error_message = $1 WHERE target_id = $2 AND type = 'youtube'",
+        [error.message || String(error), id]
+    );
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Gemini API Key Preference management
+ */
+export async function getGeminiKeyPreference(): Promise<number> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
+      [user.id, user.email, user.email?.toLowerCase()]
+    );
+    return res.rows[0]?.gemini_key_index || 1;
+  } catch (error: any) {
+    // If column doesn't exist, we'll try to add it once (graceful migration)
+    if (error.message.includes('column "gemini_key_index" does not exist')) {
+        try {
+            await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_index INTEGER DEFAULT 1");
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
+    console.error('getGeminiKeyPreference error:', error);
+    return 1;
+  }
+}
+
+export async function getActiveGeminiKey(): Promise<string | undefined> {
+    const keyIndex = await getGeminiKeyPreference();
+    const activeKey =
+        keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
+        keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
+        keyIndex === 3 ? process.env.GEMINI_API_KEY_3 :
+        keyIndex === 2 ? process.env.GEMINI_API_KEY_2 :
+        process.env.GEMINI_API_KEY;
+    return activeKey;
+}
+
+export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const email = user.email?.toLowerCase();
+    const res = await query(
+      "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR LOWER(email) = $3",
+      [index, user.id, email]
+    );
+
+    if (res.rowCount === 0) {
+        throw new Error('사용자 정보를 찾을 수 없거나 업데이트에 실패했습니다.');
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateGeminiKeyPreferenceAction error:', error);
+    return { success: false, error: error.message || '데이터베이스 오류' };
+  }
+}
+
+export async function processQueueItemManuallyAction(id: string) {
+  try {
+    const user = await ensureApproved();
+
+    // Get the specific item
+    const itemRes = await query(
+      "SELECT * FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3)",
+      [id, user.id, user.email]
+    );
+
+    const item = itemRes.rows[0];
+    if (!item) return { success: false, message: 'Item not found' };
+
+    // Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = item.payload.model;
+    let activePrompt = item.payload.prompt;
+
+    if (item.type === 'report') {
+        activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+        activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+        activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
+    // Fetch active API key from environment based on preference
+    const activeKey = await getActiveGeminiKey();
+
+    if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
+    // Mark as processing and update payload with latest settings
+    const newPayload = { ...item.payload, model: activeModel, prompt: activePrompt };
+    await query(
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP, payload = $1 WHERE id = $2",
+      [JSON.stringify(newPayload), item.id]
+    );
+
+    let result;
+    try {
+      const { type, target_id, payload } = item;
+      let summary = '';
+
+      if (type === 'youtube') {
+          const data = await extractYoutube(payload.url, activeKey, activeModel, activePrompt);
+          summary = data.summary;
+      } else {
+          summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
+      }
+
+      // Update target table
+      if (type === 'youtube') {
+        try {
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+            } else throw dbErr;
+        }
+        safeRevalidate('/youtube');
+        safeRevalidate(`/youtube/${target_id}`);
+      } else {
+        try {
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
+            } else throw dbErr;
+        }
+        safeRevalidate('/report');
+        safeRevalidate('/saved');
+      }
+
+      // Mark as completed
+      await query(
+        "UPDATE gemini_queue SET status = 'completed' WHERE id = $1",
+        [item.id]
+      );
+      result = { success: true };
+    } catch (err: any) {
+      console.error('Manual processing error:', err);
+      const fullError = err.stack || err.message || String(err);
+      // Mark as failed and increment retry count
+      await query(
+        "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
+        [fullError, item.id]
+      );
+      result = { success: false, error: fullError };
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    safeRevalidate('/profile/queue');
+    return result;
+  } catch (error: any) {
+    console.error('processQueueItemManuallyAction error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -382,6 +633,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         }
 
         const summaryHtml = await marked.parse(video.summary || '');
+        const savedDate = video.added_at ? new Date(video.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -390,9 +642,10 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
             </div>
             <div style="padding: 20px;">
               ${video.thumbnail ? `<div style="margin-bottom: 20px;"><img src="${video.thumbnail.replace('maxresdefault.jpg', 'mqdefault.jpg')}" referrerpolicy="no-referrer" style="border-radius: 8px; display: block;"></div>` : ''}
-              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; line-height: 1.6;">
                 <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
-                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
+                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}<br>
+                <b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${video.gemini_model || '-'}</span> | <b>저장일자:</b> ${savedDate}
               </p>
               <div style="padding: 15px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
@@ -409,6 +662,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
           tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
         }
 
+        const savedDate = blog.added_at ? new Date(blog.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -416,8 +670,9 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <h2 style="margin: 0; font-size: 18px; color: #111;">${blog.title}</h2>
             </div>
             <div style="padding: 20px;">
-              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666;">
-                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a>
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;">
+                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a><br>
+                <b>저장일자:</b> ${savedDate}
               </p>
               <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
             </div>
@@ -432,6 +687,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         }
 
         const summaryHtml = report.summary ? await marked.parse(report.summary) : '';
+        const savedDate = report.added_at ? new Date(report.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -439,12 +695,13 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <h2 style="margin: 0; font-size: 18px; color: #111;">${report.title}</h2>
             </div>
             <div style="padding: 20px;">
-              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
-                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; line-height: 1.6;">
+                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}<br>
+                <b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${report.gemini_model || '-'}</span> | <b>저장일자:</b> ${savedDate}
               </p>
               ${report.url ? await (async () => {
                 const displayUrl = await getResolvedReportUrlAction({ url: report.url });
-                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
+                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
               })() : ''}
 
               ${summaryHtml ? `
@@ -506,9 +763,13 @@ export async function getBlogTabs(): Promise<any[]> {
 export async function addBlogTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getBlogTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 블로그 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -542,9 +803,13 @@ export async function getReportTabs(): Promise<any[]> {
 export async function addReportTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getReportTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 리포트 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -617,9 +882,13 @@ export async function getYes24Tabs(): Promise<any[]> {
 export async function addYes24Tab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getYes24Tabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 Yes24 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -759,18 +1028,27 @@ export async function updateYoutubeVideo(id: string, video: {
   duration?: string;
   published_at?: string;
   summary?: string;
+  gemini_model?: string;
   description?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await getSessionUser();
     await query(
-      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, description = $6 WHERE id = $7",
-      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.description, id]
+      "UPDATE youtube_videos SET title = $1, thumbnail = $2, duration = $3, published_at = $4, summary = $5, gemini_model = $6, description = $7 WHERE id = $8",
+      [video.title, video.thumbnail, video.duration, video.published_at, video.summary, video.gemini_model, video.description, id]
     );
     safeRevalidate('/');
     safeRevalidate(`/youtube/${id}`);
     return { success: true };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return updateYoutubeVideo(id, video);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error(`Failed to update youtube video with id ${id}:`, error);
     return { success: false, error: error.message || '업데이트 중 오류가 발생했습니다.' };
   }
@@ -827,9 +1105,13 @@ export async function getYoutubeTabs(): Promise<any[]> {
 export async function addYoutubeTab(name: string, url: string): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
-    const id = randomUUID();
 
     const tabs = await getYoutubeTabs();
+    if (tabs.some(t => t.url === url)) {
+        throw new Error('이미 등록된 유튜브 URL입니다.');
+    }
+
+    const id = randomUUID();
     const nextPos = tabs.length > 0 ? Math.max(...tabs.map(t => t.position || 0)) + 1 : 0;
 
     await query(
@@ -1158,6 +1440,14 @@ export async function saveYoutubeVideo(video: {
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return saveYoutubeVideo(video);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('Failed to save youtube video:', error);
     return {
       success: false,
@@ -1170,14 +1460,22 @@ export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boo
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked"
-      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked";
+      ? "id, title, url, thumbnail, duration, published_at, summary, description, user_id, added_at, is_liked, gemini_model"
+      : "id, title, url, thumbnail, duration, published_at, user_id, added_at, is_liked, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM youtube_videos WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "gemini_model" does not exist')) {
+        try {
+            await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            return getYoutubeVideos(prefetchedUser, includeContent);
+        } catch (mErr) {
+            console.error('Migration failed:', mErr);
+        }
+    }
     console.error('getYoutubeVideos error:', error);
     return [];
   }
@@ -1332,7 +1630,16 @@ export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: 
 
     const [queueRes, lastProcessedRes] = await Promise.all([
         query(
-          "SELECT * FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND status IN ('pending', 'processing', 'failed') AND retry_count < 3 ORDER BY created_at ASC",
+          `SELECT
+            q.*,
+            COALESCE(v.title, r.title) as target_title
+          FROM gemini_queue q
+          LEFT JOIN youtube_videos v ON q.type = 'youtube' AND q.target_id = v.id
+          LEFT JOIN reports r ON q.type = 'report' AND q.target_id = r.id
+          WHERE (q.user_id = $1 OR q.user_id = $2)
+          AND q.status IN ('pending', 'processing', 'failed')
+          AND q.retry_count < 3
+          ORDER BY q.created_at ASC`,
           [user.id, user.email]
         ),
         query(
@@ -1345,15 +1652,79 @@ export async function getQueueItems(): Promise<{ items: any[], lastProcessedAt: 
         items: queueRes.rows,
         lastProcessedAt: lastProcessedRes.rows[0]?.last_processed_at || null
     };
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column v.title does not exist') || error.message.includes('column r.title does not exist')) {
+        console.error('Possible schema mismatch in getQueueItems');
+    }
     console.error('getQueueItems error:', error);
     return { items: [], lastProcessedAt: null };
+  }
+}
+
+export async function getDetailedQueueItems(): Promise<any[]> {
+  try {
+    const user = await getSessionUser();
+    const res = await query(
+      `SELECT
+        q.*,
+        COALESCE(v.title, r.title) as target_title
+      FROM gemini_queue q
+      LEFT JOIN youtube_videos v ON q.type = 'youtube' AND q.target_id = v.id
+      LEFT JOIN reports r ON q.type = 'report' AND q.target_id = r.id
+      WHERE (q.user_id = $1 OR q.user_id = $2)
+      AND q.status IN ('pending', 'processing', 'failed')
+      ORDER BY
+        CASE q.status
+          WHEN 'processing' THEN 1
+          WHEN 'pending' THEN 2
+          WHEN 'failed' THEN 3
+          ELSE 4
+        END ASC,
+        q.created_at DESC`,
+      [user.id, user.email]
+    );
+    return res.rows;
+  } catch (error: any) {
+    if (error.message.includes('column q.target_title does not exist') || error.message.includes('column v.title does not exist')) {
+        // This might happen if tables were partially migrated or during extreme edge cases
+        console.error('Possible schema mismatch in getDetailedQueueItems');
+    }
+    console.error('getDetailedQueueItems error:', error);
+    return [];
+  }
+}
+
+export async function deleteQueueItemAction(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const res = await query(
+      "DELETE FROM gemini_queue WHERE id = $1 AND (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4)",
+      [id, user.id, user.email, user.email?.toLowerCase()]
+    );
+
+    if (res.rowCount === 0) {
+        throw new Error('해당 작업을 찾을 수 없거나 삭제 권한이 없습니다.');
+    }
+
+    safeRevalidate('/youtube');
+    safeRevalidate('/report');
+    safeRevalidate('/profile/queue');
+    return { success: true };
+  } catch (error: any) {
+    console.error('deleteQueueItemAction error:', error);
+    return { success: false, error: error.message };
   }
 }
 
 export async function processNextQueueItemAction() {
   try {
     const user = await ensureApproved();
+
+    // Reset stale processing items (older than 5 minutes)
+    await query(
+      "UPDATE gemini_queue SET status = 'failed', error_message = '처리 시간 초과 (5분 이상 경과)', retry_count = retry_count + 1 WHERE (user_id = $1 OR user_id = $2) AND status = 'processing' AND last_processed_at < (CURRENT_TIMESTAMP - INTERVAL '5 minutes')",
+      [user.id, user.email]
+    );
 
     // Check if any item is already processing for this user
     const processingRes = await query(
@@ -1388,6 +1759,14 @@ export async function processNextQueueItemAction() {
       }
     }
 
+    // Fetch active API key from environment based on preference
+    const activeKey = await getActiveGeminiKey();
+
+    if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
+        throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
     // Mark as processing
     await query(
       "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
@@ -1400,19 +1779,33 @@ export async function processNextQueueItemAction() {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, payload.model, payload.prompt);
+          const data = await extractYoutube(payload.url, activeKey, payload.model, payload.prompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, payload.model, payload.prompt);
+          summary = await extractReport(payload.url, activeKey, payload.model, payload.prompt);
       }
 
       // Update target table
       if (type === 'youtube') {
-        await query("UPDATE youtube_videos SET summary = $1 WHERE id = $2", [summary, target_id]);
+        try {
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
-        await query("UPDATE reports SET summary = $1 WHERE id = $2", [summary, target_id]);
+        try {
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+        } catch (dbErr: any) {
+            if (dbErr.message.includes('column "gemini_model" does not exist')) {
+                await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            } else throw dbErr;
+        }
         safeRevalidate('/report');
         safeRevalidate('/saved');
       }
@@ -1425,12 +1818,13 @@ export async function processNextQueueItemAction() {
       result = { success: true };
     } catch (err: any) {
       console.error('Queue processing error:', err);
+      const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
         "UPDATE gemini_queue SET status = 'failed', retry_count = retry_count + 1, error_message = $1 WHERE id = $2",
-        [err.message, item.id]
+        [fullError, item.id]
       );
-      result = { success: false, error: err.message };
+      result = { success: false, error: fullError };
     }
 
     safeRevalidate('/youtube');

@@ -16,12 +16,9 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
     setLastProcessedAt(last);
 
     // If there's something to process and we're not currently processing
-    const hasWork = items.some(item => item.status === 'pending' || item.status === 'failed');
+    const hasWork = items.some(item => item.status === 'pending' || item.status === 'failed' || item.status === 'processing');
     if (hasWork && !isProcessing) {
-        const processing = items.some(item => item.status === 'processing');
-        if (!processing) {
-            processQueue();
-        }
+        processQueue();
     }
   }, [type, isProcessing]);
 
@@ -80,10 +77,10 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
         {processingItem && (
           <div className="flex items-center gap-3 bg-primary/5 rounded-xl p-2.5 border border-primary/10">
             <div className="size-2 bg-primary rounded-full animate-pulse" />
-            <p className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1 font-medium">
-              현재 처리 중: {processingItem.type === 'youtube' ? '유튜브 영상' : '리포트'}
+            <p className="text-xs text-slate-600 dark:text-slate-300 truncate flex-1 font-bold">
+              {processingItem.target_title || (processingItem.type === 'youtube' ? '유튜브 영상' : '리포트')}
             </p>
-            <span className="text-[10px] text-primary font-bold">진행 중</span>
+            <span className="text-[10px] text-primary font-bold">처리 중</span>
           </div>
         )}
 
@@ -92,7 +89,7 @@ export default function QueueStatus({ type }: { type?: 'youtube' | 'report' }) {
             <div className="size-2 bg-slate-300 dark:bg-slate-700 rounded-full" />
             <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-medium">
-                    대기: {item.type === 'youtube' ? '유튜브 영상' : '리포트'}
+                    {item.target_title || (item.type === 'youtube' ? '유튜브 영상' : '리포트')}
                 </p>
                 {idx === 0 && !processingItem && timeLeft > 0 && (
                     <p className="text-[9px] text-primary font-bold">{timeLeft}초 후 시작 예정</p>

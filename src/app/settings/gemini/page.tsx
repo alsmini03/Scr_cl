@@ -13,7 +13,9 @@ import {
   addGeminiPrompt,
   updateGeminiPrompt,
   deleteGeminiPrompt,
-  setDefaultGeminiPrompt
+  setDefaultGeminiPrompt,
+  getGeminiKeyPreference,
+  updateGeminiKeyPreferenceAction
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -46,13 +48,17 @@ export default function GeminiSettingsPage() {
   const [newPromptText, setNewPromptText] = useState('');
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
 
+  const [keyPreference, setKeyPreference] = useState<number | null>(null);
+
   const loadSettings = async () => {
-    const [dbModels, dbPrompts] = await Promise.all([
+    const [dbModels, dbPrompts, dbKeyPref] = await Promise.all([
       getGeminiModels(),
-      getGeminiPrompts()
+      getGeminiPrompts(),
+      getGeminiKeyPreference()
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
+    setKeyPreference(dbKeyPref);
   };
 
   useEffect(() => {
@@ -145,11 +151,53 @@ export default function GeminiSettingsPage() {
     }
   };
 
+  const handleSetKeyPreference = async (index: number) => {
+      const res = await updateGeminiKeyPreferenceAction(index);
+      if (res.success) {
+          setKeyPreference(index);
+          showToast(`API 키 ${index}번이 선택되었습니다.`);
+      } else {
+          showToast(res.error || '설정 변경 실패', 'error');
+      }
+  };
+
   return (
     <div className="font-display min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 pb-24">
       <Header title="Gemini 설정" showBack />
 
       <main className="flex-1 max-w-2xl mx-auto w-full p-6 space-y-10">
+
+        {/* API Key Preference Section */}
+        <section className="space-y-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">key</span>
+                API 키 선택
+            </h2>
+
+            <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-3">
+                <div className="grid grid-cols-5 gap-1.5">
+                    {[1, 2, 3, 4, 5].map((idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => handleSetKeyPreference(idx)}
+                            className={cn(
+                                "flex flex-col items-center justify-center py-3 px-1 rounded-xl border transition-all gap-1",
+                                keyPreference === idx
+                                    ? "bg-primary text-white border-primary shadow-md"
+                                    : "bg-slate-50 dark:bg-black/20 text-slate-500 border-slate-100 dark:border-primary/5 hover:border-primary/30"
+                            )}
+                        >
+                            <span className="material-symbols-outlined text-xl">filter_{idx}</span>
+                            <span className="text-[10px] font-black tracking-tighter whitespace-nowrap">키 {idx}</span>
+                            <span className="text-[8px] opacity-60 font-medium leading-none">{idx === 1 ? '기본' : '보조'}</span>
+                        </button>
+                    ))}
+                </div>
+                <p className="text-[10px] text-slate-400 text-center bg-slate-50 dark:bg-black/10 py-2 rounded-lg">
+                    무료 할당량 소진 시 다른 키로 전환하여 사용할 수 있습니다. (최대 5개 지원)
+                </p>
+            </div>
+        </section>
 
         {/* Tab Picker */}
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-primary/10">

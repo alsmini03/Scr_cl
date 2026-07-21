@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
 interface Tab {
@@ -29,10 +29,24 @@ export default function TabManagementModal({
   title = '탭 관리'
 }: TabManagementModalProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const initialTabsRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+        // Record initial state as JSON string for easy comparison
+        initialTabsRef.current = JSON.stringify(tabs);
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleSaveAndClose = async () => {
+    const currentState = JSON.stringify(tabs);
+    if (initialTabsRef.current === currentState) {
+        onClose();
+        return;
+    }
+
     await onSave();
     onClose();
   };

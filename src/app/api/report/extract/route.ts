@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { extractReport } from "@/lib/extract-service";
+import { getGeminiKeyPreference, getActiveGeminiKey } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
-    const { url, model, prompt } = await req.json();
+    const { url, model, prompt, includeAi = false } = await req.json();
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -29,7 +30,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid URL format." }, { status: 400 });
     }
 
-    const text = await extractReport(url, model, prompt);
+    const activeKey = await getActiveGeminiKey();
+
+    if (!activeKey) {
+        const keyIndex = await getGeminiKeyPreference();
+        return NextResponse.json({ error: `GEMINI_API_KEY(${keyIndex}) is not configured` }, { status: 500 });
+    }
+
+    const text = await extractReport(url, activeKey, model, prompt, !includeAi);
 
     return NextResponse.json({ result: text });
   } catch (error: any) {

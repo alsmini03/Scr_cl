@@ -10,7 +10,10 @@ import {
   getGeminiModels,
   getGeminiPrompts,
   sendYoutubeEmailAction,
-  getAdjacentYoutubeVideoIdsAction
+  getAdjacentYoutubeVideoIdsAction,
+  getQueueItems,
+  retryGeminiTaskAction,
+  processYoutubeSummaryImmediatelyAction
 } from '@/lib/db';
 import { notFound, useRouter, useParams } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
@@ -30,6 +33,7 @@ interface YoutubeVideo {
   duration: string;
   published_at: string;
   summary: string;
+  gemini_model?: string;
   description: string;
   added_at: string;
   user_id: string;
@@ -89,6 +93,11 @@ export default function YoutubeDetailPage() {
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
 
+  // Queue states
+  const [queueItems, setQueueItems] = useState<any[]>([]);
+  const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
   useEffect(() => {
     const lastEmail = localStorage.getItem('last_blog_email');
     if (lastEmail) setRecipientEmail(lastEmail);
@@ -98,9 +107,10 @@ export default function YoutubeDetailPage() {
     async function loadVideo() {
       if (!id) return;
       setLoading(true);
-      const [data, adj] = await Promise.all([
+      const [data, adj, q] = await Promise.all([
         getYoutubeVideoById(id),
-        getAdjacentYoutubeVideoIdsAction(id)
+        getAdjacentYoutubeVideoIdsAction(id),
+        getQueueItems()
       ]);
 
       if (data) {
@@ -116,11 +126,37 @@ export default function YoutubeDetailPage() {
         setEditedSummary(decodedData.summary);
         setEditedDescription(decodedData.description);
         setAdjacentIds(adj);
+        setQueueItems(q.items);
+        setLastProcessedAt(q.lastProcessedAt);
       }
       setLoading(false);
     }
     loadVideo();
+
+    const qTimer = setInterval(async () => {
+        const q = await getQueueItems();
+        setQueueItems(q.items);
+        setLastProcessedAt(q.lastProcessedAt);
+    }, 10000);
+
+    return () => clearInterval(qTimer);
   }, [id]);
+
+  useEffect(() => {
+    const updateCountdown = () => {
+        if (!lastProcessedAt) {
+            setTimeLeft(0);
+            return;
+        }
+        const nextAllowed = new Date(lastProcessedAt).getTime() + 60000;
+        const now = Date.now();
+        const diff = Math.max(0, Math.ceil((nextAllowed - now) / 1000));
+        setTimeLeft(diff);
+    };
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [lastProcessedAt]);
 
   if (loading) return <SkeletonYoutubeDetail />;
 
@@ -239,37 +275,58 @@ export default function YoutubeDetailPage() {
     }
   };
 
+  const handleRetrySummary = async () => {
+      if (!video) return;
+      setIsRefetching(true);
+      try {
+          const res = await processYoutubeSummaryImmediatelyAction(video.id);
+          if (res.success) {
+              const updatedVideo = await getYoutubeVideoById(video.id);
+              if (updatedVideo) {
+                setVideo({
+                    ...updatedVideo,
+                    title: he.decode(updatedVideo.title || ''),
+                    summary: he.decode(updatedVideo.summary || ''),
+                    description: he.decode(updatedVideo.description || '')
+                });
+              }
+              const q = await getQueueItems();
+              setQueueItems(q.items);
+              showToast('AI 요약이 완료되었습니다.');
+          } else {
+              showToast(res.error || '실패', 'error');
+          }
+      } finally {
+          setIsRefetching(false);
+      }
+  };
+
   const handleRefetch = async () => {
+    if (!video) return;
     setIsRefetching(true);
     try {
-      // Load user settings for Gemini
-      const dbModels = await getGeminiModels();
-      const dbPrompts = await getGeminiPrompts();
-
-      const defaultModel = dbModels.find(m => m.youtube_default) || dbModels[0];
-      const defaultPrompt = dbPrompts.find(p => p.youtube_default) || dbPrompts[0];
-
+      // Refresh metadata only (includeAi: false)
       const response = await fetch('/api/youtube/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: video.url,
-          model: defaultModel?.name,
-          prompt: defaultPrompt?.content
+          includeAi: false
         }),
       });
 
       const data = await response.json();
-
       if (!response.ok) throw new Error(data.error || 'Failed to extract video info');
 
+      // Update basic metadata, preserving existing summary/model
       const updateResult = await updateYoutubeVideo(video.id, {
         title: data.title || video.title,
         thumbnail: data.thumbnail || video.thumbnail,
         duration: data.duration || video.duration,
         published_at: data.publishDate || video.published_at,
-        summary: data.summary || '',
-        description: data.description || '',
+        summary: video.summary,
+        gemini_model: video.gemini_model,
+        description: data.description || video.description,
       });
 
       if (updateResult.success) {
@@ -279,10 +336,27 @@ export default function YoutubeDetailPage() {
           thumbnail: data.thumbnail || video.thumbnail,
           duration: data.duration || video.duration,
           published_at: data.publishDate || video.published_at,
-          summary: data.summary || '',
-          description: data.description || '',
+          description: data.description || video.description,
         });
-        showToast('정보가 업데이트되었습니다.');
+
+        // Also trigger immediate AI summary update
+        const aiRes = await processYoutubeSummaryImmediatelyAction(video.id);
+        if (aiRes.success) {
+            const updatedVideo = await getYoutubeVideoById(video.id);
+            if (updatedVideo) {
+              setVideo({
+                  ...updatedVideo,
+                  title: he.decode(updatedVideo.title || ''),
+                  summary: he.decode(updatedVideo.summary || ''),
+                  description: he.decode(updatedVideo.description || '')
+              });
+            }
+        }
+
+        const q = await getQueueItems();
+        setQueueItems(q.items);
+
+        showToast('기본 정보와 AI 요약이 업데이트되었습니다.');
       } else {
         showToast(`업데이트 실패: ${updateResult.error}`, 'error');
       }
@@ -451,10 +525,118 @@ export default function YoutubeDetailPage() {
 
         <section className="space-y-6">
           <div className="space-y-3">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-               <span className="material-symbols-outlined text-primary">auto_awesome</span>
-               AI 요약 분석
-            </h2>
+            <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                   <span className="material-symbols-outlined text-primary">auto_awesome</span>
+                   AI 요약 분석
+                </h2>
+                {video.summary && video.gemini_model && (
+                    <span className="text-[10px] font-black px-2 py-0.5 bg-primary/10 text-primary rounded-md uppercase tracking-tighter">
+                        {video.gemini_model}
+                    </span>
+                )}
+            </div>
+
+            {/* AI Status Section */}
+            {(() => {
+                const currentQueueItem = queueItems.find(i => i.target_id === video.id && i.type === 'youtube');
+                if (!currentQueueItem && video.summary) return null;
+
+                if (currentQueueItem) {
+                    if (currentQueueItem.status === 'processing') {
+                        return (
+                            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-3 animate-pulse">
+                                <span className="material-symbols-outlined text-primary text-4xl animate-spin">sync</span>
+                                <div>
+                                    <p className="text-sm font-bold text-primary">AI가 내용을 분석하고 있습니다...</p>
+                                    <p className="text-[11px] text-slate-400 mt-1">잠시만 기다려 주세요.</p>
+                                </div>
+                            </div>
+                        );
+                    }
+                    if (currentQueueItem.status === 'pending') {
+                        return (
+                            <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-6 flex flex-col items-center justify-center text-center space-y-3">
+                                <div className="relative">
+                                    <span className="material-symbols-outlined text-slate-300 dark:text-slate-700 text-4xl">hourglass_empty</span>
+                                    {timeLeft > 0 && (
+                                        <div className="absolute -top-1 -right-1 size-5 bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-sm">
+                                            {timeLeft}
+                                        </div>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300">분석 대기 중입니다</p>
+                                    <p className="text-[11px] text-slate-400 mt-1">
+                                        {timeLeft > 0 ? `${timeLeft}초 후 분석이 시작됩니다.` : '곧 분석이 시작됩니다.'}
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    }
+                    if (currentQueueItem.status === 'failed') {
+                        return (
+                            <div className="bg-red-50 dark:bg-red-500/5 border border-red-100 dark:border-red-900/20 rounded-2xl p-6">
+                                <div className="flex items-center gap-2 text-red-500 mb-3">
+                                    <span className="material-symbols-outlined text-sm">error</span>
+                                    <p className="text-xs font-bold">분석 중 오류가 발생했습니다</p>
+                                </div>
+                                <div className="bg-white/50 dark:bg-black/20 rounded-lg p-3 mb-4 relative group">
+                                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed break-words whitespace-pre-wrap pr-10">
+                                        {currentQueueItem.error_message || '알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'}
+                                    </p>
+                                    {currentQueueItem.error_message && (
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(currentQueueItem.error_message).then(() => {
+                                                    showToast('오류 메시지가 복사되었습니다.');
+                                                });
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-primary rounded-lg transition-colors"
+                                            title="오류 메시지 복사"
+                                        >
+                                            <span className="material-symbols-outlined text-sm">content_copy</span>
+                                        </button>
+                                    )}
+                                </div>
+                                <button
+                                    onClick={handleRetrySummary}
+                                    disabled={isRefetching}
+                                    className="w-full py-2.5 bg-red-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    다시 가져오기
+                                </button>
+                            </div>
+                        );
+                    }
+                }
+
+                // If no summary and no queue item
+                if (!video.summary) {
+                    return (
+                        <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-8 flex flex-col items-center justify-center text-center space-y-4">
+                            <div className="size-16 bg-primary/5 rounded-full flex items-center justify-center">
+                                <span className="material-symbols-outlined text-primary text-3xl">auto_awesome</span>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-slate-600 dark:text-slate-300">아직 요약된 내용이 없습니다</p>
+                                <p className="text-[11px] text-slate-400 mt-1">AI를 사용하여 영상의 핵심 내용을 분석해 보세요.</p>
+                            </div>
+                            <button
+                                onClick={handleRetrySummary}
+                                disabled={isRefetching}
+                                className="px-6 py-2.5 bg-primary text-white rounded-xl text-xs font-bold shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                            >
+                                <span className={cn("material-symbols-outlined text-sm", isRefetching && "animate-spin")}>sync</span>
+                                AI 요약 시작하기
+                            </button>
+                        </div>
+                    );
+                }
+
+                return null;
+            })()}
+
             {isEditingMode ? (
               <textarea
                 value={editedSummary}

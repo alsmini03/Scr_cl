@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   duration TEXT,
   published_at TEXT,
   summary TEXT,
+  gemini_model TEXT,
   description TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
@@ -49,6 +50,8 @@ CREATE TABLE IF NOT EXISTS gemini_models (
   report_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Gemini API Keys Table
 
 -- Gemini Prompts Table
 CREATE TABLE IF NOT EXISTS gemini_prompts (
@@ -111,6 +114,7 @@ CREATE TABLE IF NOT EXISTS reports (
   url TEXT,
   content TEXT,
   summary TEXT,
+  gemini_model TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
   is_liked BOOLEAN DEFAULT FALSE
@@ -139,7 +143,8 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE,
   "emailVerified" TIMESTAMPTZ,
   image TEXT,
-  is_approved BOOLEAN DEFAULT FALSE
+  is_approved BOOLEAN DEFAULT FALSE,
+  gemini_key_index INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS accounts (

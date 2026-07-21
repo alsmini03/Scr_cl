@@ -2,9 +2,92 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as cheerio from "cheerio";
 import he from "he";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+async function callGeminiInteractionsAPI(apiKey: string, model: string, inputs: any[]) {
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured");
 
-export async function extractReport(url: string, modelName?: string, promptText?: string) {
+  const payload = {
+    model: model,
+    input: inputs,
+  };
+
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/interactions?key=${apiKey}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    console.error("Gemini Interactions API error:", JSON.stringify(data, null, 2));
+    const details = data.error?.details ? ` - ${JSON.stringify(data.error.details)}` : '';
+    throw new Error(`${data.error?.message || "Failed to call Gemini Interactions API"}${details} (Used model: ${model}, Payload: ${JSON.stringify(payload)})`);
+  }
+
+  // According to docs, we can access output_text if using SDK,
+  // but for raw REST we might need to find the final text in steps.
+  // "While the Interactions API returns a structured timeline... you don't need to manually traverse... The SDKs provide convenience properties"
+  // If we're using raw fetch, we should check what the payload actually is.
+  // In the user's example, they just want the result.
+
+  if (data.output_text) return data.output_text;
+
+  // Fallback: search for text in steps
+  if (data.steps) {
+      const lastTextStep = data.steps
+          .slice()
+          .reverse()
+          .find((s: any) => s.content?.some((c: any) => c.type === 'text'));
+
+      if (lastTextStep) {
+          return lastTextStep.content.find((c: any) => c.type === 'text').text;
+      }
+  }
+
+  return JSON.stringify(data);
+}
+
+async function uploadToGeminiFiles(apiKey: string, buffer: Buffer, mimeType: string) {
+    const uploadUrl = `https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`;
+
+    // Boundary for multipart request
+    const boundary = '-------' + Math.random().toString(16).substring(2);
+
+    const metadata = JSON.stringify({
+        file: { display_name: `upload-${Date.now()}` }
+    });
+
+    const header = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${metadata}\r\n--${boundary}\r\nContent-Type: ${mimeType}\r\n\r\n`;
+    const footer = `\r\n--${boundary}--`;
+
+    const body = Buffer.concat([
+        Buffer.from(header),
+        buffer,
+        Buffer.from(footer)
+    ]);
+
+    const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'X-Goog-Upload-Protocol': 'multipart',
+            'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: body
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+        console.error("Gemini File Upload error:", JSON.stringify(data, null, 2));
+        throw new Error(data.error?.message || "Failed to upload file to Gemini");
+    }
+
+    console.log("Gemini File Upload success:", JSON.stringify(data.file, null, 2));
+    return data.file; // contains uri, mimeType etc.
+}
+
+export async function extractReport(url: string, apiKey: string, modelName?: string, promptText?: string, skipAi: boolean = false) {
+    const genAI = new GoogleGenerativeAI(apiKey || "");
     // 1. Fetch the PDF
     const response = await fetch(url, {
         headers: {
@@ -27,6 +110,25 @@ export async function extractReport(url: string, modelName?: string, promptText?
         throw new Error("올바른 PDF 형식이 아닙니다.");
     }
 
+    if (skipAi) return "";
+
+    // Special handling for gemini-3.5-flash using Interactions API
+    if (modelName === "gemini-3.5-flash") {
+        const geminiFile = await uploadToGeminiFiles(apiKey, buffer, "application/pdf");
+
+        return await callGeminiInteractionsAPI(apiKey, modelName, [
+            {
+                type: "document",
+                uri: geminiFile.uri,
+                mime_type: geminiFile.mimeType || geminiFile.mime_type
+            },
+            {
+                type: "text",
+                text: promptText || "이 리포트를 요약하고 핵심 내용을 분석해 주세요."
+            }
+        ]);
+    }
+
     const base64Pdf = buffer.toString("base64");
 
     // 2. Initialize Gemini model
@@ -46,7 +148,8 @@ export async function extractReport(url: string, modelName?: string, promptText?
     return result.response.text();
 }
 
-export async function extractYoutube(url: string, requestedModel?: string, requestedPrompt?: string) {
+export async function extractYoutube(url: string, apiKey: string, requestedModel?: string, requestedPrompt?: string, skipAi: boolean = false) {
+    const genAI = new GoogleGenerativeAI(apiKey || "");
     // First attempt with a browser user agent
     let response = await fetch(url, {
       headers: {
@@ -165,23 +268,37 @@ export async function extractYoutube(url: string, requestedModel?: string, reque
       console.warn("Manual transcript scraping failed:", e);
     }
 
-    if (process.env.GEMINI_API_KEY) {
-      try {
+    if (apiKey && !skipAi) {
         const geminiModel = requestedModel || "gemini-1.5-flash";
-        const model = genAI.getGenerativeModel({ model: geminiModel });
-
         const promptText = requestedPrompt || "이 영상을 분석해 주세요.";
+        const fullPrompt = `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}`;
 
-        const parts = [
-          { text: `${promptText}\n\n[영상 제목]\n${title}\n\n[영상 설명]\n${ogDescription}` }
-        ];
+        if (geminiModel === "gemini-3.5-flash") {
+            // Normalize URL to standard watch?v= format for Gemini API
+            let videoUri = url;
+            const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/);
+            if (videoIdMatch) {
+                videoUri = `https://www.youtube.com/watch?v=${videoIdMatch[1]}`;
+            }
 
-        const result = await model.generateContent(parts);
-        summary = result.response.text();
-      } catch (geminiError: any) {
-        console.error("Gemini processing failed:", geminiError);
-        summary = `### 제미나이 요약 오류\n\n영상 분석 중 오류가 발생했습니다: ${geminiError.message || '알 수 없는 오류'}\n\n스크립트를 가져오지 못했거나 영상이 너무 깁니다.`;
-      }
+            summary = await callGeminiInteractionsAPI(apiKey, geminiModel, [
+                {
+                    type: "text",
+                    text: promptText || "이 영상을 분석해 주세요."
+                },
+                {
+                    type: "video",
+                    uri: videoUri
+                }
+            ]);
+        } else {
+            const model = genAI.getGenerativeModel({ model: geminiModel });
+            const parts = [
+                { text: fullPrompt }
+            ];
+            const result = await model.generateContent(parts);
+            summary = result.response.text();
+        }
     } else {
       summary = "### 설정 오류\n\nGEMINI_API_KEY가 설정되지 않았습니다. AI 요약을 사용하려면 API 키를 등록해 주세요.";
     }

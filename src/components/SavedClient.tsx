@@ -512,8 +512,19 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
         )}
       >
         {item.type === 'youtube' && item.thumbnail ? (
-          <div className="relative shrink-0 w-32 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5">
-            <img src={item.thumbnail} alt="" className="w-full h-full object-cover pointer-events-none" />
+          <div className="relative shrink-0 w-32 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5 bg-slate-100 dark:bg-slate-800">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.thumbnail}
+              alt=""
+              className="w-full h-full object-cover pointer-events-none"
+              onError={(e: any) => {
+                const videoId = item.url?.match(/(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/user\/\S+|\/ytscreeningroom\?v=))([\w\-]{11})/)?.[1];
+                if (videoId && !e.target.src.includes('mqdefault.jpg')) {
+                    e.target.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+                }
+              }}
+            />
             <div className="absolute bottom-1 right-1 bg-black/70 text-white text-[8px] font-bold px-1 rounded">
                 {item.duration}
             </div>
