@@ -633,6 +633,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         }
 
         const summaryHtml = await marked.parse(video.summary || '');
+        const savedDate = video.added_at ? new Date(video.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -641,9 +642,10 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
             </div>
             <div style="padding: 20px;">
               ${video.thumbnail ? `<div style="margin-bottom: 20px;"><img src="${video.thumbnail.replace('maxresdefault.jpg', 'mqdefault.jpg')}" referrerpolicy="no-referrer" style="border-radius: 8px; display: block;"></div>` : ''}
-              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; line-height: 1.6;">
                 <b>원본 URL:</b> <a href="${video.url}" style="color: #1978e5; text-decoration: none;">${video.url}</a><br>
-                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}
+                <b>게시일:</b> ${video.published_at || '-'} | <b>재생시간:</b> ${video.duration || '-'}<br>
+                <b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${video.gemini_model || '-'}</span> | <b>저장일자:</b> ${savedDate}
               </p>
               <div style="padding: 15px; border-radius: 8px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
@@ -660,6 +662,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
           tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
         }
 
+        const savedDate = blog.added_at ? new Date(blog.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -667,8 +670,9 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <h2 style="margin: 0; font-size: 18px; color: #111;">${blog.title}</h2>
             </div>
             <div style="padding: 20px;">
-              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666;">
-                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a>
+              <p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;">
+                <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a><br>
+                <b>저장일자:</b> ${savedDate}
               </p>
               <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
             </div>
@@ -683,6 +687,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
         }
 
         const summaryHtml = report.summary ? await marked.parse(report.summary) : '';
+        const savedDate = report.added_at ? new Date(report.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
             <div style="background: #f8fafc; padding: 15px 20px; border-bottom: 1px solid #eee;">
@@ -690,12 +695,13 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
               <h2 style="margin: 0; font-size: 18px; color: #111;">${report.title}</h2>
             </div>
             <div style="padding: 20px;">
-              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
-                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}
+              <p style="margin: 0 0 10px 0; font-size: 13px; color: #666; line-height: 1.6;">
+                <b>기관:</b> ${report.institution || '-'} | <b>작성자:</b> ${report.author || '-'} | <b>날짜:</b> ${report.date || '-'}<br>
+                <b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${report.gemini_model || '-'}</span> | <b>저장일자:</b> ${savedDate}
               </p>
               ${report.url ? await (async () => {
                 const displayUrl = await getResolvedReportUrlAction({ url: report.url });
-                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
+                return `<p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;"><b>PDF:</b> <a href="${displayUrl}" style="color: #1978e5; text-decoration: none;">원본 파일 링크</a></p>`;
               })() : ''}
 
               ${summaryHtml ? `
