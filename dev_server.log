@@ -2,10 +2,123 @@
 > book-journal@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use, trying 3001 instead.
    ▲ Next.js 15.1.9
-   - Local:        http://localhost:3001
-   - Network:      http://192.168.0.2:3001
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
- ✓ Ready in 2.2s
+ ✓ Ready in 1859ms
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 2.4s (233 modules)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+ ○ Compiling /login ...
+ ✓ Compiled /login in 7.3s (639 modules)
+ GET /login 200 in 8144ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1515ms (791 modules)
+DATABASE_URL is missing from environment variables.
+ GET /login 200 in 335ms
+ GET /api/auth/session 200 in 3019ms
+DATABASE_URL is missing from environment variables.
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ ✓ Compiled in 396ms (538 modules)
+ ○ Compiling /settings/gemini ...
+ ✓ Compiled /settings/gemini in 3.2s (1324 modules)
+ GET /settings/gemini 200 in 4127ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+DATABASE_URL is missing from environment variables.
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(action-browser)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(action-browser)/./node_modules/@auth/core/index.js:91:95)
+DATABASE_URL is missing from environment variables.
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 564ms
+getGeminiModels error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getGeminiModels (src/lib/db.ts:1200:16)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+ POST /settings/gemini 200 in 1699ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(action-browser)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(action-browser)/./node_modules/@auth/core/index.js:91:95)
+getGeminiPrompts error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getGeminiPrompts (src/lib/db.ts:1333:16)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+DATABASE_URL is missing from environment variables.
+ POST /settings/gemini 200 in 802ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 776ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(action-browser)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(action-browser)/./node_modules/@auth/core/index.js:91:95)
+getGeminiKeyPreference error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getGeminiKeyPreference (src/lib/db.ts:263:16)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+ POST /settings/gemini 200 in 573ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(action-browser)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(action-browser)/./node_modules/@auth/core/index.js:91:95)
+getGeminiKeyRotationSettings error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getGeminiKeyRotationSettings (src/lib/db.ts:316:16)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+DATABASE_URL is missing from environment variables.
+ POST /settings/gemini 200 in 508ms
+ ✓ Compiled in 676ms (551 modules)
+ ✓ Compiled in 1089ms (1177 modules)
+ ✓ Compiled in 550ms (1177 modules)
+ ✓ Compiled in 589ms (1177 modules)

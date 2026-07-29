@@ -208,6 +208,9 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
     const data = await extractYoutube(video.url, activeKey, selectedModel, selectedPrompt);
     const summary = data.summary;
 
+    // Check for rotation in successful summary text
+    await checkAndRotateGeminiKeyIfNeeded(summary);
+
     // 6. Update video record
     try {
         await query(
@@ -240,6 +243,8 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
     return { success: true, summary };
   } catch (error: any) {
     console.error('processYoutubeSummaryImmediatelyAction error:', error);
+    // Check for rotation in error message
+    await checkAndRotateGeminiKeyIfNeeded(error.message || String(error));
     // Mark queue item as failed if it exists
     await query(
         "UPDATE gemini_queue SET status = 'failed', error_message = $1 WHERE target_id = $2 AND type = 'youtube'",
@@ -252,12 +257,18 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
 /**
  * Gemini API Key Preference management
  */
-export async function getGeminiKeyPreference(): Promise<number> {
+export async function getGeminiKeyPreference(userId?: string): Promise<number> {
   try {
-    const user = await getSessionUser();
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await getSessionUser();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
     const res = await query(
       "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
-      [user.id, user.email, user.email?.toLowerCase()]
+      [targetId, targetEmail, targetEmail?.toLowerCase()]
     );
     return res.rows[0]?.gemini_key_index || 1;
   } catch (error: any) {
@@ -274,8 +285,8 @@ export async function getGeminiKeyPreference(): Promise<number> {
   }
 }
 
-export async function getActiveGeminiKey(): Promise<string | undefined> {
-    const keyIndex = await getGeminiKeyPreference();
+export async function getActiveGeminiKey(userId?: string): Promise<string | undefined> {
+    const keyIndex = await getGeminiKeyPreference(userId);
     const activeKey =
         keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
         keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
@@ -285,13 +296,19 @@ export async function getActiveGeminiKey(): Promise<string | undefined> {
     return activeKey;
 }
 
-export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
+export async function updateGeminiKeyPreferenceAction(index: number, userId?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await ensureApproved();
-    const email = user.email?.toLowerCase();
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await ensureApproved();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
+    const email = targetEmail?.toLowerCase();
     const res = await query(
       "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR LOWER(email) = $3",
-      [index, user.id, email]
+      [index, targetId, email]
     );
 
     if (res.rowCount === 0) {
@@ -302,6 +319,139 @@ export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ 
   } catch (error: any) {
     console.error('updateGeminiKeyPreferenceAction error:', error);
     return { success: false, error: error.message || '데이터베이스 오류' };
+  }
+}
+
+export async function getGeminiKeyRotationSettings(userId?: string): Promise<{ gemini_key_change_phrases: string; gemini_key_change_direction: 'asc' | 'desc' }> {
+  try {
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await getSessionUser();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
+    const res = await query(
+      "SELECT gemini_key_change_phrases, gemini_key_change_direction FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
+      [targetId, targetEmail, targetEmail?.toLowerCase()]
+    );
+    if (res.rows.length === 0) {
+      return { gemini_key_change_phrases: '', gemini_key_change_direction: 'asc' };
+    }
+    return {
+      gemini_key_change_phrases: res.rows[0].gemini_key_change_phrases || '',
+      gemini_key_change_direction: res.rows[0].gemini_key_change_direction || 'asc',
+    };
+  } catch (error: any) {
+    if (
+      error.message.includes('column "gemini_key_change_phrases" does not exist') ||
+      error.message.includes('column "gemini_key_change_direction" does not exist')
+    ) {
+      try {
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_phrases TEXT");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_direction TEXT DEFAULT 'asc'");
+        return getGeminiKeyRotationSettings(userId);
+      } catch (mErr) {
+        console.error('Migration for rotation settings failed:', mErr);
+      }
+    }
+    console.error('getGeminiKeyRotationSettings error:', error);
+    return { gemini_key_change_phrases: '', gemini_key_change_direction: 'asc' };
+  }
+}
+
+export async function updateGeminiKeyRotationSettingsAction(
+  phrases: string,
+  direction: 'asc' | 'desc'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const email = user.email?.toLowerCase();
+
+    let res;
+    try {
+      res = await query(
+        "UPDATE users SET gemini_key_change_phrases = $1, gemini_key_change_direction = $2 WHERE id = $3 OR LOWER(email) = $4",
+        [phrases, direction, user.id, email]
+      );
+    } catch (error: any) {
+      if (
+        error.message.includes('column "gemini_key_change_phrases" does not exist') ||
+        error.message.includes('column "gemini_key_change_direction" does not exist')
+      ) {
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_phrases TEXT");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_direction TEXT DEFAULT 'asc'");
+        res = await query(
+          "UPDATE users SET gemini_key_change_phrases = $1, gemini_key_change_direction = $2 WHERE id = $3 OR LOWER(email) = $4",
+          [phrases, direction, user.id, email]
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    if (res.rowCount === 0) {
+      throw new Error('사용자 정보를 찾을 수 없거나 업데이트에 실패했습니다.');
+    }
+
+    safeRevalidate('/settings/gemini');
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateGeminiKeyRotationSettingsAction error:', error);
+    return { success: false, error: error.message || '데이터베이스 오류' };
+  }
+}
+
+export async function checkAndRotateGeminiKeyIfNeeded(errorOrText: string, userId?: string): Promise<{ rotated: boolean; newIndex?: number }> {
+  try {
+    if (!errorOrText) return { rotated: false };
+
+    // Get current settings
+    const settings = await getGeminiKeyRotationSettings(userId);
+    if (!settings.gemini_key_change_phrases) {
+      return { rotated: false };
+    }
+
+    // Split phrases by newline, clean empty lines and trim
+    const phrases = settings.gemini_key_change_phrases
+      .split('\n')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    if (phrases.length === 0) {
+      return { rotated: false };
+    }
+
+    // Check if any phrase is included in errorOrText (case-insensitive)
+    const lowerInput = errorOrText.toLowerCase();
+    const isMatched = phrases.some(phrase => lowerInput.includes(phrase.toLowerCase()));
+
+    if (!isMatched) {
+      return { rotated: false };
+    }
+
+    // Matched! Now calculate the next key index
+    const currentIndex = await getGeminiKeyPreference(userId);
+    const direction = settings.gemini_key_change_direction || 'asc';
+    let nextIndex = currentIndex;
+
+    if (direction === 'asc') {
+      // 1 -> 2 -> 3 -> 4 -> 5 -> 1
+      nextIndex = currentIndex >= 5 ? 1 : currentIndex + 1;
+    } else {
+      // 5 -> 4 -> 3 -> 2 -> 1 -> 5
+      nextIndex = currentIndex <= 1 ? 5 : currentIndex - 1;
+    }
+
+    console.log(`Gemini API key rotation triggered: matching phrase found. Rotating from ${currentIndex} to ${nextIndex} (Direction: ${direction}) for user ${userId || 'session_user'}`);
+
+    // Save the new preference
+    await updateGeminiKeyPreferenceAction(nextIndex, userId);
+
+    return { rotated: true, newIndex: nextIndex };
+  } catch (error) {
+    console.error('checkAndRotateGeminiKeyIfNeeded error:', error);
+    return { rotated: false };
   }
 }
 
@@ -360,6 +510,9 @@ export async function processQueueItemManuallyAction(id: string) {
           summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
       }
 
+      // Check for rotation in successful summary text
+      await checkAndRotateGeminiKeyIfNeeded(summary, item.user_id);
+
       // Update target table
       if (type === 'youtube') {
         try {
@@ -393,6 +546,8 @@ export async function processQueueItemManuallyAction(id: string) {
       result = { success: true };
     } catch (err: any) {
       console.error('Manual processing error:', err);
+      // Check for rotation in error message
+      await checkAndRotateGeminiKeyIfNeeded(err.message || String(err), item.user_id);
       const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
@@ -1785,6 +1940,9 @@ export async function processNextQueueItemAction() {
           summary = await extractReport(payload.url, activeKey, payload.model, payload.prompt);
       }
 
+      // Check for rotation in successful summary text
+      await checkAndRotateGeminiKeyIfNeeded(summary, item.user_id);
+
       // Update target table
       if (type === 'youtube') {
         try {
@@ -1818,6 +1976,8 @@ export async function processNextQueueItemAction() {
       result = { success: true };
     } catch (err: any) {
       console.error('Queue processing error:', err);
+      // Check for rotation in error message
+      await checkAndRotateGeminiKeyIfNeeded(err.message || String(err), item.user_id);
       const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(

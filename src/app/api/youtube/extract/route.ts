@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { extractYoutube } from "@/lib/extract-service";
-import { getGeminiKeyPreference, getActiveGeminiKey } from "@/lib/db";
+import { getGeminiKeyPreference, getActiveGeminiKey, checkAndRotateGeminiKeyIfNeeded } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,9 +26,14 @@ export async function POST(req: NextRequest) {
 
     const data = await extractYoutube(url, activeKey, requestedModel, requestedPrompt, !includeAi);
 
+    if (data && data.summary) {
+        await checkAndRotateGeminiKeyIfNeeded(data.summary);
+    }
+
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("YouTube Extraction error:", error);
+    await checkAndRotateGeminiKeyIfNeeded(error.message || String(error));
     return NextResponse.json(
       { error: error.message || "Failed to extract YouTube video information" },
       { status: 500 }

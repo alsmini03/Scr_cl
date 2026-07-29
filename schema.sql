@@ -144,7 +144,9 @@ CREATE TABLE IF NOT EXISTS users (
   "emailVerified" TIMESTAMPTZ,
   image TEXT,
   is_approved BOOLEAN DEFAULT FALSE,
-  gemini_key_index INTEGER DEFAULT 1
+  gemini_key_index INTEGER DEFAULT 1,
+  gemini_key_change_phrases TEXT,
+  gemini_key_change_direction TEXT DEFAULT 'asc'
 );
 
 CREATE TABLE IF NOT EXISTS accounts (

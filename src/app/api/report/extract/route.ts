@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { extractReport } from "@/lib/extract-service";
-import { getGeminiKeyPreference, getActiveGeminiKey } from "@/lib/db";
+import { getGeminiKeyPreference, getActiveGeminiKey, checkAndRotateGeminiKeyIfNeeded } from "@/lib/db";
 
 export async function POST(req: Request) {
   try {
@@ -39,9 +39,14 @@ export async function POST(req: Request) {
 
     const text = await extractReport(url, activeKey, model, prompt, !includeAi);
 
+    if (text) {
+        await checkAndRotateGeminiKeyIfNeeded(text);
+    }
+
     return NextResponse.json({ result: text });
   } catch (error: any) {
     console.error("Gemini Report Extraction Error:", error);
+    await checkAndRotateGeminiKeyIfNeeded(error.message || String(error));
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

@@ -15,7 +15,9 @@ import {
   deleteGeminiPrompt,
   setDefaultGeminiPrompt,
   getGeminiKeyPreference,
-  updateGeminiKeyPreferenceAction
+  updateGeminiKeyPreferenceAction,
+  getGeminiKeyRotationSettings,
+  updateGeminiKeyRotationSettingsAction
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -49,16 +51,21 @@ export default function GeminiSettingsPage() {
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
 
   const [keyPreference, setKeyPreference] = useState<number | null>(null);
+  const [rotationPhrases, setRotationPhrases] = useState('');
+  const [rotationDirection, setRotationDirection] = useState<'asc' | 'desc'>('asc');
 
   const loadSettings = async () => {
-    const [dbModels, dbPrompts, dbKeyPref] = await Promise.all([
+    const [dbModels, dbPrompts, dbKeyPref, dbRotation] = await Promise.all([
       getGeminiModels(),
       getGeminiPrompts(),
-      getGeminiKeyPreference()
+      getGeminiKeyPreference(),
+      getGeminiKeyRotationSettings()
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
     setKeyPreference(dbKeyPref);
+    setRotationPhrases(dbRotation.gemini_key_change_phrases);
+    setRotationDirection(dbRotation.gemini_key_change_direction);
   };
 
   useEffect(() => {
@@ -161,6 +168,15 @@ export default function GeminiSettingsPage() {
       }
   };
 
+  const handleSaveRotationSettings = async () => {
+    const res = await updateGeminiKeyRotationSettingsAction(rotationPhrases, rotationDirection);
+    if (res.success) {
+      showToast('자동 변경 설정이 저장되었습니다.');
+    } else {
+      showToast(res.error || '저장 실패', 'error');
+    }
+  };
+
   return (
     <div className="font-display min-h-screen flex flex-col bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 pb-24">
       <Header title="Gemini 설정" showBack />
@@ -196,6 +212,72 @@ export default function GeminiSettingsPage() {
                 <p className="text-[10px] text-slate-400 text-center bg-slate-50 dark:bg-black/10 py-2 rounded-lg">
                     무료 할당량 소진 시 다른 키로 전환하여 사용할 수 있습니다. (최대 5개 지원)
                 </p>
+            </div>
+        </section>
+
+        {/* API Key Rotation Section */}
+        <section className="space-y-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">swap_calls</span>
+                API 키 자동 변경 설정
+            </h2>
+
+            <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-4">
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">
+                        변경 기준 조건 문구 (줄바꿈으로 구분)
+                    </label>
+                    <textarea
+                        value={rotationPhrases}
+                        onChange={(e) => setRotationPhrases(e.target.value)}
+                        placeholder={`You exceeded your current quota\nQuota exceeded\nRate limit exceeded`}
+                        className="rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-black/20 p-3 text-sm outline-none focus:border-primary transition-colors h-28 resize-none"
+                    />
+                    <p className="text-[10px] text-slate-400 ml-1">
+                        위 문구 중 하나라도 제미나이 에러 메시지나 응답 결과에 포함되면 API 키가 자동 변경됩니다.
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">
+                        API 키 변경 순서
+                    </label>
+                    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-primary/10">
+                        <button
+                            type="button"
+                            onClick={() => setRotationDirection('asc')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all",
+                                rotationDirection === 'asc'
+                                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            오름차순 (1 → 2 → 3 → 4 → 5)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRotationDirection('desc')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all",
+                                rotationDirection === 'desc'
+                                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            내림차순 (5 → 4 → 3 → 2 → 1)
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleSaveRotationSettings}
+                    className="w-full bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all hover:opacity-90 flex items-center justify-center gap-1"
+                >
+                    <span className="material-symbols-outlined text-sm">save</span>
+                    자동 변경 설정 저장
+                </button>
             </div>
         </section>
 
