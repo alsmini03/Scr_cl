@@ -60,6 +60,11 @@ export default function ReportClient({
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
 
+  // Inline collapsible states
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [expandedContent, setExpandedContent] = useState<string | null>(null);
+  const [isInlineLoading, setIsInlineLoading] = useState<boolean>(false);
+
   // Search/Filter State
   const [srhDate, setSrhDate] = useState('');
   const [srhWord, setSrhWord] = useState('');
@@ -228,6 +233,33 @@ export default function ReportClient({
   const handleRecommendClick = (report: Report) => {
     setSelectedRecommendReport(report);
     fetchContent(report.id);
+  };
+
+  const handleTitleClick = async (report: Report) => {
+    if (expandedReportId === report.id) {
+      setExpandedReportId(null);
+      setExpandedContent(null);
+      return;
+    }
+
+    setExpandedReportId(report.id);
+    setExpandedContent(null);
+    setIsInlineLoading(true);
+
+    try {
+      const res = await fetch('/api/report/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ num: report.id, code: '01' })
+      });
+      const html = await res.text();
+      setExpandedContent(html);
+    } catch (err) {
+      console.error(err);
+      showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsInlineLoading(false);
+    }
   };
 
   const handleDatePreset = (preset: string) => {
@@ -925,6 +957,9 @@ export default function ReportClient({
               <div className="space-y-3">
                 {sortedReports.map((report, idx) => {
                   const isSaved = savedKeys.has(`${report.title}|${report.institution}`);
+                  const savedReportObj = initialSavedReports.find(
+                    (r) => r.title === report.title && r.institution === report.institution
+                  );
                   return (
                   <div
                     key={report.id + idx}
@@ -936,7 +971,7 @@ export default function ReportClient({
                     </div>
 
                     <div className="flex justify-between items-start gap-3">
-                      <div onClick={() => handleRecommendClick(report)} className="flex-1 cursor-pointer group">
+                      <div onClick={() => handleTitleClick(report)} className="flex-1 cursor-pointer group">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-3 group-hover:text-primary transition-colors">
                           {report.title}
                         </h3>
@@ -978,9 +1013,53 @@ export default function ReportClient({
                       </div>
                     </div>
 
-                    <div onClick={() => handleRecommendClick(report)} className="cursor-pointer mt-1">
+                    <div onClick={() => handleTitleClick(report)} className="cursor-pointer mt-1">
                       <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
                     </div>
+
+                    {/* Collapsible Content Area */}
+                    {expandedReportId === report.id && (
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-primary/10 space-y-4 animate-fade-in-up">
+                        {isInlineLoading ? (
+                          <div className="py-6 flex flex-col items-center justify-center gap-2 text-slate-400">
+                            <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <p className="text-[11px]">내용을 불러오는 중...</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* If saved and has summary, show AI 요약 분석 */}
+                            {savedReportObj && savedReportObj.summary && (
+                              <div className="bg-slate-50 dark:bg-black/10 rounded-xl p-4 space-y-2 border border-slate-100 dark:border-primary/5">
+                                <div className="flex items-center gap-1 text-[11px] font-black text-primary uppercase">
+                                  <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                                  AI 요약 분석
+                                </div>
+                                <div
+                                  className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-700 dark:text-slate-300 leading-relaxed"
+                                  dangerouslySetInnerHTML={{ __html: marked.parse(savedReportObj.summary) }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Show original content text */}
+                            {expandedContent ? (
+                              <div className="bg-slate-50 dark:bg-black/10 rounded-xl p-4 border border-slate-100 dark:border-primary/5 overflow-hidden max-h-[350px] overflow-y-auto no-scrollbar">
+                                <div className="text-[11px] font-black text-slate-400 uppercase mb-2 flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[14px]">description</span>
+                                  추출된 리포트 내용
+                                </div>
+                                <div
+                                  className="prose prose-sm dark:prose-invert max-w-none break-words text-xs text-slate-700 dark:text-slate-300"
+                                  dangerouslySetInnerHTML={{ __html: expandedContent }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="py-4 text-center text-xs text-slate-400">내용이 없습니다.</div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )})}
 

@@ -122,3 +122,92 @@ DATABASE_URL is missing from environment variables.
  ✓ Compiled in 1089ms (1177 modules)
  ✓ Compiled in 550ms (1177 modules)
  ✓ Compiled in 589ms (1177 modules)
+ ✓ Compiled in 4.6s (318 modules)
+ ✓ Compiled in 464ms (318 modules)
+ ✓ Compiled in 548ms (318 modules)
+ ✓ Compiled in 853ms (551 modules)
+ ○ Compiling /report ...
+ ✓ Compiled /report in 6.9s (1608 modules)
+DATABASE_URL is missing from environment variables.
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:452:9)
+    at process.callbackTrampoline (node:internal/async_hooks:130:17)
+getReportTabs error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getReportTabs (src/lib/db.ts:947:16)
+    at async ReportPage (src/app/report/page.tsx:7:40)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+getReports error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getReports (src/lib/db.ts:96:16)
+    at async ReportPage (src/app/report/page.tsx:7:40)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+ GET /report 200 in 8508ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 596ms (1303 modules)
+DATABASE_URL is missing from environment variables.
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+getQueueItems error: AggregateError:
+    at async query (src/lib/pg.ts:24:14)
+    at async getQueueItems (src/lib/db.ts:1786:41)
+  22 | export async function query(text: string, params?: any[]) {
+  23 |   const start = Date.now();
+> 24 |   const res = await pool.query(text, params);
+     |              ^
+  25 |   const duration = Date.now() - start;
+  26 |   if (process.env.NODE_ENV === 'development') {
+  27 |     console.log('executed query', { text, duration, rows: res.rowCount }); {
+  code: 'ECONNREFUSED'
+}
+ POST /report 200 in 2365ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 2511ms
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(middleware)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(middleware)/./node_modules/@auth/core/index.js:91:95)
+[31m[auth][error][0m MissingSecret: Please define a `secret`. Read more at https://errors.authjs.dev#missingsecret
+    at assertConfig (webpack-internal:///(rsc)/./node_modules/@auth/core/lib/utils/assert.js:66:16)
+    at Auth (webpack-internal:///(rsc)/./node_modules/@auth/core/index.js:91:95)
+    at async AppRouteRouteModule.do (/app/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:10:32847)
+ GET /api/auth/session 500 in 12ms
+DATABASE_URL is missing from environment variables.
+ ✓ Compiled in 836ms (558 modules)
