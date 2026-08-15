@@ -9,7 +9,7 @@ import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
 import { resolveBondwebPdfUrl } from './utils';
-import { extractYoutube, extractReport } from './extract-service';
+import { extractYoutube, extractReport, extractBlogSummary } from './extract-service';
 
 // Configure marked
 marked.use(gfmHeadingId());
@@ -173,6 +173,62 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
     safeRevalidate('/report');
     return { success: true };
   } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function processBlogSummaryAction(blogId: string) {
+  try {
+    const user = await ensureApproved();
+
+    const blog = await getBlogById(blogId);
+    if (!blog) throw new Error('블로그 글을 찾을 수 없습니다.');
+
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+    const selectedModel = models.find(m => m.blog_default)?.name || models[0]?.name || "gemini-1.5-flash";
+    const selectedPrompt = prompts.find(p => p.blog_default)?.content || prompts[0]?.content;
+
+    const activeKey = await getActiveGeminiKey();
+    if (!activeKey) {
+      const keyIndex = await getGeminiKeyPreference();
+      throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
+    let summary = '';
+    try {
+      summary = await extractBlogSummary(blog.content || '', activeKey, selectedModel, selectedPrompt);
+      await checkAndRotateGeminiKeyIfNeeded(summary);
+    } catch (aiErr: any) {
+      await checkAndRotateGeminiKeyIfNeeded(aiErr.message || String(aiErr));
+      throw aiErr;
+    }
+
+    try {
+      await query(
+        "UPDATE naver_blogs SET summary = $1, gemini_model = $2 WHERE id = $3",
+        [summary, selectedModel, blogId]
+      );
+    } catch (dbErr: any) {
+      if (dbErr.message.includes('column "summary" does not exist') || dbErr.message.includes('column "gemini_model" does not exist')) {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        await query(
+          "UPDATE naver_blogs SET summary = $1, gemini_model = $2 WHERE id = $3",
+          [summary, selectedModel, blogId]
+        );
+      } else {
+        throw dbErr;
+      }
+    }
+
+    safeRevalidate('/blog');
+    safeRevalidate(`/blog/${blogId}`);
+    safeRevalidate('/saved');
+
+    return { success: true, summary, model: selectedModel };
+  } catch (error: any) {
+    console.error('processBlogSummaryAction error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -1115,20 +1171,58 @@ export async function saveBlog(blog: {
   thumbnail?: string;
   content?: string;
   published_at?: string;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+  summary?: string;
+  gemini_model?: string;
+  includeAi?: boolean;
+}): Promise<{ success: boolean; id?: string; error?: string; summary?: string; gemini_model?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await query(
-      "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt]
-    );
+    let summary = blog.summary || '';
+    let geminiModel = blog.gemini_model || '';
+
+    if (blog.includeAi && blog.content) {
+      const models = await getGeminiModels();
+      const prompts = await getGeminiPrompts();
+      const selectedModel = models.find(m => m.blog_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      const selectedPrompt = prompts.find(p => p.blog_default)?.content || prompts[0]?.content;
+      const activeKey = await getActiveGeminiKey();
+
+      if (activeKey) {
+        try {
+          summary = await extractBlogSummary(blog.content, activeKey, selectedModel, selectedPrompt);
+          geminiModel = selectedModel;
+          await checkAndRotateGeminiKeyIfNeeded(summary);
+        } catch (aiErr: any) {
+          console.error('saveBlog AI summary error:', aiErr);
+          await checkAndRotateGeminiKeyIfNeeded(aiErr.message || String(aiErr));
+        }
+      }
+    }
+
+    try {
+      await query(
+        "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at, summary, gemini_model) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt, summary || null, geminiModel || null]
+      );
+    } catch (dbErr: any) {
+      if (dbErr.message.includes('column "summary" does not exist') || dbErr.message.includes('column "gemini_model" does not exist')) {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        await query(
+          "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at, summary, gemini_model) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+          [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt, summary || null, geminiModel || null]
+        );
+      } else {
+        throw dbErr;
+      }
+    }
 
     safeRevalidate('/blog');
     safeRevalidate('/saved');
-    return { success: true, id };
+    return { success: true, id, summary, gemini_model: geminiModel };
   } catch (error: any) {
     console.error('Failed to save blog:', error);
     return { success: false, error: error.message || '블로그 정보를 저장하는 중 오류가 발생했습니다.' };
@@ -1139,14 +1233,23 @@ export async function getBlogs(prefetchedUser?: any, includeContent: boolean = f
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked"
-      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked";
+      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked, summary, gemini_model"
+      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked, summary, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "summary" does not exist') || error.message.includes('column "gemini_model" does not exist')) {
+      try {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        return getBlogs(prefetchedUser, includeContent);
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getBlogs error:', error);
     return [];
   }

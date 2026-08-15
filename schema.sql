@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS gemini_models (
   name TEXT NOT NULL,
   youtube_default BOOLEAN DEFAULT FALSE,
   report_default BOOLEAN DEFAULT FALSE,
+  blog_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS gemini_prompts (
   content TEXT NOT NULL,
   youtube_default BOOLEAN DEFAULT FALSE,
   report_default BOOLEAN DEFAULT FALSE,
+  blog_default BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -131,7 +133,9 @@ CREATE TABLE IF NOT EXISTS naver_blogs (
   published_at TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
-  is_liked BOOLEAN DEFAULT FALSE
+  is_liked BOOLEAN DEFAULT FALSE,
+  summary TEXT,
+  gemini_model TEXT
 );
 
 -- Auth.js Tables (PostgreSQL Adapter)

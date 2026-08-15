@@ -37,6 +37,14 @@ export default function BlogClient({
   const [newTabUrl, setNewTabUrl] = useState('');
   const [isAddingTab, setIsAddingTab] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPromptOn, setIsPromptOn] = useState(false);
+
+  useEffect(() => {
+    const savedPrompt = localStorage.getItem('blog_prompt_enabled');
+    if (savedPrompt !== null) {
+      setIsPromptOn(savedPrompt === 'true');
+    }
+  }, []);
 
   const fetchRecommend = async () => {
     if (!activeTabId) {
@@ -98,18 +106,23 @@ export default function BlogClient({
       });
       const data = await res.json();
 
+      if (isPromptOn) {
+        showToast('AI 요약을 분석하는 중입니다...');
+      }
+
       const saveRes = await saveBlog({
         title: data.title || post.title,
         author: data.author || post.author,
         url: post.url,
         thumbnail: data.thumbnail || post.thumbnail,
         content: data.content,
-        published_at: data.published_at || post.published_at
+        published_at: data.published_at || post.published_at,
+        includeAi: isPromptOn
       });
 
       if (saveRes.success && saveRes.id) {
         setSavedUrls(prev => new Set([...Array.from(prev), post.url]));
-        showToast('내 서재에 추가되었습니다.');
+        showToast(saveRes.summary ? '내 서재에 저장되고 AI 요약이 완료되었습니다.' : '내 서재에 추가되었습니다.');
       } else {
         showToast(saveRes.error || '저장 실패', 'error');
       }
@@ -299,7 +312,8 @@ export default function BlogClient({
                 url,
                 thumbnail: data.thumbnail || post.thumbnail,
                 content: data.content,
-                published_at: data.published_at || post.published_at
+                published_at: data.published_at || post.published_at,
+                includeAi: isPromptOn
             });
             if (saveRes.success && saveRes.id) {
                 savedIds.push(saveRes.id);
@@ -344,13 +358,15 @@ export default function BlogClient({
                   body: JSON.stringify({ url })
               });
               const data = await res.json();
+
               const saveRes = await saveBlog({
                   title: data.title || post?.title,
                   author: data.author || post?.author,
                   url,
                   thumbnail: data.thumbnail || post?.thumbnail,
                   content: data.content,
-                  published_at: data.published_at || post?.published_at
+                  published_at: data.published_at || post?.published_at,
+                  includeAi: isPromptOn
               });
               if (saveRes.success) count++;
           }
@@ -471,6 +487,33 @@ export default function BlogClient({
                     </button>
                 </div>
             )}
+
+            {/* AI Prompt ON/OFF Toggle Bar */}
+            <div className="flex items-center justify-between bg-white dark:bg-slate-900/50 rounded-2xl p-3.5 border border-slate-100 dark:border-primary/10 shadow-sm mb-4">
+                <div className="flex items-center gap-2.5">
+                    <span className="material-symbols-outlined text-primary text-xl">auto_awesome</span>
+                    <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100">AI 프롬프트 분석</p>
+                        <p className="text-[10px] text-slate-400">저장 시 설정된 프롬프트로 AI 요약을 함께 생성합니다.</p>
+                    </div>
+                </div>
+                <button
+                    onClick={() => {
+                        const next = !isPromptOn;
+                        setIsPromptOn(next);
+                        localStorage.setItem('blog_prompt_enabled', String(next));
+                        showToast(next ? 'AI 프롬프트 기능이 켜졌습니다.' : 'AI 프롬프트 기능이 꺼졌습니다.');
+                    }}
+                    className={cn(
+                        "px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 shrink-0",
+                        isPromptOn ? "bg-primary text-white shadow-sm" : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
+                    )}
+                >
+                    <span className="material-symbols-outlined text-sm">{isPromptOn ? 'toggle_on' : 'toggle_off'}</span>
+                    {isPromptOn ? 'PROMPT ON' : 'PROMPT OFF'}
+                </button>
+            </div>
+
             {isEditMode && (
                 <div className="mb-6 flex justify-between items-center p-3 bg-primary/5 dark:bg-primary/10 rounded-2xl border border-primary/20 animate-fade-in-up">
                     <p className="text-sm font-black text-primary ml-2">

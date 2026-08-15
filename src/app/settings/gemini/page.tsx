@@ -28,6 +28,7 @@ interface GeminiModel {
   name: string;
   youtube_default: boolean;
   report_default: boolean;
+  blog_default?: boolean;
 }
 
 interface GeminiPrompt {
@@ -36,11 +37,12 @@ interface GeminiPrompt {
   content: string;
   youtube_default: boolean;
   report_default: boolean;
+  blog_default?: boolean;
 }
 
 export default function GeminiSettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'youtube' | 'report'>('youtube');
+  const [activeTab, setActiveTab] = useState<'youtube' | 'report' | 'blog'>('youtube');
   const [models, setModels] = useState<GeminiModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
@@ -291,7 +293,7 @@ export default function GeminiSettingsPage() {
                 )}
             >
                 <span className="material-symbols-outlined text-lg">smart_display</span>
-                유튜브 디폴트 설정
+                유튜브
             </button>
             <button
                 onClick={() => setActiveTab('report')}
@@ -302,6 +304,16 @@ export default function GeminiSettingsPage() {
             >
                 <span className="material-symbols-outlined text-lg">description</span>
                 리포트
+            </button>
+            <button
+                onClick={() => setActiveTab('blog')}
+                className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+                    activeTab === 'blog' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+            >
+                <span className="material-symbols-outlined text-lg">rss_feed</span>
+                블로그
             </button>
         </div>
 
@@ -340,7 +352,7 @@ export default function GeminiSettingsPage() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                     {models.map(m => {
-                        const isDefault = activeTab === 'report' ? m.report_default : m.youtube_default;
+                        const isDefault = activeTab === 'report' ? m.report_default : activeTab === 'blog' ? m.blog_default : m.youtube_default;
                         return (
                         <div key={m.id} className={cn(
                             "flex items-center gap-2 border px-4 py-2 rounded-full text-sm transition-all",
@@ -404,7 +416,7 @@ export default function GeminiSettingsPage() {
                     <label className="text-xs font-bold text-slate-400 uppercase ml-1">저장된 프롬프트 목록</label>
                     <div className="grid gap-3">
                         {prompts.map((p) => {
-                            const isDefault = activeTab === 'report' ? p.report_default : p.youtube_default;
+                            const isDefault = activeTab === 'report' ? p.report_default : activeTab === 'blog' ? p.blog_default : p.youtube_default;
                             return (
                             <div key={p.id} className={cn(
                                 "group relative p-4 rounded-2xl border transition-all",

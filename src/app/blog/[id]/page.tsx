@@ -2,11 +2,12 @@
 
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
-import { getBlogById, deleteBlog, sendBlogEmailAction, getAdjacentBlogIdsAction, toggleLikeAction } from '@/lib/db';
+import { getBlogById, deleteBlog, sendBlogEmailAction, getAdjacentBlogIdsAction, toggleLikeAction, processBlogSummaryAction } from '@/lib/db';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { cn, formatDateToYMD, isThumbnailInContent } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
+import { marked } from 'marked';
 
 const SkeletonBlogDetail = () => (
   <div className="font-display min-h-screen pb-24 bg-white dark:bg-background-dark text-slate-900 dark:text-slate-100">
@@ -46,6 +47,7 @@ export default function BlogDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+  const [isAiRunning, setIsAiRunning] = useState(false);
 
   // Navigation states
   const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
@@ -124,6 +126,25 @@ export default function BlogDetailPage() {
       showToast('이메일 발송에 실패했습니다.', 'error');
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleRegenerateAi = async () => {
+    if (isAiRunning) return;
+    setIsAiRunning(true);
+    try {
+      showToast('AI 분석을 진행 중입니다...');
+      const res = await processBlogSummaryAction(blog.id);
+      if (res.success && res.summary) {
+        setBlog({ ...blog, summary: res.summary, gemini_model: res.model });
+        showToast('AI 요약 분석이 완료되었습니다.');
+      } else {
+        showToast(res.error || 'AI 요약 실패', 'error');
+      }
+    } catch (err) {
+      showToast('오류가 발생했습니다.', 'error');
+    } finally {
+      setIsAiRunning(false);
     }
   };
 
@@ -219,6 +240,50 @@ export default function BlogDetailPage() {
             <div className="w-full rounded-2xl overflow-hidden border border-slate-100 dark:border-primary/10">
                 <img src={blog.thumbnail} alt="" className="w-full" referrerPolicy="no-referrer" />
             </div>
+        )}
+
+        {/* AI Summary Section */}
+        {blog.summary ? (
+          <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-5 border border-slate-100 dark:border-primary/10 shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-lg">auto_awesome</span>
+                <h3 className="text-xs font-bold text-primary uppercase">AI 요약 분석</h3>
+                {blog.gemini_model && (
+                  <span className="text-[9px] font-black px-1.5 py-0.5 bg-primary/10 text-primary rounded uppercase tracking-tighter">
+                    {blog.gemini_model}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleRegenerateAi}
+                disabled={isAiRunning}
+                className="flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-primary/10 active:scale-95 transition-all disabled:opacity-50"
+              >
+                <span className={cn("material-symbols-outlined text-[13px]", isAiRunning && "animate-spin")}>refresh</span>
+                다시 가져오기
+              </button>
+            </div>
+            <div
+              className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300"
+              dangerouslySetInnerHTML={{ __html: marked.parse(blog.summary) }}
+            />
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <button
+              onClick={handleRegenerateAi}
+              disabled={isAiRunning}
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 text-primary rounded-xl text-xs font-bold active:scale-95 transition-all disabled:opacity-50"
+            >
+              {isAiRunning ? (
+                <div className="size-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span className="material-symbols-outlined text-sm">auto_awesome</span>
+              )}
+              AI 프롬프트 요약 실행
+            </button>
+          </div>
         )}
 
         <div
