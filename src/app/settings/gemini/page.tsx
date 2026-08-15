@@ -424,15 +424,16 @@ export default function GeminiSettingsPage() {
                         {prompts.map((p) => {
                             const isDefault = activeTab === 'report' ? p.report_default : activeTab === 'blog' ? p.blog_default : p.youtube_default;
                             return (
-                            <div key={p.id} className={cn(
-                                "group relative p-4 rounded-2xl border transition-all",
-                                isDefault ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5"
-                            )}>
+                            <div
+                                key={p.id}
+                                onClick={() => handleSetDefaultPrompt(p.id)}
+                                className={cn(
+                                    "group relative p-4 rounded-2xl border transition-all cursor-pointer",
+                                    isDefault ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5 hover:border-primary/30"
+                                )}
+                            >
                                 <div className="flex justify-between items-start mb-2">
-                                    <button
-                                        onClick={() => handleSetDefaultPrompt(p.id)}
-                                        className="text-left"
-                                    >
+                                    <div className="text-left">
                                         <div className="flex items-center gap-2">
                                             <span className={cn("text-sm font-bold", isDefault ? "text-primary" : "text-slate-900 dark:text-slate-100")}>
                                                 {p.name}
@@ -441,8 +442,8 @@ export default function GeminiSettingsPage() {
                                                 <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-bold">DEFAULT</span>
                                             )}
                                         </div>
-                                    </button>
-                                    <div className="flex items-center gap-1">
+                                    </div>
+                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                         <button onClick={() => startEditPrompt(p)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors">
                                             <span className="material-symbols-outlined text-sm">edit</span>
                                         </button>

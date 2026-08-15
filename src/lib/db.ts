@@ -1468,7 +1468,7 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
     }
 
     await query(
-      `UPDATE gemini_models SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3`,
+      `UPDATE gemini_models SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3 OR user_id IS NOT NULL`,
       [user.id, user.email, user.email?.toLowerCase()]
     );
 
@@ -1553,7 +1553,7 @@ export async function setDefaultGeminiPrompt(id: string, category: string = 'you
     }
 
     await query(
-      `UPDATE gemini_prompts SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3`,
+      `UPDATE gemini_prompts SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3 OR user_id IS NOT NULL`,
       [user.id, user.email, user.email?.toLowerCase()]
     );
 
