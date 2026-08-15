@@ -112,6 +112,9 @@ export default function GeminiSettingsPage() {
     const res = await setDefaultGeminiModel(id, activeTab);
     if (res.success) {
       await loadSettings();
+      showToast('기본 모델이 변경되었습니다.');
+    } else {
+      showToast(res.error || '변경 실패', 'error');
     }
   };
 
@@ -157,6 +160,9 @@ export default function GeminiSettingsPage() {
     const res = await setDefaultGeminiPrompt(id, activeTab);
     if (res.success) {
       await loadSettings();
+      showToast('기본 프롬프트가 변경되었습니다.');
+    } else {
+      showToast(res.error || '변경 실패', 'error');
     }
   };
 

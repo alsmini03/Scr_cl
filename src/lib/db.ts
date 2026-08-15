@@ -1442,11 +1442,11 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
     const user = await ensureApproved();
     const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
     try {
-      await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+      await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
     } catch (dbErr: any) {
       if (dbErr.message.includes(`column "${column}" does not exist`)) {
         await query(`ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
-        await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+        await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
       } else throw dbErr;
     }
     return { success: true };
@@ -1498,11 +1498,11 @@ export async function setDefaultGeminiPrompt(id: string, category: string = 'you
     const user = await ensureApproved();
     const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
     try {
-      await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+      await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
     } catch (dbErr: any) {
       if (dbErr.message.includes(`column "${column}" does not exist`)) {
         await query(`ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
-        await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+        await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
       } else throw dbErr;
     }
     return { success: true };
