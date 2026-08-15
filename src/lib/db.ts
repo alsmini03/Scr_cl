@@ -1318,12 +1318,31 @@ export async function updateYoutubeVideo(id: string, video: {
 export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
       [user.id, user.email]
     );
+    if (res.rows.length > 0 && res.rows[0].blog_default === undefined) {
+      try {
+        await query("ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        res = await query(
+          "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+          [user.id, user.email]
+        );
+      } catch (e) {
+        console.error('Migration for blog_default in gemini_models failed:', e);
+      }
+    }
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "blog_default" does not exist')) {
+      try {
+        await query("ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        return getGeminiModels();
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getGeminiModels error:', error);
     return [];
   }
@@ -1458,12 +1477,31 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
 export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
       [user.id, user.email]
     );
+    if (res.rows.length > 0 && res.rows[0].blog_default === undefined) {
+      try {
+        await query("ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        res = await query(
+          "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+          [user.id, user.email]
+        );
+      } catch (e) {
+        console.error('Migration for blog_default in gemini_prompts failed:', e);
+      }
+    }
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "blog_default" does not exist')) {
+      try {
+        await query("ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        return getGeminiPrompts();
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getGeminiPrompts error:', error);
     return [];
   }
