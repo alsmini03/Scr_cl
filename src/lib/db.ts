@@ -1460,16 +1460,26 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
   try {
     const user = await ensureApproved();
     const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
+
     try {
-      await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
-    } catch (dbErr: any) {
-      if (dbErr.message.includes(`column "${column}" does not exist`)) {
-        await query(`ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
-        await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
-      } else throw dbErr;
+      await query(`ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
+    } catch (e) {
+      console.error(`Migration for ${column} in gemini_models failed:`, e);
     }
+
+    await query(
+      `UPDATE gemini_models SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3`,
+      [user.id, user.email, user.email?.toLowerCase()]
+    );
+
+    await query(
+      `UPDATE gemini_models SET ${column} = TRUE WHERE id = $1`,
+      [id]
+    );
+
     return { success: true };
   } catch (error: any) {
+    console.error('setDefaultGeminiModel error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -1535,16 +1545,26 @@ export async function setDefaultGeminiPrompt(id: string, category: string = 'you
   try {
     const user = await ensureApproved();
     const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
+
     try {
-      await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
-    } catch (dbErr: any) {
-      if (dbErr.message.includes(`column "${column}" does not exist`)) {
-        await query(`ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
-        await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3 OR LOWER(user_id) = $4 OR id = $1)`, [id, user.id, user.email, user.email?.toLowerCase()]);
-      } else throw dbErr;
+      await query(`ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
+    } catch (e) {
+      console.error(`Migration for ${column} in gemini_prompts failed:`, e);
     }
+
+    await query(
+      `UPDATE gemini_prompts SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3`,
+      [user.id, user.email, user.email?.toLowerCase()]
+    );
+
+    await query(
+      `UPDATE gemini_prompts SET ${column} = TRUE WHERE id = $1`,
+      [id]
+    );
+
     return { success: true };
   } catch (error: any) {
+    console.error('setDefaultGeminiPrompt error:', error);
     return { success: false, error: error.message };
   }
 }
