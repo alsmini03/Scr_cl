@@ -50,7 +50,7 @@ export default function BlogDetailPage() {
   const [isAiRunning, setIsAiRunning] = useState(false);
 
   // Navigation states
-  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
+  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }>({});
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [recipientEmail, setRecipientEmail] = useState('seokmin.kwon@samsung.com');
 
@@ -161,23 +161,35 @@ export default function BlogDetailPage() {
 
       <main className="p-4 space-y-6 max-w-2xl mx-auto">
         {/* Navigation Bar */}
-        <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+        <div className="flex justify-between items-center gap-2 bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
             <button
                 onClick={() => adjacentIds.prevId && router.push(`/blog/${adjacentIds.prevId}`)}
                 disabled={!adjacentIds.prevId}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                className="flex-1 flex items-center gap-1 min-w-0 px-2 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95 text-left"
+                title={adjacentIds.prevTitle}
             >
-                <span className="material-symbols-outlined text-lg">chevron_left</span>
-                이전
+                <span className="material-symbols-outlined text-lg flex-shrink-0">chevron_left</span>
+                <span className="flex-shrink-0">이전</span>
+                {adjacentIds.prevTitle && (
+                  <span className="truncate text-xs font-normal text-slate-400 dark:text-slate-500 min-w-0">
+                    : {adjacentIds.prevTitle}
+                  </span>
+                )}
             </button>
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
             <button
                 onClick={() => adjacentIds.nextId && router.push(`/blog/${adjacentIds.nextId}`)}
                 disabled={!adjacentIds.nextId}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                className="flex-1 flex items-center justify-end gap-1 min-w-0 px-2 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95 text-right"
+                title={adjacentIds.nextTitle}
             >
-                다음
-                <span className="material-symbols-outlined text-lg">chevron_right</span>
+                {adjacentIds.nextTitle && (
+                  <span className="truncate text-xs font-normal text-slate-400 dark:text-slate-500 min-w-0">
+                    {adjacentIds.nextTitle} :
+                  </span>
+                )}
+                <span className="flex-shrink-0">다음</span>
+                <span className="material-symbols-outlined text-lg flex-shrink-0">chevron_right</span>
             </button>
         </div>
 

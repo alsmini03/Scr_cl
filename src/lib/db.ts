@@ -1811,7 +1811,7 @@ export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boo
   }
 }
 
-export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const currentVideo = await getYoutubeVideoById(id);
@@ -1821,19 +1821,21 @@ export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ pr
 
     // Prev (Newer in list)
     const prevRes = await query(
-      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older in list)
     const nextRes = await query(
-      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentYoutubeVideoIdsAction error:', error);
@@ -1876,7 +1878,7 @@ export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report' | 'bo
   }
 }
 
-export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const current = await getBlogById(id);
@@ -1886,19 +1888,21 @@ export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: s
 
     // Prev (Newer)
     const prevRes = await query(
-      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older)
     const nextRes = await query(
-      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentBlogIdsAction error:', error);
@@ -1906,7 +1910,7 @@ export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: s
   }
 }
 
-export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const current = await getReportById(id);
@@ -1916,19 +1920,21 @@ export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?:
 
     // Prev (Newer)
     const prevRes = await query(
-      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older)
     const nextRes = await query(
-      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentReportIdsAction error:', error);
