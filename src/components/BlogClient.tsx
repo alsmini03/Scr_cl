@@ -510,7 +510,7 @@ export default function BlogClient({
                     )}
                 >
                     <span className="material-symbols-outlined text-sm">{isPromptOn ? 'toggle_on' : 'toggle_off'}</span>
-                    {isPromptOn ? 'PROMPT ON' : 'PROMPT OFF'}
+                    {isPromptOn ? 'ON' : 'OFF'}
                 </button>
             </div>
 
