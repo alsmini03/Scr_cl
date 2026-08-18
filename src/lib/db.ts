@@ -873,6 +873,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
           tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
         }
 
+        const blogSummaryHtml = blog.summary ? await marked.parse(blog.summary) : '';
         const savedDate = blog.added_at ? new Date(blog.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
@@ -883,8 +884,16 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
             <div style="padding: 20px;">
               <p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;">
                 <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a><br>
-                <b>저장일자:</b> ${savedDate}
+                ${blog.gemini_model ? `<b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${blog.gemini_model}</span> | ` : ''}<b>저장일자:</b> ${savedDate}
               </p>
+
+              ${blogSummaryHtml ? `
+              <div style="padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${blogSummaryHtml}</div>
+              </div>
+              ` : ''}
+
               <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
             </div>
           </div>
