@@ -31,7 +31,9 @@ export default function SavedClient({
   const [items, setItems] = useState<any[]>(initialItems);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isProcessing = isEmailing || isDeleting;
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report' | 'book'>('all');
   const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -203,7 +205,7 @@ export default function SavedClient({
 
     const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
-    setIsProcessing(true);
+    setIsEmailing(true);
     try {
       const itemsToSend = selectedItems.map(item => ({
         type: item.type as 'youtube' | 'blog' | 'report' | 'book',
@@ -220,7 +222,7 @@ export default function SavedClient({
     } catch (err: any) {
       showToast(`발송 실패: ${err.message}`, 'error');
     } finally {
-      setIsProcessing(false);
+      setIsEmailing(false);
     }
   };
 
@@ -228,7 +230,7 @@ export default function SavedClient({
       if (selectedItems.length === 0) return;
       if (!confirm(`선택한 ${selectedItems.length}개의 항목을 삭제하시겠습니까?`)) return;
 
-      setIsProcessing(true);
+      setIsDeleting(true);
       try {
           let successCount = 0;
           for (const item of selectedItems) {
@@ -257,7 +259,7 @@ export default function SavedClient({
           console.error(err);
           showToast('삭제 중 오류가 발생했습니다.', 'error');
       } finally {
-          setIsProcessing(false);
+          setIsDeleting(false);
       }
   };
 
@@ -416,7 +418,7 @@ export default function SavedClient({
                         disabled={selectedItems.length === 0 || isProcessing}
                         className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
                     >
-                        {isProcessing ? (
+                        {isEmailing ? (
                             <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                         ) : (
                             <>메일<br/>발송</>
@@ -425,9 +427,13 @@ export default function SavedClient({
                     <button
                         onClick={handleBatchDelete}
                         disabled={selectedItems.length === 0 || isProcessing}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
+                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[40px]"
                     >
-                        삭제
+                        {isDeleting ? (
+                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <>삭제</>
+                        )}
                     </button>
                 </div>
             </div>

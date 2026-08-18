@@ -25,7 +25,9 @@ export default function BlogClient({
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isSavingBatch, setIsSavingBatch] = useState(false);
+  const isProcessing = isEmailing || isSavingBatch;
 
   const dragTimerRef = useRef<NodeJS.Timeout | null>(null);
   const startPosRef = useRef<{x: number, y: number} | null>(null);
@@ -283,7 +285,7 @@ export default function BlogClient({
 
   const handleBatchEmail = async () => {
     if (selectedUrls.length === 0) return;
-    setIsProcessing(true);
+    setIsEmailing(true);
     try {
         const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
@@ -340,13 +342,13 @@ export default function BlogClient({
     } catch (err: any) {
         showToast(`오류 발생: ${err.message}`, 'error');
     } finally {
-        setIsProcessing(false);
+        setIsEmailing(false);
     }
   };
 
   const handleBatchSave = async () => {
       if (selectedUrls.length === 0) return;
-      setIsProcessing(true);
+      setIsSavingBatch(true);
       try {
           let count = 0;
           for (const url of selectedUrls) {
@@ -379,7 +381,7 @@ export default function BlogClient({
       } catch (err) {
           showToast('저장 중 오류가 발생했습니다.', 'error');
       } finally {
-          setIsProcessing(false);
+          setIsSavingBatch(false);
       }
   };
 
@@ -531,7 +533,7 @@ export default function BlogClient({
                             disabled={selectedUrls.length === 0 || isProcessing}
                             className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-amber-500 text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
                         >
-                            {isProcessing ? (
+                            {isEmailing ? (
                                 <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                             ) : (
                                 <>메일<br/>발송</>
@@ -542,7 +544,7 @@ export default function BlogClient({
                             disabled={selectedUrls.length === 0 || isProcessing}
                             className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
                         >
-                            {isProcessing ? (
+                            {isSavingBatch ? (
                                 <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                             ) : (
                                 <>서재<br/>저장</>
