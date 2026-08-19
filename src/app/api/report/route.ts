@@ -51,22 +51,61 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const reports = filteredData.map((item: any) => ({
-      id: String(item.researchId),
-      researchId: String(item.researchId),
-      category: category,
-      itemCode: item.itemCode || '',
-      itemName: item.itemName || '',
-      index: String(item.researchId),
-      date: item.writeDate || '',
-      title: item.title || '',
-      author: item.brokerName || '',
-      institution: item.brokerName || '',
-      fileId: String(item.researchId),
-      fileNum: category,
-      hasFile: true,
-      fileSize: 'PDF',
-      url: item.endUrl || `https://m.stock.naver.com/investment/research/${category}/${item.researchId}`
+    const reports = await Promise.all(filteredData.map(async (item: any) => {
+      let pdfUrl = '';
+      let fileSize = 'PDF';
+
+      try {
+        const detailRes = await fetch(`https://m.stock.naver.com/api/research/${category}/${item.researchId}`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+          },
+        });
+        if (detailRes.ok) {
+          const detailData = await detailRes.json();
+          pdfUrl = detailData?.researchContent?.attachUrl || '';
+        }
+      } catch (e) {
+        // ignore detail fetch error
+      }
+
+      if (pdfUrl) {
+        try {
+          const headRes = await fetch(pdfUrl, {
+            method: 'HEAD',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            },
+          });
+          const len = headRes.headers.get('content-length');
+          if (len) {
+            const s = parseInt(len, 10);
+            if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
+            else if (s > 0) fileSize = (s / 1024).toFixed(0) + 'KB';
+          }
+        } catch (e) {
+          // ignore size check error
+        }
+      }
+
+      return {
+        id: String(item.researchId),
+        researchId: String(item.researchId),
+        category: category,
+        itemCode: item.itemCode || '',
+        itemName: item.itemName || '',
+        index: String(item.researchId),
+        date: item.writeDate || '',
+        title: item.title || '',
+        author: item.brokerName || '',
+        institution: item.brokerName || '',
+        fileId: String(item.researchId),
+        fileNum: category,
+        hasFile: !!pdfUrl,
+        fileSize: fileSize,
+        pdfUrl: pdfUrl,
+        url: pdfUrl || (item.endUrl || `https://m.stock.naver.com/investment/research/${category}/${item.researchId}`)
+      };
     }));
 
     return NextResponse.json(reports);

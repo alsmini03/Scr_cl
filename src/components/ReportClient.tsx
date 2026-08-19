@@ -18,6 +18,8 @@ interface Report {
   title: string;
   author: string;
   institution: string;
+  itemName?: string;
+  itemCode?: string;
   fileId?: string;
   fileNum?: string;
   scrapPath?: string;
@@ -748,79 +750,75 @@ export default function ReportClient({
           </div>
         ) : (
           <>
-            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-              <div className="flex flex-col flex-1 gap-3">
-                <div className="space-y-4 pt-3">
-                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                          placeholder="검색어를 입력하세요..."
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
-                        />
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-                        {searchInput && (
-                          <button
-                            onClick={() => { setSearchInput(''); setSrhWord(''); }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-lg">cancel</span>
-                          </button>
-                        )}
-                      </div>
+            <div className="mb-6 space-y-3">
+              <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="검색어를 입력하세요..."
+                      className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                    {searchInput && (
                       <button
-                        onClick={handleSearch}
-                        className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                        onClick={() => { setSearchInput(''); setSrhWord(''); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                       >
-                        조회
+                        <span className="material-symbols-outlined text-lg">cancel</span>
                       </button>
-                    </div>
+                    )}
                   </div>
+                  <button
+                    onClick={handleSearch}
+                    className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                  >
+                    조회
+                  </button>
+                </div>
+              </div>
 
-                  <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap mt-1 pr-16 relative">
-                    {tabs.map(tab => {
-                      const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
-                      return (
-                        <div
-                          key={tab.id}
-                          className="relative flex-shrink-0 group transition-all"
-                          onContextMenu={(e) => e.preventDefault()}
-                          {...longPressHandlers}
-                        >
-                          <button
-                            onClick={() => setActiveTabId(tab.id)}
-                            className={cn(
-                              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                              activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                            )}
-                          >
-                            {tab.name}
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm pl-2 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-12 relative">
+                {tabs.map(tab => {
+                  const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
+                  return (
+                    <div
+                      key={tab.id}
+                      className="relative flex-shrink-0 group transition-all"
+                      onContextMenu={(e) => e.preventDefault()}
+                      {...longPressHandlers}
+                    >
                       <button
-                        onClick={() => {
-                          if (sortType === 'date') setSortType('size-desc');
-                          else if (sortType === 'size-desc') setSortType('size-asc');
-                          else setSortType('date');
-                        }}
+                        onClick={() => setActiveTabId(tab.id)}
                         className={cn(
-                          "p-2 rounded-full transition-all active:scale-95",
-                          sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
+                          "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                          activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
                         )}
                       >
-                        <span className="material-symbols-outlined text-xl">
-                          {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
-                        </span>
+                        {tab.name}
                       </button>
                     </div>
-                  </div>
+                  );
+                })}
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/90 dark:bg-background-dark/90 pl-2 py-1">
+                  <button
+                    onClick={() => {
+                      if (sortType === 'date') setSortType('size-desc');
+                      else if (sortType === 'size-desc') setSortType('size-asc');
+                      else setSortType('date');
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-full transition-all active:scale-95",
+                      sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
+                    )}
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -878,8 +876,10 @@ export default function ReportClient({
                     key={report.id + idx}
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
                   >
-                    <div className="flex justify-between items-start mb-1.5">
-                      <span className="text-[10px] font-bold text-primary uppercase">{report.institution}</span>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] font-bold text-primary">
+                        {report.itemName ? `${report.itemName} (${report.itemCode})` : report.institution}
+                      </span>
                       <span className="text-[10px] text-slate-400">{report.date}</span>
                     </div>
 
@@ -889,6 +889,12 @@ export default function ReportClient({
                           {report.title}
                         </h3>
                       </div>
+                    </div>
+
+                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-1">
+                      <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        {report.institution}
+                      </p>
 
                       <div className="flex items-center gap-1 shrink-0">
                         {report.hasFile && (
