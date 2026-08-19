@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
         id: String(item.researchId),
         researchId: String(item.researchId),
         category: category,
+        categoryName: item.category || item.researchCategory || '',
         itemCode: item.itemCode || '',
         itemName: item.itemName || '',
         index: String(item.researchId),

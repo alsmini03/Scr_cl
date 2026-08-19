@@ -20,6 +20,7 @@ interface Report {
   institution: string;
   itemName?: string;
   itemCode?: string;
+  categoryName?: string;
   fileId?: string;
   fileNum?: string;
   scrapPath?: string;
@@ -880,7 +881,9 @@ export default function ReportClient({
                   >
                     <div className="flex justify-between items-start mb-1">
                       <span className="text-[10px] font-bold text-primary">
-                        {report.itemName ? `${report.itemName} (${report.itemCode})` : report.institution}
+                        {report.itemName
+                          ? `${report.itemName} (${report.itemCode})`
+                          : report.categoryName || '리포트'}
                       </span>
                       <span className="text-[10px] text-slate-400">{report.date}</span>
                     </div>
