@@ -896,7 +896,7 @@ export default function ReportClient({
                       </div>
                     </div>
 
-                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-1">
+                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-2">
                       <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                         {report.institution}
                       </p>
@@ -935,10 +935,6 @@ export default function ReportClient({
                           )}
                         </button>
                       </div>
-                    </div>
-
-                    <div onClick={() => handleTitleClick(report)} className="cursor-pointer mt-1">
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
                     </div>
 
                     {/* Collapsible Content Area */}
