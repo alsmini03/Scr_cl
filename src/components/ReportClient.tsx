@@ -781,29 +781,31 @@ export default function ReportClient({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-12 relative">
-                {tabs.map(tab => {
-                  const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
-                  return (
-                    <div
-                      key={tab.id}
-                      className="relative flex-shrink-0 group transition-all"
-                      onContextMenu={(e) => e.preventDefault()}
-                      {...longPressHandlers}
-                    >
-                      <button
-                        onClick={() => setActiveTabId(tab.id)}
-                        className={cn(
-                          "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
-                          activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                        )}
+              <div className="relative flex items-center gap-2">
+                <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-10">
+                  {tabs.map(tab => {
+                    const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
+                    return (
+                      <div
+                        key={tab.id}
+                        className="relative flex-shrink-0 group transition-all"
+                        onContextMenu={(e) => e.preventDefault()}
+                        {...longPressHandlers}
                       >
-                        {tab.name}
-                      </button>
-                    </div>
-                  );
-                })}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/90 dark:bg-background-dark/90 pl-2 py-1">
+                        <button
+                          onClick={() => setActiveTabId(tab.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                            activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                          )}
+                        >
+                          {tab.name}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/90 dark:bg-background-dark/90 pl-2 py-1 z-10">
                   <button
                     onClick={() => {
                       if (sortType === 'date') setSortType('size-desc');
