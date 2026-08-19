@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const pdfUrl = searchParams.get('url');
+  const filename = searchParams.get('filename') || 'report.pdf';
 
   if (!pdfUrl) {
     return NextResponse.json({ error: 'PDF URL is required' }, { status: 400 });
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
     const arrayBuffer = await res.arrayBuffer();
     const headers = new Headers();
     headers.set('Content-Type', 'application/pdf');
-    headers.set('Content-Disposition', 'inline');
+    const encodedFilename = encodeURIComponent(filename);
+    headers.set('Content-Disposition', `attachment; filename="${encodedFilename}"; filename*=UTF-8''${encodedFilename}`);
 
     return new NextResponse(arrayBuffer, { headers });
   } catch (error: any) {

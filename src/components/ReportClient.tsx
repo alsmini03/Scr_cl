@@ -280,7 +280,21 @@ export default function ReportClient({
     if (!report?.url) return;
 
     try {
-      window.open(report.url, '_blank');
+      const cleanDate = (report.date || '').replace(/[^0-9]/g, '');
+      let baseName = '';
+
+      if (report.itemName) {
+        const itemCodeStr = report.itemCode ? ` (${report.itemCode})` : '';
+        baseName = `${report.itemName}${itemCodeStr}_${report.title}_${report.institution}_${cleanDate}`;
+      } else {
+        const catName = report.categoryName || '리포트';
+        baseName = `${catName}_${report.title}_${report.institution}_${cleanDate}`;
+      }
+
+      const safeFilename = baseName.replace(/[\\/:*?"<>|]/g, '_').trim() + '.pdf';
+      const downloadProxyUrl = `/api/report/download?url=${encodeURIComponent(report.url)}&filename=${encodeURIComponent(safeFilename)}`;
+
+      window.open(downloadProxyUrl, '_blank');
     } catch (error) {
       console.error('Download error:', error);
       showToast('다운로드 중 오류가 발생했습니다.', 'error');
