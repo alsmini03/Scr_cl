@@ -66,10 +66,9 @@ export default function ReportClient({
   const [isInlineLoading, setIsInlineLoading] = useState<boolean>(false);
 
   // Search/Filter State
-  const [srhDate, setSrhDate] = useState('');
   const [srhWord, setSrhWord] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [activeDatePreset, setActiveDatePreset] = useState('0'); // 0: 오늘, 1: 1주, 2: 1개월, 3: 3개월, 4: 6개월, 5: 1년, 6: 전체
+  const [page, setPage] = useState(1);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -122,20 +121,21 @@ export default function ReportClient({
     } else if (tabs.length === 0) {
       setIsLoading(false);
     }
-  }, [activeTabId, srhDate, srhWord]);
+  }, [activeTabId, srhWord]);
 
   const handleSearch = () => {
     setSrhWord(searchInput);
-    // fetchReports(true) will be triggered by useEffect
   };
 
   const fetchReports = async (isInitial = false) => {
     if (!activeTabId && tabs.length > 0) return;
 
+    const nextPage = isInitial ? 1 : page + 1;
+
     if (isInitial) {
       setIsLoading(true);
       setReports([]);
-      setLastId('0');
+      setPage(1);
       setHasMore(true);
     } else {
       if (!hasMore || isMoreLoading) return;
@@ -144,16 +144,15 @@ export default function ReportClient({
 
     try {
       const activeTab = tabs.find(t => t.id === activeTabId);
-      const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400';
+      const category = activeTab?.url || 'company';
 
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
-          lstNumO: isInitial ? '0' : lastId,
-          actNum: isInitial ? '0' : '2',
-          srhDate,
+          url: category,
+          page: nextPage,
+          pageSize: 20,
           srhWord
         })
       });
@@ -168,7 +167,7 @@ export default function ReportClient({
           } else {
             setReports(prev => [...prev, ...data]);
           }
-          setLastId(data[data.length - 1].index);
+          setPage(nextPage);
         }
       } else {
         setHasMore(false);
@@ -205,11 +204,12 @@ export default function ReportClient({
     setIsContentLoading(true);
     setIsDetailLoading(true);
     try {
+      const reportCategory = selectedRecommendReport?.fileNum || selectedSavedReport?.fileNum || 'company';
       const [res, adj, { items, lastProcessedAt: last }] = await Promise.all([
         fetch('/api/report/content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ num: reportId, code: '01' })
+          body: JSON.stringify({ num: reportId, category: reportCategory })
         }),
         getAdjacentReportIdsAction(reportId),
         getQueueItems()
@@ -250,7 +250,7 @@ export default function ReportClient({
       const res = await fetch('/api/report/content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ num: report.id, code: '01' })
+        body: JSON.stringify({ num: report.id, category: report.fileNum || 'company' })
       });
       const html = await res.text();
       setExpandedContent(html);
@@ -262,17 +262,6 @@ export default function ReportClient({
     }
   };
 
-  const handleDatePreset = (preset: string) => {
-    setActiveDatePreset(preset);
-    if (preset === '1') { // 전체 (Bondweb uses empty string for latest)
-      setSrhDate('');
-      return;
-    }
-
-    const d = new Date();
-    const formatDate = (date: Date) => date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0') + String(date.getDate()).padStart(2, '0');
-    setSrhDate(formatDate(d));
-  };
 
   const handleCopyUrl = (url?: string) => {
     if (!url) return;
@@ -285,43 +274,10 @@ export default function ReportClient({
   };
 
   const handleDownload = async (report: any) => {
-    let downloadUrl = '';
-
-    if (report.scrapPath) {
-      window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
-      return;
-    }
-
-    if (report.url) {
-      downloadUrl = report.url;
-      if (downloadUrl.includes('/api/report/download') && !downloadUrl.includes('&title=')) {
-        downloadUrl += `&title=${encodeURIComponent(report.title)}`;
-      }
-    } else if (report.fileId && report.fileNum) {
-      const encodedTitle = encodeURIComponent(report.title);
-      downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
-    }
-
-    if (!downloadUrl) return;
-
-    if (downloadUrl.includes('bondweb.co.kr')) {
-      window.open(downloadUrl, '_blank');
-      return;
-    }
+    if (!report?.url) return;
 
     try {
-      const res = await fetch(downloadUrl, { method: 'GET' });
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_');
-      a.download = safeTitle + '.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      window.open(report.url, '_blank');
     } catch (error) {
       console.error('Download error:', error);
       showToast('다운로드 중 오류가 발생했습니다.', 'error');
@@ -360,37 +316,21 @@ export default function ReportClient({
       const selectedModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
 
-      let pdfUrl = '';
-      if (report.scrapPath) {
-        pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
-      } else if (report.fileId && report.fileNum) {
-        const encodedTitle = encodeURIComponent(report.title);
-        pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
-      }
-
-      if (!pdfUrl) throw new Error('PDF URL not found');
-
-      const directPdfUrl = await getResolvedReportUrlAction({
-        fileId: report.fileId,
-        fileNum: report.fileNum,
-        url: pdfUrl
-      });
-
-      if (!directPdfUrl) throw new Error('PDF direct URL resolution failed');
+      const pdfUrl = report.url || '';
 
       const result = await saveReport({
         title: report.title,
         author: report.author,
         institution: report.institution,
         date: report.date,
-        url: directPdfUrl,
+        url: pdfUrl,
         summary: '',
         content: viewingContent?.id === report.id ? viewingContent.content : ''
       });
 
       if (result.success && result.id) {
         await addToQueue('report', result.id, {
-          url: directPdfUrl,
+          url: pdfUrl,
           model: selectedModel,
           prompt: selectedPrompt
         });
@@ -618,12 +558,7 @@ export default function ReportClient({
                 onClick={async () => {
                   setIsCopying(true);
                   const current = selectedRecommendReport || selectedSavedReport;
-                  const directUrl = await getResolvedReportUrlAction({
-                    fileId: current.fileId,
-                    fileNum: current.fileNum,
-                    url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url
-                  });
-                  handleCopyUrl(directUrl || '');
+                  handleCopyUrl(current?.url || '');
                   setIsCopying(false);
                 }}
                 disabled={isCopying}
@@ -816,7 +751,7 @@ export default function ReportClient({
             <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
               <div className="flex flex-col flex-1 gap-3">
                 <div className="space-y-4 pt-3">
-                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm space-y-4">
+                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm">
                     <div className="flex gap-2">
                       <div className="relative flex-1">
                         <input
@@ -843,40 +778,6 @@ export default function ReportClient({
                       >
                         조회
                       </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <input
-                          type="date"
-                          value={srhDate ? `${srhDate.slice(0,4)}-${srhDate.slice(4,6)}-${srhDate.slice(6,8)}` : ''}
-                          onChange={(e) => {
-                            const val = e.target.value.split('-').join('');
-                            setSrhDate(val);
-                            setActiveDatePreset('-1');
-                          }}
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 px-4 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 transition-all"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        {[
-                          { label: '오늘', id: '0' },
-                          { label: '전체', id: '1' }
-                        ].map((preset) => (
-                          <button
-                            key={preset.id}
-                            onClick={() => handleDatePreset(preset.id)}
-                            className={cn(
-                              "px-4 py-2.5 rounded-xl text-sm font-bold transition-all border",
-                              activeDatePreset === preset.id
-                                ? "bg-primary/10 text-primary border-primary/20"
-                                : "bg-transparent text-slate-500 border-slate-200 dark:border-primary/10 hover:border-primary/30"
-                            )}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   </div>
 

@@ -8,7 +8,6 @@ import { marked } from 'marked';
 import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
-import { resolveBondwebPdfUrl } from './utils';
 import { extractYoutube, extractReport, extractBlogSummary } from './extract-service';
 
 // Configure marked
@@ -625,45 +624,17 @@ export async function processQueueItemManuallyAction(id: string) {
 
 export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
   try {
-    if (params.fileId && params.fileNum) {
-      const directUrl = await resolveBondwebPdfUrl(params.fileId, params.fileNum);
-      if (directUrl) return directUrl;
-    }
-
     if (params.url) {
-      // If it's already a direct Data link
-      if (params.url.includes('/Data/')) return params.url;
-
-      // If it's a download proxy link
       if (params.url.includes('/api/report/download')) {
         const urlObj = new URL(params.url, 'http://localhost');
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
         const encodedUrl = urlObj.searchParams.get('url');
-
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
-        }
-
         if (encodedUrl) {
           return decodeURIComponent(encodedUrl);
         }
       }
-
-      // If it's a standard Bondweb download link
-      if (params.url.includes('DownloadPage.asp')) {
-        const urlObj = new URL(params.url);
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
-        }
-      }
+      return params.url;
     }
-
-    return params.url || null;
+    return null;
   } catch (e) {
     console.error('getResolvedReportUrlAction error:', e);
     return params.url || null;
@@ -1009,10 +980,35 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
       [user.id, user.email]
     );
+
+    // If user has no tabs or has legacy bondweb tabs, initialize/migrate with Naver Stock Research default tabs
+    const defaultNaverTabs = [
+      { id: 'tab-company', name: '종목분석', url: 'company', position: 0 },
+      { id: 'tab-industry', name: '산업분석', url: 'industry', position: 1 },
+      { id: 'tab-market', name: '시황정보', url: 'market', position: 2 },
+      { id: 'tab-invest', name: '투자전략', url: 'invest', position: 3 },
+      { id: 'tab-economy', name: '경제분석', url: 'economy', position: 4 },
+      { id: 'tab-debenture', name: '채권분석', url: 'debenture', position: 5 },
+    ];
+
+    if (res.rows.length === 0 || res.rows.some((t: any) => t.url.includes('bondweb.co.kr'))) {
+      await query("DELETE FROM report_tabs WHERE user_id = $1 OR user_id = $2", [user.id, user.email]);
+      for (const tab of defaultNaverTabs) {
+        await query(
+          "INSERT INTO report_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+          [randomUUID(), user.email || user.id, tab.name, tab.url, tab.position, new Date().toISOString()]
+        );
+      }
+      res = await query(
+        "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+        [user.id, user.email]
+      );
+    }
+
     return res.rows;
   } catch (error) {
     console.error('getReportTabs error:', error);
