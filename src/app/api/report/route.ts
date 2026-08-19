@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const naverUrl = item.endUrl || `https://m.stock.naver.com/investment/research/${category}/${item.researchId}`;
       return {
         id: String(item.researchId),
         researchId: String(item.researchId),
@@ -105,7 +106,8 @@ export async function POST(req: NextRequest) {
         hasFile: !!pdfUrl,
         fileSize: fileSize,
         pdfUrl: pdfUrl,
-        url: pdfUrl || (item.endUrl || `https://m.stock.naver.com/investment/research/${category}/${item.researchId}`)
+        naverUrl: naverUrl,
+        url: pdfUrl || naverUrl
       };
     }));
 

@@ -30,6 +30,7 @@ interface Report {
   summary?: string;
   gemini_model?: string;
   url?: string;
+  naverUrl?: string;
 }
 
 interface ReportContent {
@@ -894,11 +895,20 @@ export default function ReportClient({
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <span className="text-[10px] font-bold text-primary">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const targetUrl = report.naverUrl || `https://m.stock.naver.com/investment/research/${report.fileNum || 'company'}/${report.id}`;
+                          window.open(targetUrl, '_blank');
+                        }}
+                        className="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5 active:scale-95 transition-all"
+                        title="네이버 리포트 원문 페이지로 이동"
+                      >
                         {report.itemName
                           ? `${report.itemName} (${report.itemCode})`
                           : report.categoryName || '리포트'}
-                      </span>
+                        <span className="material-symbols-outlined text-[11px]">open_in_new</span>
+                      </button>
                       <span className="text-[10px] text-slate-400">{report.date}</span>
                     </div>
 
