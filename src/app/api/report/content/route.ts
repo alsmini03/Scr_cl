@@ -23,7 +23,28 @@ export async function POST(req: NextRequest) {
     const data = await response.json();
     const contentObj = data?.researchContent || {};
 
-    let html = contentObj.content || '';
+    const formatPrice = (val?: string | number) => {
+      if (!val || val === '0' || val === 0) return '';
+      const num = typeof val === 'number' ? val : parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+      return isNaN(num) ? String(val) : num.toLocaleString('ko-KR') + '원';
+    };
+
+    const opinion = contentObj.opinion || '';
+    const goalPrice = formatPrice(contentObj.goalPrice);
+    const priceAtWriteDate = formatPrice(contentObj.priceAtWriteDate);
+
+    let priceHeader = '';
+    if (opinion || goalPrice || priceAtWriteDate) {
+      priceHeader = `
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; line-height: 1.6; color: #334155;">
+          ${opinion ? `<div><b>투자의견:</b> <span style="color:#1978e5; font-weight:bold;">${opinion}</span></div>` : ''}
+          ${goalPrice ? `<div><b>목표주가:</b> <span style="font-weight:bold;">${goalPrice}</span></div>` : ''}
+          ${priceAtWriteDate ? `<div><b>현재주가:</b> <span style="font-weight:bold;">${priceAtWriteDate}</span></div>` : ''}
+        </div>
+      `;
+    }
+
+    let html = (priceHeader + (contentObj.content || '')).trim();
     if (contentObj.attachUrl) {
       html = `<div style="margin-bottom:12px;"><a href="${contentObj.attachUrl}" target="_blank" rel="noopener noreferrer" style="color:#1978e5; font-weight:bold; font-size:13px; text-decoration:underline;">PDF 원본 다운로드</a></div>` + html;
     }
