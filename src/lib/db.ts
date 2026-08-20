@@ -2108,10 +2108,27 @@ export async function processNextQueueItemAction() {
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
-    // Mark as processing
+    // Always fetch latest model and prompt configurations
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = item.payload.model;
+    let activePrompt = item.payload.prompt;
+
+    if (item.type === 'report') {
+      activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+      activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
+    const updatedPayload = { ...item.payload, model: activeModel, prompt: activePrompt };
+
+    // Mark as processing with refreshed payload
     await query(
-      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [item.id]
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP, payload = $1 WHERE id = $2",
+      [JSON.stringify(updatedPayload), item.id]
     );
 
     let result;
@@ -2120,10 +2137,10 @@ export async function processNextQueueItemAction() {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, activeKey, payload.model, payload.prompt);
+          const data = await extractYoutube(payload.url, activeKey, activeModel, activePrompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, activeKey, payload.model, payload.prompt);
+          summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
       }
 
       // Check for rotation in successful summary text
@@ -2132,22 +2149,22 @@ export async function processNextQueueItemAction() {
       // Update target table
       if (type === 'youtube') {
         try {
-            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         } catch (dbErr: any) {
             if (dbErr.message.includes('column "gemini_model" does not exist')) {
                 await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
-                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
             } else throw dbErr;
         }
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
         try {
-            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         } catch (dbErr: any) {
             if (dbErr.message.includes('column "gemini_model" does not exist')) {
                 await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
-                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
             } else throw dbErr;
         }
         safeRevalidate('/report');
@@ -2186,6 +2203,21 @@ export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId
   try {
     const user = await ensureApproved();
 
+    // Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = '';
+    let activePrompt = '';
+
+    if (type === 'report') {
+      activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+      activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
     // Check if task exists in queue
     const taskRes = await query(
       "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND type = $3 AND target_id = $4",
@@ -2193,10 +2225,13 @@ export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId
     );
 
     if (taskRes.rows.length > 0) {
-      // Reset existing task
+      const existingTask = taskRes.rows[0];
+      const updatedPayload = { ...existingTask.payload, model: activeModel, prompt: activePrompt };
+
+      // Reset existing task with updated model and prompt
       await query(
-        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL WHERE id = $1",
-        [taskRes.rows[0].id]
+        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL, payload = $1 WHERE id = $2",
+        [JSON.stringify(updatedPayload), existingTask.id]
       );
     } else {
       // Create new task if missing (need to find payload from target)
