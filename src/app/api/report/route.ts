@@ -56,6 +56,12 @@ export async function POST(req: NextRequest) {
           const matchedStock = acData?.items?.[0]; // Get top matched stock
 
           if (matchedStock && matchedStock.code) {
+            // Stock research page only provides initial 5 research posts.
+            // For page > 1, return empty array to prevent infinite scroll item duplication.
+            if (page > 1) {
+              return NextResponse.json([]);
+            }
+
             const stockCode = matchedStock.code;
             const stockName = matchedStock.name || trimmedQuery;
 
