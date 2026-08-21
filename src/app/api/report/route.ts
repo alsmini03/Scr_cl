@@ -44,6 +44,9 @@ export async function POST(req: NextRequest) {
     let filteredData = rawData;
     if (srhWord && srhWord.trim()) {
       const trimmedQuery = srhWord.trim();
+      let matchedStockCode = '';
+      let matchedStockName = '';
+
       try {
         const acRes = await fetch(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(trimmedQuery)}&target=stock`, {
           headers: {
@@ -53,124 +56,101 @@ export async function POST(req: NextRequest) {
 
         if (acRes.ok) {
           const acData = await acRes.json();
-          const matchedStock = acData?.items?.[0]; // Get top matched stock
-
+          const matchedStock = acData?.items?.[0];
           if (matchedStock && matchedStock.code) {
-            // Stock research page only provides initial 5 research posts.
-            // For page > 1, return empty array to prevent infinite scroll item duplication.
-            if (page > 1) {
-              return NextResponse.json([]);
-            }
+            matchedStockCode = matchedStock.code;
+            matchedStockName = matchedStock.name || trimmedQuery;
+          }
+        }
+      } catch (err) {
+        console.error('Stock autocomplete error:', err);
+      }
 
-            const stockCode = matchedStock.code;
-            const stockName = matchedStock.name || trimmedQuery;
+      // 1. Scan company research API pages corresponding to requested pagination
+      let matchedRawItems: any[] = [];
+      const scanStart = (page - 1) * 3 + 1;
+      const scanEnd = scanStart + 2;
 
-            // Fetch domestic stock research page
-            const stockResearchRes = await fetch(`https://m.stock.naver.com/domestic/stock/${stockCode}/research`, {
-              headers: {
-                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-              },
-            });
+      for (let p = scanStart; p <= scanEnd; p++) {
+        try {
+          const scanRes = await fetch(`https://m.stock.naver.com/api/research/company?page=${p}&pageSize=20`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            },
+          });
+          if (!scanRes.ok) break;
+          const scanList = await scanRes.json();
+          if (!Array.isArray(scanList) || scanList.length === 0) break;
 
-            if (stockResearchRes.ok) {
-              const html = await stockResearchRes.text();
-              const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+          const keyword = trimmedQuery.toLowerCase();
+          const hits = scanList.filter((item: any) => {
+            if (matchedStockCode && item.itemCode === matchedStockCode) return true;
+            if (matchedStockName && item.itemName && item.itemName.toLowerCase() === matchedStockName.toLowerCase()) return true;
+            return (item.title && item.title.toLowerCase().includes(keyword)) ||
+                   (item.brokerName && item.brokerName.toLowerCase().includes(keyword)) ||
+                   (item.itemName && item.itemName.toLowerCase().includes(keyword));
+          });
 
-              if (nextDataMatch) {
-                const json = JSON.parse(nextDataMatch[1]);
-                const queries = json.props?.pageProps?.dehydratedState?.queries || [];
-                let foundResearches: any[] = [];
+          matchedRawItems.push(...hits);
+        } catch (e) {
+          break;
+        }
+      }
 
-                for (const q of queries) {
-                  const rList = q.state?.data?.result?.researches;
-                  if (Array.isArray(rList) && rList.length > 0) {
-                    foundResearches = rList;
-                    break;
-                  }
+      // 2. For page 1, if stock code matched, also fetch embedded stock integration researches
+      if (page === 1 && matchedStockCode) {
+        try {
+          const stockResearchRes = await fetch(`https://m.stock.naver.com/domestic/stock/${matchedStockCode}/research`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            },
+          });
+
+          if (stockResearchRes.ok) {
+            const html = await stockResearchRes.text();
+            const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
+
+            if (nextDataMatch) {
+              const json = JSON.parse(nextDataMatch[1]);
+              const queries = json.props?.pageProps?.dehydratedState?.queries || [];
+              let foundResearches: any[] = [];
+
+              for (const q of queries) {
+                const rList = q.state?.data?.result?.researches;
+                if (Array.isArray(rList) && rList.length > 0) {
+                  foundResearches = rList;
+                  break;
                 }
+              }
 
-                if (foundResearches.length > 0) {
-                  const stockReports = await Promise.all(foundResearches.map(async (r: any) => {
-                    const rId = String(r.id);
-                    let pdfUrl = '';
-                    let fileSize = 'PDF';
-
-                    try {
-                      const detailRes = await fetch(`https://m.stock.naver.com/api/research/company/${rId}`, {
-                        headers: {
-                          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-                        },
-                      });
-                      if (detailRes.ok) {
-                        const detailData = await detailRes.json();
-                        pdfUrl = detailData?.researchContent?.attachUrl || '';
-                      }
-                    } catch (e) {
-                      // ignore
-                    }
-
-                    if (pdfUrl) {
-                      try {
-                        const headRes = await fetch(pdfUrl, {
-                          method: 'HEAD',
-                          headers: {
-                            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-                          },
-                        });
-                        const len = headRes.headers.get('content-length');
-                        if (len) {
-                          const s = parseInt(len, 10);
-                          if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
-                          else if (s > 0) fileSize = (s / 1024).toFixed(0) + 'KB';
-                        }
-                      } catch (e) {
-                        // ignore
-                      }
-                    }
-
-                    const rawDate = r.wdt || '';
-                    const formattedDate = rawDate.length === 8 ? `${rawDate.slice(0,4)}.${rawDate.slice(4,6)}.${rawDate.slice(6,8)}` : rawDate;
-                    const naverUrl = `https://m.stock.naver.com/investment/research/company/${rId}`;
-
-                    return {
-                      id: rId,
+              if (foundResearches.length > 0) {
+                const existingIds = new Set(matchedRawItems.map((i: any) => String(i.researchId || i.id)));
+                for (const r of foundResearches) {
+                  const rId = String(r.id);
+                  if (!existingIds.has(rId)) {
+                    matchedRawItems.push({
                       researchId: rId,
-                      category: 'company',
-                      categoryName: '종목분석',
-                      itemCode: stockCode,
-                      itemName: stockName,
-                      index: rId,
-                      date: formattedDate,
+                      id: rId,
+                      researchCategory: '종목분석',
+                      category: '종목분석',
+                      itemCode: matchedStockCode,
+                      itemName: r.nm || matchedStockName,
+                      brokerName: r.bnm || '',
                       title: r.tit || '',
-                      author: r.bnm || '',
-                      institution: r.bnm || '',
-                      fileId: rId,
-                      fileNum: 'company',
-                      hasFile: !!pdfUrl,
-                      fileSize: fileSize,
-                      pdfUrl: pdfUrl,
-                      naverUrl: naverUrl,
-                      url: pdfUrl || naverUrl
-                    };
-                  }));
-
-                  return NextResponse.json(stockReports);
+                      writeDate: r.wdt ? `${r.wdt.slice(0,4)}.${r.wdt.slice(4,6)}.${r.wdt.slice(6,8)}` : '',
+                      endUrl: `https://m.stock.naver.com/investment/research/company/${rId}`
+                    });
+                  }
                 }
               }
             }
           }
+        } catch (e) {
+          console.error('Embedded stock research fetch error:', e);
         }
-      } catch (err) {
-        console.error('Stock autocomplete or research fetch error:', err);
       }
 
-      // Fallback to keyword filtering if stock research page fetching yields no items
-      const keyword = trimmedQuery.toLowerCase();
-      filteredData = rawData.filter((item: any) =>
-        (item.title && item.title.toLowerCase().includes(keyword)) ||
-        (item.brokerName && item.brokerName.toLowerCase().includes(keyword)) ||
-        (item.itemName && item.itemName.toLowerCase().includes(keyword))
-      );
+      filteredData = matchedRawItems;
     }
 
     const reports = await Promise.all(filteredData.map(async (item: any) => {
