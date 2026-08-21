@@ -66,10 +66,10 @@ export async function POST(req: NextRequest) {
         console.error('Stock autocomplete error:', err);
       }
 
-      // 1. Scan company research API pages corresponding to requested pagination
+      // 1. Scan company research API pages corresponding to requested pagination (up to 15 pages per page chunk)
       let matchedRawItems: any[] = [];
-      const scanStart = (page - 1) * 3 + 1;
-      const scanEnd = scanStart + 2;
+      const scanStart = (page - 1) * 15 + 1;
+      const scanEnd = scanStart + 14;
 
       for (let p = scanStart; p <= scanEnd; p++) {
         try {
@@ -149,6 +149,14 @@ export async function POST(req: NextRequest) {
           console.error('Embedded stock research fetch error:', e);
         }
       }
+
+      // Sort matched items chronologically by writeDate / id descending
+      matchedRawItems.sort((a: any, b: any) => {
+        const dateA = String(a.writeDate || a.wdt || '').replace(/[^0-9]/g, '');
+        const dateB = String(b.writeDate || b.wdt || '').replace(/[^0-9]/g, '');
+        if (dateA !== dateB) return dateB.localeCompare(dateA);
+        return Number(b.researchId || b.id || 0) - Number(a.researchId || a.id || 0);
+      });
 
       filteredData = matchedRawItems;
     }
