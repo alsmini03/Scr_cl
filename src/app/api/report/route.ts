@@ -45,7 +45,6 @@ export async function POST(req: NextRequest) {
     if (srhWord && srhWord.trim()) {
       const trimmedQuery = srhWord.trim();
       let matchedStockCode = '';
-      let matchedStockName = '';
 
       try {
         const acRes = await fetch(`https://ac.stock.naver.com/ac?q=${encodeURIComponent(trimmedQuery)}&target=stock`, {
@@ -59,106 +58,40 @@ export async function POST(req: NextRequest) {
           const matchedStock = acData?.items?.[0];
           if (matchedStock && matchedStock.code) {
             matchedStockCode = matchedStock.code;
-            matchedStockName = matchedStock.name || trimmedQuery;
           }
         }
       } catch (err) {
         console.error('Stock autocomplete error:', err);
       }
 
-      // 1. Scan company research API pages corresponding to requested pagination (up to 15 pages per page chunk)
-      let matchedRawItems: any[] = [];
-      const scanStart = (page - 1) * 15 + 1;
-      const scanEnd = scanStart + 14;
-
-      for (let p = scanStart; p <= scanEnd; p++) {
+      // If matched a specific stock code, query Naver Stock Research API for that stock directly
+      if (matchedStockCode) {
         try {
-          const scanRes = await fetch(`https://m.stock.naver.com/api/research/company?page=${p}&pageSize=20`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-            },
-          });
-          if (!scanRes.ok) break;
-          const scanList = await scanRes.json();
-          if (!Array.isArray(scanList) || scanList.length === 0) break;
-
-          const keyword = trimmedQuery.toLowerCase();
-          const hits = scanList.filter((item: any) => {
-            if (matchedStockCode && item.itemCode === matchedStockCode) return true;
-            if (matchedStockName && item.itemName && item.itemName.toLowerCase() === matchedStockName.toLowerCase()) return true;
-            return (item.title && item.title.toLowerCase().includes(keyword)) ||
-                   (item.brokerName && item.brokerName.toLowerCase().includes(keyword)) ||
-                   (item.itemName && item.itemName.toLowerCase().includes(keyword));
-          });
-
-          matchedRawItems.push(...hits);
-        } catch (e) {
-          break;
-        }
-      }
-
-      // 2. For page 1, if stock code matched, also fetch embedded stock integration researches
-      if (page === 1 && matchedStockCode) {
-        try {
-          const stockResearchRes = await fetch(`https://m.stock.naver.com/domestic/stock/${matchedStockCode}/research`, {
+          const stockApiUrl = `https://m.stock.naver.com/api/research/stock/${matchedStockCode}?page=${page}&pageSize=${pageSize}`;
+          const stockRes = await fetch(stockApiUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
             },
           });
 
-          if (stockResearchRes.ok) {
-            const html = await stockResearchRes.text();
-            const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/);
-
-            if (nextDataMatch) {
-              const json = JSON.parse(nextDataMatch[1]);
-              const queries = json.props?.pageProps?.dehydratedState?.queries || [];
-              let foundResearches: any[] = [];
-
-              for (const q of queries) {
-                const rList = q.state?.data?.result?.researches;
-                if (Array.isArray(rList) && rList.length > 0) {
-                  foundResearches = rList;
-                  break;
-                }
-              }
-
-              if (foundResearches.length > 0) {
-                const existingIds = new Set(matchedRawItems.map((i: any) => String(i.researchId || i.id)));
-                for (const r of foundResearches) {
-                  const rId = String(r.id);
-                  if (!existingIds.has(rId)) {
-                    matchedRawItems.push({
-                      researchId: rId,
-                      id: rId,
-                      researchCategory: '종목분석',
-                      category: '종목분석',
-                      itemCode: matchedStockCode,
-                      itemName: r.nm || matchedStockName,
-                      brokerName: r.bnm || '',
-                      title: r.tit || '',
-                      writeDate: r.wdt ? `${r.wdt.slice(0,4)}.${r.wdt.slice(4,6)}.${r.wdt.slice(6,8)}` : '',
-                      endUrl: `https://m.stock.naver.com/investment/research/company/${rId}`
-                    });
-                  }
-                }
-              }
+          if (stockRes.ok) {
+            const stockData = await stockRes.json();
+            if (Array.isArray(stockData)) {
+              filteredData = stockData;
             }
           }
         } catch (e) {
-          console.error('Embedded stock research fetch error:', e);
+          console.error('Stock research API error:', e);
         }
+      } else {
+        // Fallback to keyword filtering on category data
+        const keyword = trimmedQuery.toLowerCase();
+        filteredData = rawData.filter((item: any) =>
+          (item.title && item.title.toLowerCase().includes(keyword)) ||
+          (item.brokerName && item.brokerName.toLowerCase().includes(keyword)) ||
+          (item.itemName && item.itemName.toLowerCase().includes(keyword))
+        );
       }
-
-      // Sort matched items chronologically by writeDate / id descending
-      matchedRawItems.sort((a: any, b: any) => {
-        const dateA = String(a.writeDate || a.wdt || '').replace(/[^0-9]/g, '');
-        const dateB = String(b.writeDate || b.wdt || '').replace(/[^0-9]/g, '');
-        if (dateA !== dateB) return dateB.localeCompare(dateA);
-        return Number(b.researchId || b.id || 0) - Number(a.researchId || a.id || 0);
-      });
-
-      filteredData = matchedRawItems;
     }
 
     const reports = await Promise.all(filteredData.map(async (item: any) => {
