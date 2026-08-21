@@ -98,8 +98,9 @@ export async function POST(req: NextRequest) {
       let pdfUrl = '';
       let fileSize = 'PDF';
 
+      const itemCat = category;
       try {
-        const detailRes = await fetch(`https://m.stock.naver.com/api/research/${category}/${item.researchId}`, {
+        const detailRes = await fetch(`https://m.stock.naver.com/api/research/${itemCat}/${item.researchId}`, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
           },
@@ -113,21 +114,44 @@ export async function POST(req: NextRequest) {
       }
 
       if (pdfUrl) {
+        // 1. Attempt HEAD request
         try {
           const headRes = await fetch(pdfUrl, {
             method: 'HEAD',
             headers: {
               'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
             },
+            signal: AbortSignal.timeout(3000)
           });
           const len = headRes.headers.get('content-length');
-          if (len) {
+          if (len && parseInt(len, 10) > 0) {
             const s = parseInt(len, 10);
-            if (s > 1024 * 1024) fileSize = (s / (1024 * 1024)).toFixed(1) + 'MB';
-            else if (s > 0) fileSize = (s / 1024).toFixed(0) + 'KB';
+            fileSize = s > 1024 * 1024 ? (s / (1024 * 1024)).toFixed(1) + 'MB' : (s / 1024).toFixed(0) + 'KB';
           }
         } catch (e) {
-          // ignore size check error
+          // ignore head error
+        }
+
+        // 2. Fallback to Range GET if HEAD didn't yield a size
+        if (fileSize === 'PDF') {
+          try {
+            const rangeRes = await fetch(pdfUrl, {
+              method: 'GET',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+                'Range': 'bytes=0-10'
+              },
+              signal: AbortSignal.timeout(3000)
+            });
+            const contentRange = rangeRes.headers.get('content-range');
+            const totalLen = contentRange ? contentRange.split('/')[1] : rangeRes.headers.get('content-length');
+            if (totalLen && parseInt(totalLen, 10) > 0) {
+              const s = parseInt(totalLen, 10);
+              fileSize = s > 1024 * 1024 ? (s / (1024 * 1024)).toFixed(1) + 'MB' : (s / 1024).toFixed(0) + 'KB';
+            }
+          } catch (e) {
+            // ignore range error
+          }
         }
       }
 
