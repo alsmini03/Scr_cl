@@ -431,7 +431,7 @@ export default function YouTubeRecommendClient({
 
       {/* Selection Mode Action Bar for My Videos */}
       {isEditMode && viewMode === 'my' && (
-        <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
+        <div className="fixed bottom-[calc(53px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
           <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
             <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
               <span className="text-primary">{selectedIds.length}</span>개 선택됨

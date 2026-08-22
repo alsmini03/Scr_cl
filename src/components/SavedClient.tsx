@@ -401,43 +401,6 @@ export default function SavedClient({
             </button>
         </div>
 
-        {isEditMode && (
-            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
-                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
-                    {selectedItems.length}개 선택됨
-                </p>
-                <div className="flex gap-1.5">
-                    <button
-                        onClick={() => setSelectedItems(selectedItems.length === filteredItems.length ? [] : filteredItems.map(v => ({ type: v.type, id: v.id })))}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                    >
-                        {selectedItems.length === filteredItems.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
-                    </button>
-                    <button
-                        onClick={handleBatchEmail}
-                        disabled={selectedItems.length === 0 || isProcessing}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                    >
-                        {isEmailing ? (
-                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>메일<br/>발송</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleBatchDelete}
-                        disabled={selectedItems.length === 0 || isProcessing}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[40px]"
-                    >
-                        {isDeleting ? (
-                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>삭제</>
-                        )}
-                    </button>
-                </div>
-            </div>
-        )}
 
         {filteredItems.length === 0 ? (
           <div className="py-20 text-center text-slate-400">저장된 항목이 없습니다.</div>
@@ -461,6 +424,53 @@ export default function SavedClient({
           </div>
         )}
       </main>
+
+      {/* Fixed Bottom Selection Mode Action Bar */}
+      {isEditMode && (
+        <div className="fixed bottom-[calc(53px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+              <span className="text-primary">{selectedItems.length}</span>개 선택됨
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedItems(selectedItems.length === filteredItems.length ? [] : filteredItems.map(v => ({ type: v.type, id: v.id })))}
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs shadow-sm"
+              >
+                {selectedItems.length === filteredItems.length ? '전체 해제' : '전체 선택'}
+              </button>
+              <button
+                onClick={handleBatchEmail}
+                disabled={selectedItems.length === 0 || isProcessing}
+                className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isEmailing ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    메일
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={selectedItems.length === 0 || isProcessing}
+                className="px-4 py-2 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    삭제
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab="saved" />
     </div>
