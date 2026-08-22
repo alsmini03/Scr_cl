@@ -543,43 +543,6 @@ export default function BlogClient({
                 </button>
             </div>
 
-            {isEditMode && (
-                <div className="mb-6 flex justify-between items-center p-3 bg-primary/5 dark:bg-primary/10 rounded-2xl border border-primary/20 animate-fade-in-up">
-                    <p className="text-sm font-black text-primary ml-2">
-                        {selectedUrls.length}개 선택됨
-                    </p>
-                    <div className="flex gap-1.5">
-                        <button
-                            onClick={() => setSelectedUrls(selectedUrls.length === recommendPosts.length ? [] : recommendPosts.map(p => p.url))}
-                            className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                        >
-                            {selectedUrls.length === recommendPosts.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
-                        </button>
-                        <button
-                            onClick={handleBatchEmail}
-                            disabled={selectedUrls.length === 0 || isProcessing}
-                            className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-amber-500 text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                        >
-                            {isEmailing ? (
-                                <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>메일<br/>발송</>
-                            )}
-                        </button>
-                        <button
-                            onClick={handleBatchSave}
-                            disabled={selectedUrls.length === 0 || isProcessing}
-                            className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                        >
-                            {isSavingBatch ? (
-                                <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <>서재<br/>저장</>
-                            )}
-                        </button>
-                    </div>
-                </div>
-            )}
 
             {isLoading ? (
                 <div className="space-y-3">
@@ -686,81 +649,125 @@ export default function BlogClient({
         )}
       </main>
 
-      {/* Selection Mode Action Bar for My Saved Blogs */}
-      {isEditMode && viewMode === 'my' && (
+      {/* Selection Mode Action Bar */}
+      {isEditMode && (
         <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3.5 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 shadow-lg animate-in slide-in-from-bottom duration-300">
-          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
-              <span className="text-primary">{selectedMyIds.length}</span>개 선택됨
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={async () => {
-                  if (selectedMyIds.length === 0) return;
-                  setIsEmailing(true);
-                  try {
-                    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
-                    const items = selectedMyIds.map(id => ({ type: 'blog' as const, id }));
-                    const res = await sendBatchEmailAction(items, email);
-                    if (res.success) {
-                      showToast(`${selectedMyIds.length}개의 블로그 글이 메일로 발송되었습니다.`);
+          {viewMode === 'recommend' ? (
+            <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+                <span className="text-primary">{selectedUrls.length}</span>개 선택됨
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedUrls(selectedUrls.length === recommendPosts.length ? [] : recommendPosts.map(p => p.url))}
+                  className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs shadow-sm"
+                >
+                  {selectedUrls.length === recommendPosts.length ? '전체 해제' : '전체 선택'}
+                </button>
+                <button
+                  onClick={handleBatchEmail}
+                  disabled={selectedUrls.length === 0 || isProcessing}
+                  className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+                >
+                  {isEmailing ? (
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">mail</span>
+                      메일
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleBatchSave}
+                  disabled={selectedUrls.length === 0 || isProcessing}
+                  className="px-4 py-2 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+                >
+                  {isSavingBatch ? (
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">bookmark</span>
+                      저장
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+                <span className="text-primary">{selectedMyIds.length}</span>개 선택됨
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    if (selectedMyIds.length === 0) return;
+                    setIsEmailing(true);
+                    try {
+                      const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+                      const items = selectedMyIds.map(id => ({ type: 'blog' as const, id }));
+                      const res = await sendBatchEmailAction(items, email);
+                      if (res.success) {
+                        showToast(`${selectedMyIds.length}개의 블로그 글이 메일로 발송되었습니다.`);
+                        setIsEditMode(false);
+                        setSelectedMyIds([]);
+                      } else {
+                        showToast(res.error || '발송 실패', 'error');
+                      }
+                    } catch (e: any) {
+                      showToast('발송 중 오류가 발생했습니다.', 'error');
+                    } finally {
+                      setIsEmailing(false);
+                    }
+                  }}
+                  disabled={selectedMyIds.length === 0 || isProcessing}
+                  className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+                >
+                  {isEmailing ? (
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">mail</span>
+                      메일
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (selectedMyIds.length === 0) return;
+                    if (!confirm(`${selectedMyIds.length}개의 블로그 글을 삭제하시겠습니까?`)) return;
+                    setIsDeleting(true);
+                    try {
+                      for (const id of selectedMyIds) {
+                        await deleteBlog(id);
+                      }
+                      setSavedBlogs(prev => prev.filter(b => !selectedMyIds.includes(b.id)));
+                      showToast('삭제되었습니다.');
                       setIsEditMode(false);
                       setSelectedMyIds([]);
-                    } else {
-                      showToast(res.error || '발송 실패', 'error');
+                      router.refresh();
+                    } catch (e) {
+                      showToast('삭제 실패', 'error');
+                    } finally {
+                      setIsDeleting(false);
                     }
-                  } catch (e: any) {
-                    showToast('발송 중 오류가 발생했습니다.', 'error');
-                  } finally {
-                    setIsEmailing(false);
-                  }
-                }}
-                disabled={selectedMyIds.length === 0 || isProcessing}
-                className="px-4 py-2.5 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
-              >
-                {isEmailing ? (
-                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-sm">mail</span>
-                    메일
-                  </>
-                )}
-              </button>
-              <button
-                onClick={async () => {
-                  if (selectedMyIds.length === 0) return;
-                  if (!confirm(`${selectedMyIds.length}개의 블로그 글을 삭제하시겠습니까?`)) return;
-                  setIsDeleting(true);
-                  try {
-                    for (const id of selectedMyIds) {
-                      await deleteBlog(id);
-                    }
-                    setSavedBlogs(prev => prev.filter(b => !selectedMyIds.includes(b.id)));
-                    showToast('삭제되었습니다.');
-                    setIsEditMode(false);
-                    setSelectedMyIds([]);
-                    router.refresh();
-                  } catch (e) {
-                    showToast('삭제 실패', 'error');
-                  } finally {
-                    setIsDeleting(false);
-                  }
-                }}
-                disabled={selectedMyIds.length === 0 || isProcessing}
-                className="px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
-              >
-                {isDeleting ? (
-                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-sm">delete</span>
-                    삭제
-                  </>
-                )}
-              </button>
+                  }}
+                  disabled={selectedMyIds.length === 0 || isProcessing}
+                  className="px-4 py-2 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+                >
+                  {isDeleting ? (
+                    <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">delete</span>
+                      삭제
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
