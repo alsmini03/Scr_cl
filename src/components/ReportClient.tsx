@@ -4,12 +4,14 @@ import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
 import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport } from '@/lib/db';
-import { cn, getLongPressHandlers } from '@/lib/utils';
+import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { marked } from 'marked';
 import QueueStatus from '@/components/QueueStatus';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import Link from 'next/link';
 
 interface Report {
   id: string;
@@ -63,6 +65,7 @@ export default function ReportClient({
   const [sortType, setSortType] = useState<'date' | 'size-asc' | 'size-desc'>('date');
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
   // Inline collapsible states
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
@@ -116,7 +119,16 @@ export default function ReportClient({
     } else if (tabs.length > 0) {
       setActiveTabId(tabs[0].id);
     }
+
+    const savedViewMode = localStorage.getItem('report_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
   }, [tabs, searchParams]);
+
+  useEffect(() => {
+    localStorage.setItem('report_view_mode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (activeTabId) {
@@ -530,7 +542,15 @@ export default function ReportClient({
             </div>
           )
         }
-      />
+      >
+        {!isDetailView && (
+          <ViewModeToggle
+            title="리포트"
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
+        )}
+      </Header>
 
       <main className="mt-4 px-4">
         {isDetailLoading ? (
@@ -764,7 +784,7 @@ export default function ReportClient({
               <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
             )}
           </div>
-        ) : (
+        ) : viewMode === 'recommend' ? (
           <>
             <div className="mb-6 space-y-3">
               <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm">
@@ -1016,6 +1036,51 @@ export default function ReportClient({
               </div>
             )}
           </>
+        ) : (
+          <div className="space-y-4 pb-20">
+            {!session?.user ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">저장된 리포트를 보려면 먼저 로그인해 주세요.</p>
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            ) : initialSavedReports.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
+                <span className="material-symbols-outlined text-6xl mb-4">description</span>
+                <p>아직 저장된 리포트가 없습니다.</p>
+                <p className="text-sm">새로운 리포트를 저장해 보세요!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {initialSavedReports.map((report: any) => (
+                  <button
+                    key={report.id}
+                    onClick={() => setSelectedReportId(report.id)}
+                    className="w-full text-left bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm hover:border-primary/20 transition-all"
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] font-bold text-primary">{report.institution}</span>
+                      <span className="text-[10px] text-slate-400">{report.date}</span>
+                    </div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2">
+                      {report.title}
+                    </h3>
+                    {report.author && (
+                      <p className="text-[10px] text-slate-400">{report.author}</p>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </main>
 

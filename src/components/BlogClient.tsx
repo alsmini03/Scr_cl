@@ -7,6 +7,8 @@ import { saveBlog, addBlogTab, deleteBlogTab, updateBlogTabOrder, sendBatchEmail
 import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import Link from 'next/link';
 
 export default function BlogClient({
   session,
@@ -21,6 +23,7 @@ export default function BlogClient({
   const [isLoading, setIsLoading] = useState(true);
   const [addingUrl, setAddingUrl] = useState<string | null>(null);
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedBlogs.map(b => b.url)));
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
@@ -46,7 +49,16 @@ export default function BlogClient({
     if (savedPrompt !== null) {
       setIsPromptOn(savedPrompt === 'true');
     }
+
+    const savedViewMode = localStorage.getItem('blog_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('blog_view_mode', viewMode);
+  }, [viewMode]);
 
   const fetchRecommend = async () => {
     if (!activeTabId) {
@@ -394,6 +406,7 @@ export default function BlogClient({
     >
       <Header
         title="블로그"
+        transparent
         rightAction={
             isEditMode ? (
                 <button
@@ -413,9 +426,17 @@ export default function BlogClient({
                 </div>
             )
         }
-      />
+      >
+        <ViewModeToggle
+          title="블로그"
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      </Header>
 
       <main className="mt-4 px-4">
+        {viewMode === 'recommend' ? (
+          <>
             {/* Blog Source Tabs */}
             <div className={cn(
                 "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-20"
@@ -578,6 +599,50 @@ export default function BlogClient({
                 </div>
             )
             }
+          </>
+        ) : (
+          <div className="space-y-4 pb-20">
+            {!session?.user ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">저장된 블로그 글을 보려면 먼저 로그인해 주세요.</p>
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            ) : initialSavedBlogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
+                <span className="material-symbols-outlined text-6xl mb-4">rss_feed</span>
+                <p>아직 저장된 블로그 글이 없습니다.</p>
+                <p className="text-sm">새로운 블로그 글을 저장해 보세요!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {initialSavedBlogs.map((blog: any) => (
+                  <Link
+                    key={blog.id}
+                    href={`/blog/${blog.id}`}
+                    className="block bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm hover:border-primary/20 transition-all"
+                  >
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2">
+                      {blog.title}
+                    </h3>
+                    <div className="flex justify-between items-center text-[10px] text-slate-400">
+                      <span className="text-primary font-bold">{blog.author}</span>
+                      <span>{formatDateToYMD(blog.published_at || blog.added_at)}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       <BottomNav activeTab="blog" />

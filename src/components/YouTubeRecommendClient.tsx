@@ -7,6 +7,10 @@ import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, del
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import YoutubeGrid from '@/components/YoutubeGrid';
+import QueueStatus from '@/components/QueueStatus';
+import Link from 'next/link';
 
 interface RecommendedVideo {
   videoId: string;
@@ -31,6 +35,7 @@ export default function YouTubeRecommendClient({
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedVideos.map(v => v.url)));
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -55,7 +60,16 @@ export default function YouTubeRecommendClient({
     if (savedCols === '1' || savedCols === '2') {
       setGridCols(parseInt(savedCols) as 1 | 2);
     }
+
+    const savedViewMode = localStorage.getItem('youtube_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_view_mode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (activeTabId) {
@@ -221,30 +235,38 @@ export default function YouTubeRecommendClient({
         transparent
         rightAction={
           <div className="flex items-center gap-1">
-                <button
-                    onClick={() => {
-                        const next = gridCols === 1 ? 2 : 1;
-                        setGridCols(next);
-                        localStorage.setItem('youtube_grid_cols', next.toString());
-                    }}
-                    className="text-primary p-2"
-                    title={gridCols === 1 ? "2열 보기" : "1열 보기"}
-                >
-                    <span className="material-symbols-outlined text-2xl">
-                        {gridCols === 1 ? 'grid_view' : 'view_stream'}
-                    </span>
-                </button>
-                <button
-                    onClick={() => window.location.href = '/add/youtube'}
-                    className="text-primary p-2"
-                >
-                    <span className="material-symbols-outlined text-2xl">add_circle</span>
-                </button>
+            <button
+              onClick={() => {
+                const next = gridCols === 1 ? 2 : 1;
+                setGridCols(next);
+                localStorage.setItem('youtube_grid_cols', next.toString());
+              }}
+              className="text-primary p-2"
+              title={gridCols === 1 ? "2열 보기" : "1열 보기"}
+            >
+              <span className="material-symbols-outlined text-2xl">
+                {gridCols === 1 ? 'grid_view' : 'view_stream'}
+              </span>
+            </button>
+            <button
+              onClick={() => window.location.href = '/add/youtube'}
+              className="text-primary p-2"
+            >
+              <span className="material-symbols-outlined text-2xl">add_circle</span>
+            </button>
           </div>
         }
-      />
+      >
+        <ViewModeToggle
+          title="유튜브"
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      </Header>
 
       <main className="mt-4 px-4">
+        {viewMode === 'recommend' ? (
+          <>
         {/* Source Tabs */}
         <div className={cn(
           "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10"
@@ -341,6 +363,38 @@ export default function YouTubeRecommendClient({
                 onAdd={handleAddVideo}
               />
             ))}
+          </div>
+        )}
+        </>
+        ) : (
+          <div className="space-y-6 pb-20">
+            <QueueStatus type="youtube" />
+            {!session?.user ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">유튜브 기록을 보려면 먼저 로그인해 주세요.</p>
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            ) : initialSavedVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
+                <span className="material-symbols-outlined text-6xl mb-4">video_library</span>
+                <p>아직 저장된 영상이 없습니다.</p>
+                <p className="text-sm">새로운 영상을 추가해 보세요!</p>
+              </div>
+            ) : (
+              <YoutubeGrid
+                videos={initialSavedVideos}
+                viewMode={gridCols.toString() as '1' | '2'}
+              />
+            )}
           </div>
         )}
       </main>
