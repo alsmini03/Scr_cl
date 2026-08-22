@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport } from '@/lib/db';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport, sendBatchEmailAction } from '@/lib/db';
 import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
@@ -83,8 +83,15 @@ export default function ReportClient({
   // Interaction State
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set(initialSavedReports.map(r => `${r.title}|${r.institution}`)));
+  const [savedReports, setSavedReports] = useState<any[]>(initialSavedReports);
   const [isCopying, setIsCopying] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedMyIds, setSelectedMyIds] = useState<string[]>([]);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isProcessing = isEmailing || isDeleting;
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -524,23 +531,32 @@ export default function ReportClient({
         }}
         transparent
         rightAction={
-          !isDetailView && (
-            <div className="flex items-center gap-1">
+          !isDetailView ? (
+            viewMode === 'my' && isEditMode ? (
               <button
-                onClick={() => window.location.href = '/settings/gemini'}
-                className="text-primary p-2"
-                title="Gemini 설정"
+                onClick={() => { setIsEditMode(false); setSelectedMyIds([]); }}
+                className="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold mr-2"
               >
-                <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+                취소
               </button>
-              <button
-                onClick={() => setShowTabManager(!showTabManager)}
-                className="text-primary p-2"
-              >
-                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-              </button>
-            </div>
-          )
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => window.location.href = '/settings/gemini'}
+                  className="text-primary p-2"
+                  title="Gemini 설정"
+                >
+                  <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+                </button>
+                <button
+                  onClick={() => setShowTabManager(!showTabManager)}
+                  className="text-primary p-2"
+                >
+                  <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+                </button>
+              </div>
+            )
+          ) : undefined
         }
       >
         {!isDetailView && (
@@ -1052,37 +1068,150 @@ export default function ReportClient({
                   로그인하기
                 </Link>
               </div>
-            ) : initialSavedReports.length === 0 ? (
+            ) : savedReports.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
                 <span className="material-symbols-outlined text-6xl mb-4">description</span>
                 <p>아직 저장된 리포트가 없습니다.</p>
                 <p className="text-sm">새로운 리포트를 저장해 보세요!</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {initialSavedReports.map((report: any) => (
-                  <button
-                    key={report.id}
-                    onClick={() => setSelectedReportId(report.id)}
-                    className="w-full text-left bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm hover:border-primary/20 transition-all"
-                  >
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-[10px] font-bold text-primary">{report.institution}</span>
-                      <span className="text-[10px] text-slate-400">{report.date}</span>
+              <div className="space-y-3 select-none">
+                {savedReports.map((report: any) => {
+                  const isSelected = selectedMyIds.includes(report.id);
+                  const longPressHandlers = getLongPressHandlers(() => {
+                    if (!isEditMode) {
+                      setIsEditMode(true);
+                      setSelectedMyIds([report.id]);
+                    }
+                  });
+
+                  return (
+                    <div
+                      key={report.id}
+                      className={cn(
+                        "w-full text-left bg-white dark:bg-slate-900/50 rounded-2xl border p-4 shadow-sm transition-all relative",
+                        isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+                      )}
+                      onContextMenu={(e) => e.preventDefault()}
+                      {...longPressHandlers}
+                    >
+                      <button
+                        onClick={() => {
+                          if (isEditMode) {
+                            setSelectedMyIds(prev => prev.includes(report.id) ? prev.filter(i => i !== report.id) : [...prev, report.id]);
+                          } else {
+                            setSelectedReportId(report.id);
+                          }
+                        }}
+                        className="w-full text-left"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] font-bold text-primary">{report.institution}</span>
+                          <span className="text-[10px] text-slate-400">{report.date}</span>
+                        </div>
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2 flex-1">
+                            {report.title}
+                          </h3>
+                          {isEditMode && (
+                            <div className={cn(
+                              "size-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 mt-0.5",
+                              isSelected ? "bg-primary border-primary text-white" : "border-slate-300 text-transparent"
+                            )}>
+                              <span className="material-symbols-outlined text-[12px] font-bold">check</span>
+                            </div>
+                          )}
+                        </div>
+                        {report.author && (
+                          <p className="text-[10px] text-slate-400">{report.author}</p>
+                        )}
+                      </button>
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2">
-                      {report.title}
-                    </h3>
-                    {report.author && (
-                      <p className="text-[10px] text-slate-400">{report.author}</p>
-                    )}
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
         )}
       </main>
+
+      {/* Selection Mode Action Bar for My Saved Reports */}
+      {isEditMode && viewMode === 'my' && !isDetailView && (
+        <div className="fixed bottom-[88px] left-0 right-0 p-4 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md border-t border-primary/10 z-40 animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+              <span className="text-primary">{selectedMyIds.length}</span>개 선택됨
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (selectedMyIds.length === 0) return;
+                  setIsEmailing(true);
+                  try {
+                    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+                    const items = selectedMyIds.map(id => ({ type: 'report' as const, id }));
+                    const res = await sendBatchEmailAction(items, email);
+                    if (res.success) {
+                      showToast(`${selectedMyIds.length}개의 리포트가 메일로 발송되었습니다.`);
+                      setIsEditMode(false);
+                      setSelectedMyIds([]);
+                    } else {
+                      showToast(res.error || '발송 실패', 'error');
+                    }
+                  } catch (e: any) {
+                    showToast('발송 중 오류가 발생했습니다.', 'error');
+                  } finally {
+                    setIsEmailing(false);
+                  }
+                }}
+                disabled={selectedMyIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isEmailing ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    메일
+                  </>
+                )}
+              </button>
+              <button
+                onClick={async () => {
+                  if (selectedMyIds.length === 0) return;
+                  if (!confirm(`${selectedMyIds.length}개의 리포트를 삭제하시겠습니까?`)) return;
+                  setIsDeleting(true);
+                  try {
+                    for (const id of selectedMyIds) {
+                      await deleteReport(id);
+                    }
+                    setSavedReports(prev => prev.filter(r => !selectedMyIds.includes(r.id)));
+                    showToast('삭제되었습니다.');
+                    setIsEditMode(false);
+                    setSelectedMyIds([]);
+                    router.refresh();
+                  } catch (e) {
+                    showToast('삭제 실패', 'error');
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={selectedMyIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    삭제
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab="report" />
 
