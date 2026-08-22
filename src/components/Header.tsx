@@ -22,7 +22,7 @@ export default function Header({ title, showBack, onBack, rightAction, transpare
         ? "bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md"
         : "bg-background-light dark:bg-background-dark"
     )}>
-      <div className="flex size-10 shrink-0 items-center justify-center">
+      <div className="flex size-10 shrink-0 items-center justify-start">
         {showBack ? (
           <button
             onClick={() => onBack ? onBack() : router.back()}
@@ -31,9 +31,7 @@ export default function Header({ title, showBack, onBack, rightAction, transpare
             <span className="material-symbols-outlined">arrow_back</span>
           </button>
         ) : (
-          <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="material-symbols-outlined">menu</span>
-          </div>
+          <div className="size-10 shrink-0" />
         )}
       </div>
 
@@ -45,12 +43,8 @@ export default function Header({ title, showBack, onBack, rightAction, transpare
         )}
       </div>
 
-      <div className="flex items-center justify-end min-w-10">
-        {rightAction || (
-          <button className="flex items-center justify-center text-primary">
-            <span className="material-symbols-outlined text-2xl">search</span>
-          </button>
-        )}
+      <div className="flex items-center justify-end min-w-10 shrink-0">
+        {rightAction || <div className="size-10 shrink-0" />}
       </div>
     </header>
   );
