@@ -73,22 +73,8 @@ export default function SavedClient({
         result = result.filter(item => {
             const titleMatch = item.title?.toLowerCase().includes(query);
             const authorMatch = (item.author || item.institution || '').toLowerCase().includes(query);
-
-            let contentMatch = false;
-            if (item.type === 'blog') {
-                contentMatch = item.content?.toLowerCase().includes(query);
-            } else if (item.type === 'youtube') {
-                contentMatch = (item.summary || item.description || '').toLowerCase().includes(query);
-            } else if (item.type === 'report') {
-                contentMatch = (item.summary || item.content || '').toLowerCase().includes(query);
-            } else if (item.type === 'book') {
-                contentMatch = (
-                    item.description || item.notes || item.intro || item.toc ||
-                    item.authorIntro || item.inside || item.publisherReview
-                )?.toLowerCase().includes(query);
-            }
-
-            return titleMatch || authorMatch || contentMatch;
+            const summaryMatch = item.summary?.toLowerCase().includes(query);
+            return titleMatch || authorMatch || summaryMatch;
         });
       }
       return result;
