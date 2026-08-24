@@ -546,12 +546,6 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
             )}>
                 {typeLabel}
             </span>
-            {item.type === 'report' && (item.item_name || item.itemName) && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
-                {item.item_name || item.itemName}
-                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
-              </span>
-            )}
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
           <h3 className={cn(
@@ -563,9 +557,17 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
               <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
             )}
           </h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-            {item.author || item.institution || ''}
-          </p>
+          <div className="flex items-center gap-1.5 mt-0.5 truncate">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+              {item.author || item.institution || ''}
+            </p>
+            {item.type === 'report' && (item.item_name || item.itemName) && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded shrink-0">
+                {item.item_name || item.itemName}
+                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-1 pr-2">

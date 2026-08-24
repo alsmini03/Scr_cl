@@ -22,6 +22,8 @@ interface Report {
   institution: string;
   itemName?: string;
   itemCode?: string;
+  item_name?: string;
+  item_code?: string;
   categoryName?: string;
   fileId?: string;
   fileNum?: string;
@@ -950,9 +952,7 @@ export default function ReportClient({
                         className="text-[10px] font-bold text-primary hover:underline active:scale-95 transition-all"
                         title="네이버 리포트 원문 페이지로 이동"
                       >
-                        {report.itemName
-                          ? `${report.itemName} (${report.itemCode})`
-                          : report.categoryName || '리포트'}
+                        {report.categoryName || '리포트'}
                       </button>
                       <span className="text-[10px] text-slate-400">{report.date}</span>
                     </div>
@@ -966,9 +966,17 @@ export default function ReportClient({
                     </div>
 
                     <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-2">
-                      <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                        {report.institution}
-                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                          {report.institution}
+                        </p>
+                        {(report.itemName || report.item_name) && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded shrink-0">
+                            {report.itemName || report.item_name}
+                            {(report.itemCode || report.item_code) ? ` (${report.itemCode || report.item_code})` : ''}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-1 shrink-0">
                         {report.hasFile && (
@@ -1116,15 +1124,7 @@ export default function ReportClient({
                         className="w-full text-left"
                       >
                         <div className="flex justify-between items-start mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] font-bold text-primary">{report.institution}</span>
-                            {(report.item_name || report.itemName) && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
-                                {report.item_name || report.itemName}
-                                {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
-                              </span>
-                            )}
-                          </div>
+                          <span className="text-[10px] font-bold text-primary">리포트</span>
                           <span className="text-[10px] text-slate-400">{report.date}</span>
                         </div>
                         <div className="flex justify-between items-start gap-2">
@@ -1140,8 +1140,17 @@ export default function ReportClient({
                             </div>
                           )}
                         </div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <p className="text-[10px] text-slate-500 font-bold">{report.institution}</p>
+                          {(report.item_name || report.itemName) && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                              {report.item_name || report.itemName}
+                              {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
+                            </span>
+                          )}
+                        </div>
                         {report.author && (
-                          <p className="text-[10px] text-slate-400">{report.author}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{report.author}</p>
                         )}
                       </button>
                     </div>
