@@ -119,7 +119,9 @@ CREATE TABLE IF NOT EXISTS reports (
   gemini_model TEXT,
   user_id TEXT NOT NULL,
   added_at TEXT NOT NULL,
-  is_liked BOOLEAN DEFAULT FALSE
+  is_liked BOOLEAN DEFAULT FALSE,
+  item_name TEXT,
+  item_code TEXT
 );
 
 -- Naver Blogs Table

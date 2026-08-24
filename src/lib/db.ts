@@ -90,17 +90,19 @@ export async function getReports(prefetchedUser?: any, includeContent: boolean =
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model"
-      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model";
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model, item_name, item_code"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model, item_name, item_code";
     const res = await query(
       `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
   } catch (error: any) {
-    if (error.message.includes('column "gemini_model" does not exist')) {
+    if (error.message.includes('column "gemini_model" does not exist') || error.message.includes('column "item_name" does not exist') || error.message.includes('column "item_code" does not exist')) {
         try {
             await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_name TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_code TEXT");
             return getReports(prefetchedUser, includeContent);
         } catch (mErr) {
             console.error('Migration failed:', mErr);
@@ -119,6 +121,8 @@ export async function saveReport(report: {
   url?: string;
   content?: string;
   summary?: string;
+  itemName?: string;
+  itemCode?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
@@ -126,16 +130,18 @@ export async function saveReport(report: {
     const addedAt = new Date().toISOString();
 
     await query(
-      "INSERT INTO reports (id, title, author, institution, date, url, content, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-      [id, report.title, report.author, report.institution, report.date, report.url, report.content, report.summary, user.email || user.id, addedAt]
+      "INSERT INTO reports (id, title, author, institution, date, url, content, summary, user_id, added_at, item_name, item_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+      [id, report.title, report.author, report.institution, report.date, report.url, report.content, report.summary, user.email || user.id, addedAt, report.itemName || null, report.itemCode || null]
     );
 
     safeRevalidate('/report');
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
-    if (error.message.includes('column "gemini_model" does not exist')) {
+    if (error.message.includes('column "item_name" does not exist') || error.message.includes('column "item_code" does not exist') || error.message.includes('column "gemini_model" does not exist')) {
         try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_name TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_code TEXT");
             await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
             return saveReport(report);
         } catch (mErr) {

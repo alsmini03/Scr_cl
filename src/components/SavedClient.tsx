@@ -73,8 +73,7 @@ export default function SavedClient({
         result = result.filter(item => {
             const titleMatch = item.title?.toLowerCase().includes(query);
             const authorMatch = (item.author || item.institution || '').toLowerCase().includes(query);
-            const summaryMatch = item.summary?.toLowerCase().includes(query);
-            return titleMatch || authorMatch || summaryMatch;
+            return titleMatch || authorMatch;
         });
       }
       return result;
@@ -547,6 +546,12 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
             )}>
                 {typeLabel}
             </span>
+            {item.type === 'report' && (item.item_name || item.itemName) && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                {item.item_name || item.itemName}
+                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
+              </span>
+            )}
             <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
           </div>
           <h3 className={cn(

@@ -362,7 +362,9 @@ export default function ReportClient({
         date: report.date,
         url: pdfUrl,
         summary: '',
-        content: viewingContent?.id === report.id ? viewingContent.content : ''
+        content: viewingContent?.id === report.id ? viewingContent.content : '',
+        itemName: report.itemName,
+        itemCode: report.itemCode
       });
 
       if (result.success && result.id) {
@@ -669,7 +671,15 @@ export default function ReportClient({
 
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1 flex-1 min-w-0">
-                <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
+                  {((selectedRecommendReport || selectedSavedReport).itemName || (selectedRecommendReport || selectedSavedReport).item_name) && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-md">
+                      {(selectedRecommendReport || selectedSavedReport).itemName || (selectedRecommendReport || selectedSavedReport).item_name}
+                      {((selectedRecommendReport || selectedSavedReport).itemCode || (selectedRecommendReport || selectedSavedReport).item_code) ? ` (${(selectedRecommendReport || selectedSavedReport).itemCode || (selectedRecommendReport || selectedSavedReport).item_code})` : ''}
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight break-words">
                   {(selectedRecommendReport || selectedSavedReport).title}
                 </h2>
@@ -1106,7 +1116,15 @@ export default function ReportClient({
                         className="w-full text-left"
                       >
                         <div className="flex justify-between items-start mb-1">
-                          <span className="text-[10px] font-bold text-primary">{report.institution}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-primary">{report.institution}</span>
+                            {(report.item_name || report.itemName) && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                                {report.item_name || report.itemName}
+                                {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[10px] text-slate-400">{report.date}</span>
                         </div>
                         <div className="flex justify-between items-start gap-2">
