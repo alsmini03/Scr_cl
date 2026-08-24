@@ -537,7 +537,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
         )}
 
         <div className="flex-1 min-w-0 py-3 pointer-events-none">
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center justify-between gap-1.5 mb-0.5">
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase",
                 item.type === 'youtube' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
                 item.type === 'blog' ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
@@ -546,10 +546,15 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
             )}>
                 {typeLabel}
             </span>
-            <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
+            {item.type === 'report' && (item.item_name || item.itemName) && (
+              <span className="text-[10px] font-bold text-primary truncate">
+                {item.item_name || item.itemName}
+                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
+              </span>
+            )}
           </div>
           <h3 className={cn(
-            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1",
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1 my-0.5",
             item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
           )}>
             {item.title}
@@ -557,16 +562,11 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
               <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
             )}
           </h3>
-          <div className="flex items-center gap-1.5 mt-0.5 truncate">
+          <div className="flex flex-col gap-0.5">
             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
               {item.author || item.institution || ''}
             </p>
-            {item.type === 'report' && (item.item_name || item.itemName) && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded shrink-0">
-                {item.item_name || item.itemName}
-                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
-              </span>
-            )}
+            <span className="text-[10px] text-slate-400">{item.date || formatDateToYMD(item.added_at)}</span>
           </div>
         </div>
 

@@ -943,21 +943,28 @@ export default function ReportClient({
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const targetUrl = report.naverUrl || `https://m.stock.naver.com/investment/research/${report.fileNum || 'company'}/${report.id}`;
-                          window.open(targetUrl, '_blank');
-                        }}
-                        className="text-[10px] font-bold text-primary hover:underline active:scale-95 transition-all"
-                        title="네이버 리포트 원문 페이지로 이동"
-                      >
-                        {report.categoryName || '리포트'}
-                      </button>
-                      <span className="text-[10px] text-slate-400">{report.date}</span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const targetUrl = report.naverUrl || `https://m.stock.naver.com/investment/research/${report.fileNum || 'company'}/${report.id}`;
+                            window.open(targetUrl, '_blank');
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline active:scale-95 transition-all"
+                          title="네이버 리포트 원문 페이지로 이동"
+                        >
+                          {report.categoryName || '리포트'}
+                        </button>
+                      </div>
+                      {(report.itemName || report.item_name) && (
+                        <span className="text-[10px] font-bold text-primary">
+                          {report.itemName || report.item_name}
+                          {(report.itemCode || report.item_code) ? ` (${report.itemCode || report.item_code})` : ''}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex justify-between items-start gap-3">
+                    <div className="flex justify-between items-start gap-3 my-1">
                       <div onClick={() => handleTitleClick(report)} className="flex-1 cursor-pointer group">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-3 group-hover:text-primary transition-colors">
                           {report.title}
@@ -965,17 +972,12 @@ export default function ReportClient({
                       </div>
                     </div>
 
-                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
+                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-1">
+                      <div className="flex flex-col gap-0.5 min-w-0">
                         <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
                           {report.institution}
                         </p>
-                        {(report.itemName || report.item_name) && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded shrink-0">
-                            {report.itemName || report.item_name}
-                            {(report.itemCode || report.item_code) ? ` (${report.itemCode || report.item_code})` : ''}
-                          </span>
-                        )}
+                        <span className="text-[10px] text-slate-400">{report.date}</span>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
@@ -1125,7 +1127,12 @@ export default function ReportClient({
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="text-[10px] font-bold text-primary">리포트</span>
-                          <span className="text-[10px] text-slate-400">{report.date}</span>
+                          {(report.item_name || report.itemName) && (
+                            <span className="text-[10px] font-bold text-primary">
+                              {report.item_name || report.itemName}
+                              {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
+                            </span>
+                          )}
                         </div>
                         <div className="flex justify-between items-start gap-2">
                           <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2 flex-1">
@@ -1140,14 +1147,9 @@ export default function ReportClient({
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-1.5 mt-1">
+                        <div className="flex flex-col gap-0.5 mt-1">
                           <p className="text-[10px] text-slate-500 font-bold">{report.institution}</p>
-                          {(report.item_name || report.itemName) && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-primary/10 text-primary rounded">
-                              {report.item_name || report.itemName}
-                              {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
-                            </span>
-                          )}
+                          <span className="text-[10px] text-slate-400">{report.date}</span>
                         </div>
                         {report.author && (
                           <p className="text-[10px] text-slate-400 mt-0.5">{report.author}</p>
