@@ -333,3 +333,23 @@ export async function extractYoutube(url: string, apiKey: string, requestedModel
       transcript,
     };
 }
+
+export async function extractBlogSummary(blogContent: string, apiKey: string, modelName?: string, promptText?: string) {
+    if (!apiKey) {
+        throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const geminiModel = modelName || "gemini-1.5-flash";
+    const userPrompt = promptText || "이 블로그 내용을 핵심 위주로 요약하고 분석해 주세요.";
+
+    // Clean HTML tags to plain text for prompt processing
+    const $ = cheerio.load(blogContent || "");
+    const cleanText = $.text().trim() || blogContent;
+
+    const fullPrompt = `${userPrompt}\n\n[블로그 글 내용]\n${cleanText.slice(0, 30000)}`;
+
+    const model = genAI.getGenerativeModel({ model: geminiModel });
+    const result = await model.generateContent([{ text: fullPrompt }]);
+    return result.response.text();
+}

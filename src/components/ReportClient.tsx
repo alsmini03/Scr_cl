@@ -3,13 +3,15 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo, useRef, useMemo } from 'react';
-import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport } from '@/lib/db';
-import { cn, getLongPressHandlers } from '@/lib/utils';
+import { addReportTab, deleteReportTab, updateReportTabOrder, saveReport, getGeminiModels, getGeminiPrompts, getResolvedReportUrlAction, getAdjacentReportIdsAction, toggleLikeAction, addToQueue, getQueueItems, retryGeminiTaskAction, deleteReport, sendBatchEmailAction } from '@/lib/db';
+import { cn, formatDateToYMD, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { marked } from 'marked';
 import QueueStatus from '@/components/QueueStatus';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import Link from 'next/link';
 
 interface Report {
   id: string;
@@ -18,6 +20,11 @@ interface Report {
   title: string;
   author: string;
   institution: string;
+  itemName?: string;
+  itemCode?: string;
+  item_name?: string;
+  item_code?: string;
+  categoryName?: string;
   fileId?: string;
   fileNum?: string;
   scrapPath?: string;
@@ -27,6 +34,7 @@ interface Report {
   summary?: string;
   gemini_model?: string;
   url?: string;
+  naverUrl?: string;
 }
 
 interface ReportContent {
@@ -59,12 +67,17 @@ export default function ReportClient({
   const [sortType, setSortType] = useState<'date' | 'size-asc' | 'size-desc'>('date');
   const [viewingContent, setViewingContent] = useState<ReportContent | null>(null);
   const [isContentLoading, setIsContentLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
+
+  // Inline collapsible states
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [expandedContent, setExpandedContent] = useState<string | null>(null);
+  const [isInlineLoading, setIsInlineLoading] = useState<boolean>(false);
 
   // Search/Filter State
-  const [srhDate, setSrhDate] = useState('');
   const [srhWord, setSrhWord] = useState('');
   const [searchInput, setSearchInput] = useState('');
-  const [activeDatePreset, setActiveDatePreset] = useState('0'); // 0: 오늘, 1: 1주, 2: 1개월, 3: 3개월, 4: 6개월, 5: 1년, 6: 전체
+  const [page, setPage] = useState(1);
 
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -72,15 +85,22 @@ export default function ReportClient({
   // Interaction State
   const [savingId, setSavingId] = useState<string | null>(null);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set(initialSavedReports.map(r => `${r.title}|${r.institution}`)));
+  const [savedReports, setSavedReports] = useState<any[]>(initialSavedReports);
   const [isCopying, setIsCopying] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedMyIds, setSelectedMyIds] = useState<string[]>([]);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isProcessing = isEmailing || isDeleting;
 
   // Detail View State
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [selectedRecommendReport, setSelectedRecommendReport] = useState<Report | null>(null);
 
   // Navigation states
-  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; nextId?: string }>({});
+  const [adjacentIds, setAdjacentIds] = useState<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }>({});
   const [currentQueueItem, setCurrentQueueItem] = useState<any>(null);
   const [lastProcessedAt, setLastProcessedAt] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
@@ -108,7 +128,16 @@ export default function ReportClient({
     } else if (tabs.length > 0) {
       setActiveTabId(tabs[0].id);
     }
+
+    const savedViewMode = localStorage.getItem('report_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
   }, [tabs, searchParams]);
+
+  useEffect(() => {
+    localStorage.setItem('report_view_mode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (activeTabId) {
@@ -117,20 +146,21 @@ export default function ReportClient({
     } else if (tabs.length === 0) {
       setIsLoading(false);
     }
-  }, [activeTabId, srhDate, srhWord]);
+  }, [activeTabId, srhWord]);
 
   const handleSearch = () => {
     setSrhWord(searchInput);
-    // fetchReports(true) will be triggered by useEffect
   };
 
   const fetchReports = async (isInitial = false) => {
     if (!activeTabId && tabs.length > 0) return;
 
+    const nextPage = isInitial ? 1 : page + 1;
+
     if (isInitial) {
       setIsLoading(true);
       setReports([]);
-      setLastId('0');
+      setPage(1);
       setHasMore(true);
     } else {
       if (!hasMore || isMoreLoading) return;
@@ -139,16 +169,15 @@ export default function ReportClient({
 
     try {
       const activeTab = tabs.find(t => t.id === activeTabId);
-      const url = activeTab?.url || 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/PrimeSub04.asp?SubDiv=Sub400';
+      const category = activeTab?.url || 'company';
 
       const res = await fetch('/api/report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
-          lstNumO: isInitial ? '0' : lastId,
-          actNum: isInitial ? '0' : '2',
-          srhDate,
+          url: category,
+          page: nextPage,
+          pageSize: 20,
           srhWord
         })
       });
@@ -163,7 +192,7 @@ export default function ReportClient({
           } else {
             setReports(prev => [...prev, ...data]);
           }
-          setLastId(data[data.length - 1].index);
+          setPage(nextPage);
         }
       } else {
         setHasMore(false);
@@ -200,11 +229,12 @@ export default function ReportClient({
     setIsContentLoading(true);
     setIsDetailLoading(true);
     try {
+      const reportCategory = selectedRecommendReport?.fileNum || selectedSavedReport?.fileNum || 'company';
       const [res, adj, { items, lastProcessedAt: last }] = await Promise.all([
         fetch('/api/report/content', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ num: reportId, code: '01' })
+          body: JSON.stringify({ num: reportId, category: reportCategory })
         }),
         getAdjacentReportIdsAction(reportId),
         getQueueItems()
@@ -230,17 +260,33 @@ export default function ReportClient({
     fetchContent(report.id);
   };
 
-  const handleDatePreset = (preset: string) => {
-    setActiveDatePreset(preset);
-    if (preset === '1') { // 전체 (Bondweb uses empty string for latest)
-      setSrhDate('');
+  const handleTitleClick = async (report: Report) => {
+    if (expandedReportId === report.id) {
+      setExpandedReportId(null);
+      setExpandedContent(null);
       return;
     }
 
-    const d = new Date();
-    const formatDate = (date: Date) => date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0') + String(date.getDate()).padStart(2, '0');
-    setSrhDate(formatDate(d));
+    setExpandedReportId(report.id);
+    setExpandedContent(null);
+    setIsInlineLoading(true);
+
+    try {
+      const res = await fetch('/api/report/content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ num: report.id, category: report.fileNum || 'company' })
+      });
+      const html = await res.text();
+      setExpandedContent(html);
+    } catch (err) {
+      console.error(err);
+      showToast('내용을 불러오는 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setIsInlineLoading(false);
+    }
   };
+
 
   const handleCopyUrl = (url?: string) => {
     if (!url) return;
@@ -253,43 +299,24 @@ export default function ReportClient({
   };
 
   const handleDownload = async (report: any) => {
-    let downloadUrl = '';
-
-    if (report.scrapPath) {
-      window.open('https://www.bondweb.co.kr' + report.scrapPath, '_blank');
-      return;
-    }
-
-    if (report.url) {
-      downloadUrl = report.url;
-      if (downloadUrl.includes('/api/report/download') && !downloadUrl.includes('&title=')) {
-        downloadUrl += `&title=${encodeURIComponent(report.title)}`;
-      }
-    } else if (report.fileId && report.fileNum) {
-      const encodedTitle = encodeURIComponent(report.title);
-      downloadUrl = `/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
-    }
-
-    if (!downloadUrl) return;
-
-    if (downloadUrl.includes('bondweb.co.kr')) {
-      window.open(downloadUrl, '_blank');
-      return;
-    }
+    if (!report?.url) return;
 
     try {
-      const res = await fetch(downloadUrl, { method: 'GET' });
-      if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const safeTitle = report.title.replace(/[\\/:*?"<>|]/g, '_');
-      a.download = safeTitle + '.pdf';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      const cleanDate = (report.date || '').replace(/[^0-9]/g, '');
+      let baseName = '';
+
+      if (report.itemName) {
+        const itemCodeStr = report.itemCode ? ` (${report.itemCode})` : '';
+        baseName = `${report.itemName}${itemCodeStr}_${report.title}_${report.institution}_${cleanDate}`;
+      } else {
+        const catName = report.categoryName || '리포트';
+        baseName = `${catName}_${report.title}_${report.institution}_${cleanDate}`;
+      }
+
+      const safeFilename = baseName.replace(/[\\/:*?"<>|]/g, '_').trim() + '.pdf';
+      const downloadProxyUrl = `/api/report/download?url=${encodeURIComponent(report.url)}&filename=${encodeURIComponent(safeFilename)}`;
+
+      window.open(downloadProxyUrl, '_blank');
     } catch (error) {
       console.error('Download error:', error);
       showToast('다운로드 중 오류가 발생했습니다.', 'error');
@@ -328,37 +355,23 @@ export default function ReportClient({
       const selectedModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
       const selectedPrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
 
-      let pdfUrl = '';
-      if (report.scrapPath) {
-        pdfUrl = 'https://www.bondweb.co.kr' + report.scrapPath;
-      } else if (report.fileId && report.fileNum) {
-        const encodedTitle = encodeURIComponent(report.title);
-        pdfUrl = `${window.location.origin}/api/report/download?number=${report.fileId}&gn=${report.fileNum}&title=${encodedTitle}`;
-      }
-
-      if (!pdfUrl) throw new Error('PDF URL not found');
-
-      const directPdfUrl = await getResolvedReportUrlAction({
-        fileId: report.fileId,
-        fileNum: report.fileNum,
-        url: pdfUrl
-      });
-
-      if (!directPdfUrl) throw new Error('PDF direct URL resolution failed');
+      const pdfUrl = report.url || '';
 
       const result = await saveReport({
         title: report.title,
         author: report.author,
         institution: report.institution,
         date: report.date,
-        url: directPdfUrl,
+        url: pdfUrl,
         summary: '',
-        content: viewingContent?.id === report.id ? viewingContent.content : ''
+        content: viewingContent?.id === report.id ? viewingContent.content : '',
+        itemName: report.itemName,
+        itemCode: report.itemCode
       });
 
       if (result.success && result.id) {
         await addToQueue('report', result.id, {
-          url: directPdfUrl,
+          url: pdfUrl,
           model: selectedModel,
           prompt: selectedPrompt
         });
@@ -522,25 +535,42 @@ export default function ReportClient({
         }}
         transparent
         rightAction={
-          !isDetailView && (
-            <div className="flex items-center gap-1">
+          !isDetailView ? (
+            viewMode === 'my' && isEditMode ? (
               <button
-                onClick={() => window.location.href = '/settings/gemini'}
-                className="text-primary p-2"
-                title="Gemini 설정"
+                onClick={() => { setIsEditMode(false); setSelectedMyIds([]); }}
+                className="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold mr-2"
               >
-                <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+                취소
               </button>
-              <button
-                onClick={() => setShowTabManager(!showTabManager)}
-                className="text-primary p-2"
-              >
-                <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
-              </button>
-            </div>
-          )
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => window.location.href = '/settings/gemini'}
+                  className="text-primary p-2"
+                  title="Gemini 설정"
+                >
+                  <span className="material-symbols-outlined text-2xl">settings_suggest</span>
+                </button>
+                <button
+                  onClick={() => setShowTabManager(!showTabManager)}
+                  className="text-primary p-2"
+                >
+                  <span className="material-symbols-outlined text-2xl">{showTabManager ? 'close' : 'add_circle'}</span>
+                </button>
+              </div>
+            )
+          ) : undefined
         }
-      />
+      >
+        {!isDetailView && (
+          <ViewModeToggle
+            title="리포트"
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
+        )}
+      </Header>
 
       <main className="mt-4 px-4">
         {isDetailLoading ? (
@@ -548,23 +578,35 @@ export default function ReportClient({
         ) : selectedRecommendReport || (selectedReportId && selectedSavedReport) ? (
           <div className="space-y-6 animate-fade-in-up pb-20">
             {selectedReportId && (
-              <div className="flex justify-between items-center bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
+              <div className="flex justify-between items-center gap-2 bg-white dark:bg-slate-900/50 rounded-xl p-2 border border-slate-100 dark:border-primary/10 shadow-sm">
                 <button
                   onClick={() => adjacentIds.prevId && setSelectedReportId(adjacentIds.prevId)}
                   disabled={!adjacentIds.prevId}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                  className="flex-1 flex items-center gap-1 min-w-0 px-2 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95 text-left"
+                  title={adjacentIds.prevTitle}
                 >
-                  <span className="material-symbols-outlined text-lg">chevron_left</span>
-                  이전
+                  <span className="material-symbols-outlined text-lg flex-shrink-0">chevron_left</span>
+                  <span className="flex-shrink-0">이전</span>
+                  {adjacentIds.prevTitle && (
+                    <span className="truncate text-xs font-normal text-slate-400 dark:text-slate-500 min-w-0">
+                      : {adjacentIds.prevTitle}
+                    </span>
+                  )}
                 </button>
-                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
+                <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 flex-shrink-0" />
                 <button
                   onClick={() => adjacentIds.nextId && setSelectedReportId(adjacentIds.nextId)}
                   disabled={!adjacentIds.nextId}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95"
+                  className="flex-1 flex items-center justify-end gap-1 min-w-0 px-2 py-1.5 text-sm font-bold text-slate-600 dark:text-slate-300 disabled:opacity-30 disabled:grayscale transition-all active:scale-95 text-right"
+                  title={adjacentIds.nextTitle}
                 >
-                  다음
-                  <span className="material-symbols-outlined text-lg">chevron_right</span>
+                  {adjacentIds.nextTitle && (
+                    <span className="truncate text-xs font-normal text-slate-400 dark:text-slate-500 min-w-0">
+                      {adjacentIds.nextTitle} :
+                    </span>
+                  )}
+                  <span className="flex-shrink-0">다음</span>
+                  <span className="material-symbols-outlined text-lg flex-shrink-0">chevron_right</span>
                 </button>
               </div>
             )}
@@ -574,12 +616,7 @@ export default function ReportClient({
                 onClick={async () => {
                   setIsCopying(true);
                   const current = selectedRecommendReport || selectedSavedReport;
-                  const directUrl = await getResolvedReportUrlAction({
-                    fileId: current.fileId,
-                    fileNum: current.fileNum,
-                    url: current.scrapPath ? 'https://www.bondweb.co.kr' + current.scrapPath : current.url
-                  });
-                  handleCopyUrl(directUrl || '');
+                  handleCopyUrl(current?.url || '');
                   setIsCopying(false);
                 }}
                 disabled={isCopying}
@@ -636,7 +673,15 @@ export default function ReportClient({
 
             <div className="flex justify-between items-start gap-4">
               <div className="space-y-1 flex-1 min-w-0">
-                <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-primary">{(selectedRecommendReport || selectedSavedReport).institution}</span>
+                  {((selectedRecommendReport || selectedSavedReport).itemName || (selectedRecommendReport || selectedSavedReport).item_name) && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-primary/10 text-primary rounded-md">
+                      {(selectedRecommendReport || selectedSavedReport).itemName || (selectedRecommendReport || selectedSavedReport).item_name}
+                      {((selectedRecommendReport || selectedSavedReport).itemCode || (selectedRecommendReport || selectedSavedReport).item_code) ? ` (${(selectedRecommendReport || selectedSavedReport).itemCode || (selectedRecommendReport || selectedSavedReport).item_code})` : ''}
+                    </span>
+                  )}
+                </div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 leading-tight break-words">
                   {(selectedRecommendReport || selectedSavedReport).title}
                 </h2>
@@ -767,115 +812,79 @@ export default function ReportClient({
               <div className="p-10 text-center text-slate-400">내용이 없습니다.</div>
             )}
           </div>
-        ) : (
+        ) : viewMode === 'recommend' ? (
           <>
-            <div className="flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10">
-              <div className="flex flex-col flex-1 gap-3">
-                <div className="space-y-4 pt-3">
-                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm space-y-4">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                          placeholder="검색어를 입력하세요..."
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
-                        />
-                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-                        {searchInput && (
-                          <button
-                            onClick={() => { setSearchInput(''); setSrhWord(''); }}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
-                          >
-                            <span className="material-symbols-outlined text-lg">cancel</span>
-                          </button>
-                        )}
-                      </div>
+            <div className="mb-6 space-y-3">
+              <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-primary/10 p-4 shadow-sm">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      placeholder="검색어를 입력하세요..."
+                      className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 pl-10 pr-4 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:ring-2 focus:ring-primary/20 transition-all"
+                    />
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                    {searchInput && (
                       <button
-                        onClick={handleSearch}
-                        className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                        onClick={() => { setSearchInput(''); setSrhWord(''); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors"
                       >
-                        조회
+                        <span className="material-symbols-outlined text-lg">cancel</span>
                       </button>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <input
-                          type="date"
-                          value={srhDate ? `${srhDate.slice(0,4)}-${srhDate.slice(4,6)}-${srhDate.slice(6,8)}` : ''}
-                          onChange={(e) => {
-                            const val = e.target.value.split('-').join('');
-                            setSrhDate(val);
-                            setActiveDatePreset('-1');
-                          }}
-                          className="w-full bg-slate-100 dark:bg-black/20 border-none rounded-xl py-3 px-4 text-sm text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-primary/20 transition-all"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        {[
-                          { label: '오늘', id: '0' },
-                          { label: '전체', id: '1' }
-                        ].map((preset) => (
-                          <button
-                            key={preset.id}
-                            onClick={() => handleDatePreset(preset.id)}
-                            className={cn(
-                              "px-4 py-2.5 rounded-xl text-sm font-bold transition-all border",
-                              activeDatePreset === preset.id
-                                ? "bg-primary/10 text-primary border-primary/20"
-                                : "bg-transparent text-slate-500 border-slate-200 dark:border-primary/10 hover:border-primary/30"
-                            )}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
+                  <button
+                    onClick={handleSearch}
+                    className="px-4 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-sm active:scale-95 transition-all"
+                  >
+                    조회
+                  </button>
+                </div>
+              </div>
 
-                  <div className="flex overflow-x-auto no-scrollbar gap-2 py-2 flex-nowrap mt-1 pr-16 relative">
-                    {tabs.map(tab => {
-                      const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
-                      return (
-                        <div
-                          key={tab.id}
-                          className="relative flex-shrink-0 group transition-all"
-                          onContextMenu={(e) => e.preventDefault()}
-                          {...longPressHandlers}
+              <div className="relative flex items-center gap-2">
+                <div className="flex flex-1 items-center gap-2 overflow-x-auto no-scrollbar py-1 pr-10">
+                  {tabs.map(tab => {
+                    const longPressHandlers = getLongPressHandlers(() => handleTabLongPress(tab.id));
+                    return (
+                      <div
+                        key={tab.id}
+                        className="relative flex-shrink-0 group transition-all"
+                        onContextMenu={(e) => e.preventDefault()}
+                        {...longPressHandlers}
+                      >
+                        <button
+                          onClick={() => setActiveTabId(tab.id)}
+                          className={cn(
+                            "px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all",
+                            activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
+                          )}
                         >
-                          <button
-                            onClick={() => setActiveTabId(tab.id)}
-                            className={cn(
-                              "px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all",
-                              activeTabId === tab.id ? "bg-primary text-white shadow-md" : "bg-slate-200 dark:bg-black/30 text-slate-500 dark:text-slate-400"
-                            )}
-                          >
-                            {tab.name}
-                          </button>
-                        </div>
-                      );
-                    })}
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm pl-2 py-2">
-                      <button
-                        onClick={() => {
-                          if (sortType === 'date') setSortType('size-desc');
-                          else if (sortType === 'size-desc') setSortType('size-asc');
-                          else setSortType('date');
-                        }}
-                        className={cn(
-                          "p-2 rounded-full transition-all active:scale-95",
-                          sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
-                        )}
-                      >
-                        <span className="material-symbols-outlined text-xl">
-                          {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
+                          {tab.name}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center bg-background-light/90 dark:bg-background-dark/90 pl-2 py-1 z-10">
+                  <button
+                    onClick={() => {
+                      if (sortType === 'date') setSortType('size-desc');
+                      else if (sortType === 'size-desc') setSortType('size-asc');
+                      else setSortType('date');
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-full transition-all active:scale-95",
+                      sortType === 'date' ? "text-slate-400" : "text-primary bg-primary/10"
+                    )}
+                  >
+                    <span className="material-symbols-outlined text-lg">
+                      {sortType === 'date' ? 'sort' : sortType === 'size-desc' ? 'arrow_downward' : 'arrow_upward'}
+                    </span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -925,21 +934,50 @@ export default function ReportClient({
               <div className="space-y-3">
                 {sortedReports.map((report, idx) => {
                   const isSaved = savedKeys.has(`${report.title}|${report.institution}`);
+                  const savedReportObj = initialSavedReports.find(
+                    (r) => r.title === report.title && r.institution === report.institution
+                  );
                   return (
                   <div
                     key={report.id + idx}
                     className="bg-white dark:bg-slate-900/50 border border-slate-100 dark:border-primary/10 rounded-2xl p-4 shadow-sm animate-fade-in-up hover:border-primary/20 transition-colors"
                   >
-                    <div className="flex justify-between items-start mb-1.5">
-                      <span className="text-[10px] font-bold text-primary uppercase">{report.institution}</span>
-                      <span className="text-[10px] text-slate-400">{report.date}</span>
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const targetUrl = report.naverUrl || `https://m.stock.naver.com/investment/research/${report.fileNum || 'company'}/${report.id}`;
+                            window.open(targetUrl, '_blank');
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline active:scale-95 transition-all"
+                          title="네이버 리포트 원문 페이지로 이동"
+                        >
+                          {report.categoryName || '리포트'}
+                        </button>
+                      </div>
+                      {(report.itemName || report.item_name) && (
+                        <span className="text-[10px] font-bold text-primary">
+                          {report.itemName || report.item_name}
+                          {(report.itemCode || report.item_code) ? ` (${report.itemCode || report.item_code})` : ''}
+                        </span>
+                      )}
                     </div>
 
-                    <div className="flex justify-between items-start gap-3">
-                      <div onClick={() => handleRecommendClick(report)} className="flex-1 cursor-pointer group">
+                    <div className="flex justify-between items-start gap-3 my-1">
+                      <div onClick={() => handleTitleClick(report)} className="flex-1 cursor-pointer group">
                         <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug line-clamp-3 group-hover:text-primary transition-colors">
                           {report.title}
                         </h3>
+                      </div>
+                    </div>
+
+                    <div onClick={() => handleTitleClick(report)} className="flex justify-between items-center cursor-pointer mt-1">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 truncate">
+                          {report.institution}
+                        </p>
+                        <span className="text-[10px] text-slate-400">{report.date}</span>
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
@@ -978,9 +1016,49 @@ export default function ReportClient({
                       </div>
                     </div>
 
-                    <div onClick={() => handleRecommendClick(report)} className="cursor-pointer mt-1">
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{report.author}</p>
-                    </div>
+                    {/* Collapsible Content Area */}
+                    {expandedReportId === report.id && (
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-primary/10 space-y-4 animate-fade-in-up">
+                        {isInlineLoading ? (
+                          <div className="py-6 flex flex-col items-center justify-center gap-2 text-slate-400">
+                            <div className="size-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <p className="text-[11px]">내용을 불러오는 중...</p>
+                          </div>
+                        ) : (
+                          <>
+                            {/* If saved and has summary, show AI 요약 분석 */}
+                            {savedReportObj && savedReportObj.summary && (
+                              <div className="bg-slate-50 dark:bg-black/10 rounded-xl p-4 space-y-2 border border-slate-100 dark:border-primary/5">
+                                <div className="flex items-center gap-1 text-[11px] font-black text-primary uppercase">
+                                  <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+                                  AI 요약 분석
+                                </div>
+                                <div
+                                  className="prose prose-sm dark:prose-invert max-w-none text-xs text-slate-700 dark:text-slate-300 leading-relaxed"
+                                  dangerouslySetInnerHTML={{ __html: marked.parse(savedReportObj.summary) }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Show original content text */}
+                            {expandedContent ? (
+                              <div className="bg-slate-50 dark:bg-black/10 rounded-xl p-4 border border-slate-100 dark:border-primary/5 overflow-hidden max-h-[350px] overflow-y-auto no-scrollbar">
+                                <div className="text-[11px] font-black text-slate-400 uppercase mb-2 flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[14px]">description</span>
+                                  추출된 리포트 내용
+                                </div>
+                                <div
+                                  className="prose prose-sm dark:prose-invert max-w-none break-words text-xs text-slate-700 dark:text-slate-300"
+                                  dangerouslySetInnerHTML={{ __html: expandedContent }}
+                                />
+                              </div>
+                            ) : (
+                              <div className="py-4 text-center text-xs text-slate-400">내용이 없습니다.</div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )})}
 
@@ -994,8 +1072,175 @@ export default function ReportClient({
               </div>
             )}
           </>
+        ) : (
+          <div className="space-y-4 pb-20">
+            {!session?.user ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">저장된 리포트를 보려면 먼저 로그인해 주세요.</p>
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            ) : savedReports.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
+                <span className="material-symbols-outlined text-6xl mb-4">description</span>
+                <p>아직 저장된 리포트가 없습니다.</p>
+                <p className="text-sm">새로운 리포트를 저장해 보세요!</p>
+              </div>
+            ) : (
+              <div className="space-y-3 select-none">
+                {savedReports.map((report: any) => {
+                  const isSelected = selectedMyIds.includes(report.id);
+                  const longPressHandlers = getLongPressHandlers(() => {
+                    if (!isEditMode) {
+                      setIsEditMode(true);
+                      setSelectedMyIds([report.id]);
+                    }
+                  });
+
+                  return (
+                    <div
+                      key={report.id}
+                      className={cn(
+                        "w-full text-left bg-white dark:bg-slate-900/50 rounded-2xl border p-4 shadow-sm transition-all relative",
+                        isEditMode && isSelected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-slate-100 dark:border-primary/10"
+                      )}
+                      onContextMenu={(e) => e.preventDefault()}
+                      {...longPressHandlers}
+                    >
+                      <button
+                        onClick={() => {
+                          if (isEditMode) {
+                            setSelectedMyIds(prev => prev.includes(report.id) ? prev.filter(i => i !== report.id) : [...prev, report.id]);
+                          } else {
+                            setSelectedReportId(report.id);
+                          }
+                        }}
+                        className="w-full text-left"
+                      >
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] font-bold text-primary">리포트</span>
+                          {(report.item_name || report.itemName) && (
+                            <span className="text-[10px] font-bold text-primary">
+                              {report.item_name || report.itemName}
+                              {(report.item_code || report.itemCode) ? ` (${report.item_code || report.itemCode})` : ''}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-tight mb-2 flex-1">
+                            {report.title}
+                          </h3>
+                          {isEditMode && (
+                            <div className={cn(
+                              "size-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0 mt-0.5",
+                              isSelected ? "bg-primary border-primary text-white" : "border-slate-300 text-transparent"
+                            )}>
+                              <span className="material-symbols-outlined text-[12px] font-bold">check</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          <p className="text-[10px] text-slate-500 font-bold">{report.institution}</p>
+                          <span className="text-[10px] text-slate-400">{report.date}</span>
+                        </div>
+                        {report.author && (
+                          <p className="text-[10px] text-slate-400 mt-0.5">{report.author}</p>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         )}
       </main>
+
+      {/* Selection Mode Action Bar for My Saved Reports */}
+      {isEditMode && viewMode === 'my' && !isDetailView && (
+        <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3.5 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 shadow-lg animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+              <span className="text-primary">{selectedMyIds.length}</span>개 선택됨
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (selectedMyIds.length === 0) return;
+                  setIsEmailing(true);
+                  try {
+                    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+                    const items = selectedMyIds.map(id => ({ type: 'report' as const, id }));
+                    const res = await sendBatchEmailAction(items, email);
+                    if (res.success) {
+                      showToast(`${selectedMyIds.length}개의 리포트가 메일로 발송되었습니다.`);
+                      setIsEditMode(false);
+                      setSelectedMyIds([]);
+                    } else {
+                      showToast(res.error || '발송 실패', 'error');
+                    }
+                  } catch (e: any) {
+                    showToast('발송 중 오류가 발생했습니다.', 'error');
+                  } finally {
+                    setIsEmailing(false);
+                  }
+                }}
+                disabled={selectedMyIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isEmailing ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    메일
+                  </>
+                )}
+              </button>
+              <button
+                onClick={async () => {
+                  if (selectedMyIds.length === 0) return;
+                  if (!confirm(`${selectedMyIds.length}개의 리포트를 삭제하시겠습니까?`)) return;
+                  setIsDeleting(true);
+                  try {
+                    for (const id of selectedMyIds) {
+                      await deleteReport(id);
+                    }
+                    setSavedReports(prev => prev.filter(r => !selectedMyIds.includes(r.id)));
+                    showToast('삭제되었습니다.');
+                    setIsEditMode(false);
+                    setSelectedMyIds([]);
+                    router.refresh();
+                  } catch (e) {
+                    showToast('삭제 실패', 'error');
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={selectedMyIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    삭제
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab="report" />
 

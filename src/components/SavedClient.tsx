@@ -31,7 +31,9 @@ export default function SavedClient({
   const [items, setItems] = useState<any[]>(initialItems);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<{type: string, id: string}[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isProcessing = isEmailing || isDeleting;
   const [activeFilter, setActiveFilter] = useState<'all' | 'youtube' | 'blog' | 'report' | 'book'>('all');
   const [isLikedOnly, setIsLikedOnly] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -71,22 +73,7 @@ export default function SavedClient({
         result = result.filter(item => {
             const titleMatch = item.title?.toLowerCase().includes(query);
             const authorMatch = (item.author || item.institution || '').toLowerCase().includes(query);
-
-            let contentMatch = false;
-            if (item.type === 'blog') {
-                contentMatch = item.content?.toLowerCase().includes(query);
-            } else if (item.type === 'youtube') {
-                contentMatch = (item.summary || item.description || '').toLowerCase().includes(query);
-            } else if (item.type === 'report') {
-                contentMatch = (item.summary || item.content || '').toLowerCase().includes(query);
-            } else if (item.type === 'book') {
-                contentMatch = (
-                    item.description || item.notes || item.intro || item.toc ||
-                    item.authorIntro || item.inside || item.publisherReview
-                )?.toLowerCase().includes(query);
-            }
-
-            return titleMatch || authorMatch || contentMatch;
+            return titleMatch || authorMatch;
         });
       }
       return result;
@@ -203,7 +190,7 @@ export default function SavedClient({
 
     const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
 
-    setIsProcessing(true);
+    setIsEmailing(true);
     try {
       const itemsToSend = selectedItems.map(item => ({
         type: item.type as 'youtube' | 'blog' | 'report' | 'book',
@@ -220,7 +207,7 @@ export default function SavedClient({
     } catch (err: any) {
       showToast(`발송 실패: ${err.message}`, 'error');
     } finally {
-      setIsProcessing(false);
+      setIsEmailing(false);
     }
   };
 
@@ -228,7 +215,7 @@ export default function SavedClient({
       if (selectedItems.length === 0) return;
       if (!confirm(`선택한 ${selectedItems.length}개의 항목을 삭제하시겠습니까?`)) return;
 
-      setIsProcessing(true);
+      setIsDeleting(true);
       try {
           let successCount = 0;
           for (const item of selectedItems) {
@@ -257,7 +244,7 @@ export default function SavedClient({
           console.error(err);
           showToast('삭제 중 오류가 발생했습니다.', 'error');
       } finally {
-          setIsProcessing(false);
+          setIsDeleting(false);
       }
   };
 
@@ -399,39 +386,6 @@ export default function SavedClient({
             </button>
         </div>
 
-        {isEditMode && (
-            <div className="mb-6 flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30">
-                <p className="text-sm font-bold text-red-600 dark:text-red-400 ml-2">
-                    {selectedItems.length}개 선택됨
-                </p>
-                <div className="flex gap-1.5">
-                    <button
-                        onClick={() => setSelectedItems(selectedItems.length === filteredItems.length ? [] : filteredItems.map(v => ({ type: v.type, id: v.id })))}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm"
-                    >
-                        {selectedItems.length === filteredItems.length ? <>전체<br/>해제</> : <>전체<br/>선택</>}
-                    </button>
-                    <button
-                        onClick={handleBatchEmail}
-                        disabled={selectedItems.length === 0 || isProcessing}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-primary text-white rounded-lg shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[56px]"
-                    >
-                        {isProcessing ? (
-                            <div className="size-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                            <>메일<br/>발송</>
-                        )}
-                    </button>
-                    <button
-                        onClick={handleBatchDelete}
-                        disabled={selectedItems.length === 0 || isProcessing}
-                        className="px-3 py-1.5 text-[10px] leading-tight font-bold bg-red-500 text-white rounded-lg shadow-sm disabled:opacity-50"
-                    >
-                        삭제
-                    </button>
-                </div>
-            </div>
-        )}
 
         {filteredItems.length === 0 ? (
           <div className="py-20 text-center text-slate-400">저장된 항목이 없습니다.</div>
@@ -455,6 +409,53 @@ export default function SavedClient({
           </div>
         )}
       </main>
+
+      {/* Fixed Bottom Selection Mode Action Bar */}
+      {isEditMode && (
+        <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3.5 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 shadow-lg animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+              <span className="text-primary">{selectedItems.length}</span>개 선택됨
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setSelectedItems(selectedItems.length === filteredItems.length ? [] : filteredItems.map(v => ({ type: v.type, id: v.id })))}
+                className="px-3 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs shadow-sm"
+              >
+                {selectedItems.length === filteredItems.length ? '전체 해제' : '전체 선택'}
+              </button>
+              <button
+                onClick={handleBatchEmail}
+                disabled={selectedItems.length === 0 || isProcessing}
+                className="px-4 py-2 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isEmailing ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    메일
+                  </>
+                )}
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={selectedItems.length === 0 || isProcessing}
+                className="px-4 py-2 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    삭제
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab="saved" />
     </div>
@@ -536,7 +537,7 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
         )}
 
         <div className="flex-1 min-w-0 py-3 pointer-events-none">
-          <div className="flex items-center gap-1.5 mb-0.5">
+          <div className="flex items-center justify-between gap-1.5 mb-0.5">
             <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase",
                 item.type === 'youtube' ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
                 item.type === 'blog' ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
@@ -545,10 +546,15 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
             )}>
                 {typeLabel}
             </span>
-            <span className="text-[10px] text-slate-400">{formatDateToYMD(item.added_at)}</span>
+            {item.type === 'report' && (item.item_name || item.itemName) && (
+              <span className="text-[10px] font-bold text-primary truncate">
+                {item.item_name || item.itemName}
+                {(item.item_code || item.itemCode) ? ` (${item.item_code || item.itemCode})` : ''}
+              </span>
+            )}
           </div>
           <h3 className={cn(
-            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1",
+            "text-slate-900 dark:text-slate-100 leading-tight line-clamp-2 flex items-center gap-1 my-0.5",
             item.type === 'youtube' ? "text-[13px] font-normal" : "text-sm font-bold"
           )}>
             {item.title}
@@ -556,9 +562,12 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
               <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
             )}
           </h3>
-          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-            {item.author || item.institution || ''}
-          </p>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate min-w-0">
+              {item.author || item.institution || ''}
+            </p>
+            <span className="text-[10px] text-slate-400 shrink-0">{item.date || formatDateToYMD(item.added_at)}</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-1 pr-2">

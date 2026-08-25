@@ -3,10 +3,15 @@
 import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
 import { useEffect, useState, memo } from 'react';
-import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, addToQueue } from '@/lib/db';
+import { saveYoutubeVideo, getGeminiModels, getGeminiPrompts, addYoutubeTab, deleteYoutubeTab, updateYoutubeTabOrder, addToQueue, sendBatchEmailAction, deleteYoutubeVideo } from '@/lib/db';
 import { cn, getLongPressHandlers } from '@/lib/utils';
 import { showToast } from '@/components/Toast';
 import TabManagementModal from '@/components/TabManagementModal';
+import ViewModeToggle from '@/components/ViewModeToggle';
+import YoutubeGrid from '@/components/YoutubeGrid';
+import QueueStatus from '@/components/QueueStatus';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface RecommendedVideo {
   videoId: string;
@@ -31,6 +36,16 @@ export default function YouTubeRecommendClient({
   const [isLoading, setIsLoading] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [savedUrls, setSavedUrls] = useState<Set<string>>(new Set(initialSavedVideos.map(v => v.url)));
+  const [savedVideos, setSavedVideos] = useState<any[]>(initialSavedVideos);
+  const [viewMode, setViewMode] = useState<'my' | 'recommend'>('recommend');
+
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isEmailing, setIsEmailing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const isProcessing = isEmailing || isDeleting;
+
+  const router = useRouter();
 
   const [tabs, setTabs] = useState<any[]>(initialTabs);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -55,7 +70,16 @@ export default function YouTubeRecommendClient({
     if (savedCols === '1' || savedCols === '2') {
       setGridCols(parseInt(savedCols) as 1 | 2);
     }
+
+    const savedViewMode = localStorage.getItem('youtube_view_mode');
+    if (savedViewMode === 'my' || savedViewMode === 'recommend') {
+      setViewMode(savedViewMode);
+    }
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('youtube_view_mode', viewMode);
+  }, [viewMode]);
 
   useEffect(() => {
     if (activeTabId) {
@@ -220,31 +244,48 @@ export default function YouTubeRecommendClient({
         title="유튜브"
         transparent
         rightAction={
-          <div className="flex items-center gap-1">
-                <button
-                    onClick={() => {
-                        const next = gridCols === 1 ? 2 : 1;
-                        setGridCols(next);
-                        localStorage.setItem('youtube_grid_cols', next.toString());
-                    }}
-                    className="text-primary p-2"
-                    title={gridCols === 1 ? "2열 보기" : "1열 보기"}
-                >
-                    <span className="material-symbols-outlined text-2xl">
-                        {gridCols === 1 ? 'grid_view' : 'view_stream'}
-                    </span>
-                </button>
-                <button
-                    onClick={() => window.location.href = '/add/youtube'}
-                    className="text-primary p-2"
-                >
-                    <span className="material-symbols-outlined text-2xl">add_circle</span>
-                </button>
-          </div>
+          viewMode === 'my' && isEditMode ? (
+            <button
+              onClick={() => { setIsEditMode(false); setSelectedIds([]); }}
+              className="px-3 py-1 bg-primary text-white rounded-full text-xs font-bold mr-2"
+            >
+              취소
+            </button>
+          ) : (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const next = gridCols === 1 ? 2 : 1;
+                  setGridCols(next);
+                  localStorage.setItem('youtube_grid_cols', next.toString());
+                }}
+                className="text-primary p-2"
+                title={gridCols === 1 ? "2열 보기" : "1열 보기"}
+              >
+                <span className="material-symbols-outlined text-2xl">
+                  {gridCols === 1 ? 'grid_view' : 'view_stream'}
+                </span>
+              </button>
+              <button
+                onClick={() => window.location.href = '/add/youtube'}
+                className="text-primary p-2"
+              >
+                <span className="material-symbols-outlined text-2xl">add_circle</span>
+              </button>
+            </div>
+          )
         }
-      />
+      >
+        <ViewModeToggle
+          title="유튜브"
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      </Header>
 
       <main className="mt-4 px-4">
+        {viewMode === 'recommend' ? (
+          <>
         {/* Source Tabs */}
         <div className={cn(
           "flex items-center gap-2 mb-6 -mx-4 px-4 sticky top-[64px] bg-background-light dark:bg-background-dark z-10"
@@ -343,7 +384,128 @@ export default function YouTubeRecommendClient({
             ))}
           </div>
         )}
+        </>
+        ) : (
+          <div className="space-y-6 pb-20">
+            <QueueStatus type="youtube" />
+            {!session?.user ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="size-20 bg-primary/10 rounded-full flex items-center justify-center mb-6">
+                  <span className="material-symbols-outlined text-4xl text-primary">lock</span>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">로그인이 필요합니다</h3>
+                <p className="text-slate-500 dark:text-slate-400 mb-8 px-8">유튜브 기록을 보려면 먼저 로그인해 주세요.</p>
+                <Link
+                  href="/login"
+                  className="px-8 py-3 bg-primary text-white font-bold rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 active:scale-95 transition-all"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            ) : savedVideos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
+                <span className="material-symbols-outlined text-6xl mb-4">video_library</span>
+                <p>아직 저장된 영상이 없습니다.</p>
+                <p className="text-sm">새로운 영상을 추가해 보세요!</p>
+              </div>
+            ) : (
+              <YoutubeGrid
+                videos={savedVideos}
+                viewMode={gridCols.toString() as '1' | '2'}
+                isSelectionMode={isEditMode}
+                selectedIds={selectedIds}
+                onToggleSelection={(id) => {
+                  setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+                }}
+                onLongPress={(id) => {
+                  if (!isEditMode) {
+                    setIsEditMode(true);
+                    setSelectedIds([id]);
+                  }
+                }}
+              />
+            )}
+          </div>
+        )}
       </main>
+
+      {/* Selection Mode Action Bar for My Videos */}
+      {isEditMode && viewMode === 'my' && (
+        <div className="fixed bottom-[calc(64px+env(safe-area-inset-bottom,0px))] left-0 right-0 p-3.5 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-primary/10 z-40 shadow-lg animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-lg mx-auto flex items-center justify-between gap-2">
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 min-w-0">
+              <span className="text-primary">{selectedIds.length}</span>개 선택됨
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => {
+                  if (selectedIds.length === 0) return;
+                  setIsEmailing(true);
+                  try {
+                    const email = localStorage.getItem('last_blog_email') || 'seokmin.kwon@samsung.com';
+                    const items = selectedIds.map(id => ({ type: 'youtube' as const, id }));
+                    const res = await sendBatchEmailAction(items, email);
+                    if (res.success) {
+                      showToast(`${selectedIds.length}개의 영상이 메일로 발송되었습니다.`);
+                      setIsEditMode(false);
+                      setSelectedIds([]);
+                    } else {
+                      showToast(res.error || '발송 실패', 'error');
+                    }
+                  } catch (e: any) {
+                    showToast('발송 중 오류가 발생했습니다.', 'error');
+                  } finally {
+                    setIsEmailing(false);
+                  }
+                }}
+                disabled={selectedIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isEmailing ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">mail</span>
+                    메일
+                  </>
+                )}
+              </button>
+              <button
+                onClick={async () => {
+                  if (selectedIds.length === 0) return;
+                  if (!confirm(`${selectedIds.length}개의 영상을 삭제하시겠습니까?`)) return;
+                  setIsDeleting(true);
+                  try {
+                    for (const id of selectedIds) {
+                      await deleteYoutubeVideo(id);
+                    }
+                    setSavedVideos(prev => prev.filter(v => !selectedIds.includes(v.id)));
+                    showToast('삭제되었습니다.');
+                    setIsEditMode(false);
+                    setSelectedIds([]);
+                    router.refresh();
+                  } catch (e) {
+                    showToast('삭제 실패', 'error');
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={selectedIds.length === 0 || isProcessing}
+                className="px-4 py-2.5 bg-red-500 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs"
+              >
+                {isDeleting ? (
+                  <div className="size-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span className="material-symbols-outlined text-sm">delete</span>
+                    삭제
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <BottomNav activeTab="youtube" />
 

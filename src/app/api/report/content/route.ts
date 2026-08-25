@@ -1,68 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import iconv from 'iconv-lite';
 
 export async function POST(req: NextRequest) {
   try {
-    const { num, code = '01', nwMnu = '04' } = await req.json();
+    const { num, category = 'company' } = await req.json();
 
     if (!num) {
       return NextResponse.json({ error: 'Report number is required' }, { status: 400 });
     }
 
-    // Updated endpoint as AjaxPrimeContent.asp is currently returning 404
-    const url = 'https://www.bondweb.co.kr/MOA/Board/ResearchCenterV2/FrameContent.asp';
-    const params = new URLSearchParams({
-      selUrl: 'FrameContent.asp',
-      selNum: num,
-      selCode: code,
-      NWMnu: nwMnu,
-      SetSelMntTName: ''
-    });
+    const apiUrl = `https://m.stock.naver.com/api/research/${category}/${num}`;
 
-    const response = await fetch(url, {
-      method: 'POST',
+    const response = await fetch(apiUrl, {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
       },
-      body: params.toString(),
     });
 
     if (!response.ok) {
-      throw new Error(`Bondweb returned status ${response.status}`);
+      throw new Error(`Naver Research Content API error: ${response.status}`);
     }
 
-    const buffer = await response.arrayBuffer();
-    const fullHtml = iconv.decode(Buffer.from(buffer), 'euc-kr');
+    const data = await response.json();
+    const contentObj = data?.researchContent || {};
 
-    // Extract the relevant content body
-    let finalHtml = '';
+    const formatPrice = (val?: string | number) => {
+      if (!val || val === '0' || val === 0) return '';
+      const num = typeof val === 'number' ? val : parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+      return isNaN(num) ? String(val) : num.toLocaleString('ko-KR') + '원';
+    };
 
-    // Look for the main content area
-    const contentMatch = fullHtml.match(/<div class="bod_view">([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>\s*<\/body>/);
-    const simpleMatch = fullHtml.match(/<div class="bod_view">([\s\S]*?)<\/div>/);
+    const opinion = contentObj.opinion || '';
+    const goalPrice = formatPrice(contentObj.goalPrice);
+    const priceAtWriteDate = formatPrice(contentObj.priceAtWriteDate);
 
-    if (simpleMatch) {
-      finalHtml = `<div class="bod_view">${simpleMatch[1]}</div>`;
-    } else {
-        const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        if (bodyMatch) {
-            finalHtml = bodyMatch[1];
-        } else {
-            finalHtml = fullHtml;
-        }
+    let priceHeader = '';
+    if (opinion || goalPrice || priceAtWriteDate) {
+      priceHeader = `
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; font-size: 13px; line-height: 1.6; color: #334155;">
+          ${opinion ? `<div><b>투자의견:</b> <span style="color:#1978e5; font-weight:bold;">${opinion}</span></div>` : ''}
+          ${goalPrice ? `<div><b>목표주가:</b> <span style="font-weight:bold;">${goalPrice}</span></div>` : ''}
+          ${priceAtWriteDate ? `<div><b>현재주가:</b> <span style="font-weight:bold;">${priceAtWriteDate}</span></div>` : ''}
+        </div>
+      `;
     }
 
-    // Additional cleanup for internal links/buttons that won't work in our UI
-    finalHtml = finalHtml.replace(/<p class="right_btn">([\s\S]*?)<\/p>/g, '');
-    finalHtml = finalHtml.replace(/href="javascript:[^"]*"/g, 'href="#"');
-    finalHtml = finalHtml.replace(/onClick="[^"]*"/g, '');
+    let html = (priceHeader + (contentObj.content || '')).trim();
+    if (contentObj.attachUrl) {
+      html = `<div style="margin-bottom:12px;"><a href="${contentObj.attachUrl}" target="_blank" rel="noopener noreferrer" style="color:#1978e5; font-weight:bold; font-size:13px; text-decoration:underline;">PDF 원본 다운로드</a></div>` + html;
+    }
 
-    return new NextResponse(finalHtml, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    return new Response(html, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
     });
   } catch (error: any) {
     console.error('Report content fetch error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return new Response(`<p>내용을 불러올 수 없습니다. (${error.message})</p>`, {
+      status: 500,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
   }
 }

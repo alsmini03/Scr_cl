@@ -9,8 +9,18 @@ if (!DATABASE_URL) {
   }
 }
 
+function getCleanConnectionString(url?: string) {
+  if (!url) return url;
+  return url
+    .replace('sslmode=require', 'sslmode=verify-full')
+    .replace('sslmode=prefer', 'sslmode=verify-full')
+    .replace('sslmode=verify-ca', 'sslmode=verify-full');
+}
+
+const connectionString = getCleanConnectionString(DATABASE_URL);
+
 const pool = new Pool({
-  connectionString: DATABASE_URL,
+  connectionString,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000, // Increased for Neon cold starts

@@ -15,7 +15,9 @@ import {
   deleteGeminiPrompt,
   setDefaultGeminiPrompt,
   getGeminiKeyPreference,
-  updateGeminiKeyPreferenceAction
+  updateGeminiKeyPreferenceAction,
+  getGeminiKeyRotationSettings,
+  updateGeminiKeyRotationSettingsAction
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -26,6 +28,7 @@ interface GeminiModel {
   name: string;
   youtube_default: boolean;
   report_default: boolean;
+  blog_default?: boolean;
 }
 
 interface GeminiPrompt {
@@ -34,11 +37,12 @@ interface GeminiPrompt {
   content: string;
   youtube_default: boolean;
   report_default: boolean;
+  blog_default?: boolean;
 }
 
 export default function GeminiSettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'youtube' | 'report'>('youtube');
+  const [activeTab, setActiveTab] = useState<'youtube' | 'report' | 'blog'>('youtube');
   const [models, setModels] = useState<GeminiModel[]>([]);
   const [newModelName, setNewModelName] = useState('');
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
@@ -49,16 +53,21 @@ export default function GeminiSettingsPage() {
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
 
   const [keyPreference, setKeyPreference] = useState<number | null>(null);
+  const [rotationPhrases, setRotationPhrases] = useState('');
+  const [rotationDirection, setRotationDirection] = useState<'asc' | 'desc'>('asc');
 
   const loadSettings = async () => {
-    const [dbModels, dbPrompts, dbKeyPref] = await Promise.all([
+    const [dbModels, dbPrompts, dbKeyPref, dbRotation] = await Promise.all([
       getGeminiModels(),
       getGeminiPrompts(),
-      getGeminiKeyPreference()
+      getGeminiKeyPreference(),
+      getGeminiKeyRotationSettings()
     ]);
     setModels(dbModels);
     setPrompts(dbPrompts);
     setKeyPreference(dbKeyPref);
+    setRotationPhrases(dbRotation.gemini_key_change_phrases);
+    setRotationDirection(dbRotation.gemini_key_change_direction);
   };
 
   useEffect(() => {
@@ -103,6 +112,9 @@ export default function GeminiSettingsPage() {
     const res = await setDefaultGeminiModel(id, activeTab);
     if (res.success) {
       await loadSettings();
+      showToast('기본 모델이 변경되었습니다.');
+    } else {
+      showToast(res.error || '변경 실패', 'error');
     }
   };
 
@@ -148,6 +160,9 @@ export default function GeminiSettingsPage() {
     const res = await setDefaultGeminiPrompt(id, activeTab);
     if (res.success) {
       await loadSettings();
+      showToast('기본 프롬프트가 변경되었습니다.');
+    } else {
+      showToast(res.error || '변경 실패', 'error');
     }
   };
 
@@ -159,6 +174,15 @@ export default function GeminiSettingsPage() {
       } else {
           showToast(res.error || '설정 변경 실패', 'error');
       }
+  };
+
+  const handleSaveRotationSettings = async () => {
+    const res = await updateGeminiKeyRotationSettingsAction(rotationPhrases, rotationDirection);
+    if (res.success) {
+      showToast('자동 변경 설정이 저장되었습니다.');
+    } else {
+      showToast(res.error || '저장 실패', 'error');
+    }
   };
 
   return (
@@ -199,6 +223,72 @@ export default function GeminiSettingsPage() {
             </div>
         </section>
 
+        {/* API Key Rotation Section */}
+        <section className="space-y-4">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">swap_calls</span>
+                API 키 자동 변경 설정
+            </h2>
+
+            <div className="p-5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-primary/10 shadow-sm space-y-4">
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">
+                        변경 기준 조건 문구 (줄바꿈으로 구분)
+                    </label>
+                    <textarea
+                        value={rotationPhrases}
+                        onChange={(e) => setRotationPhrases(e.target.value)}
+                        placeholder={`You exceeded your current quota\nQuota exceeded\nRate limit exceeded`}
+                        className="rounded-xl border border-slate-200 dark:border-primary/20 bg-slate-50 dark:bg-black/20 p-3 text-sm outline-none focus:border-primary transition-colors h-28 resize-none"
+                    />
+                    <p className="text-[10px] text-slate-400 ml-1">
+                        위 문구 중 하나라도 제미나이 에러 메시지나 응답 결과에 포함되면 API 키가 자동 변경됩니다.
+                    </p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase ml-1">
+                        API 키 변경 순서
+                    </label>
+                    <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-primary/10">
+                        <button
+                            type="button"
+                            onClick={() => setRotationDirection('asc')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all",
+                                rotationDirection === 'asc'
+                                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            오름차순 (1 → 2 → 3 → 4 → 5)
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setRotationDirection('desc')}
+                            className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all",
+                                rotationDirection === 'desc'
+                                    ? "bg-white dark:bg-slate-700 text-primary shadow-sm"
+                                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            )}
+                        >
+                            내림차순 (5 → 4 → 3 → 2 → 1)
+                        </button>
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleSaveRotationSettings}
+                    className="w-full bg-primary text-white py-3 rounded-xl font-bold text-sm shadow-md transition-all hover:opacity-90 flex items-center justify-center gap-1"
+                >
+                    <span className="material-symbols-outlined text-sm">save</span>
+                    자동 변경 설정 저장
+                </button>
+            </div>
+        </section>
+
         {/* Tab Picker */}
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-primary/10">
             <button
@@ -209,7 +299,7 @@ export default function GeminiSettingsPage() {
                 )}
             >
                 <span className="material-symbols-outlined text-lg">smart_display</span>
-                유튜브 디폴트 설정
+                유튜브
             </button>
             <button
                 onClick={() => setActiveTab('report')}
@@ -220,6 +310,16 @@ export default function GeminiSettingsPage() {
             >
                 <span className="material-symbols-outlined text-lg">description</span>
                 리포트
+            </button>
+            <button
+                onClick={() => setActiveTab('blog')}
+                className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+                    activeTab === 'blog' ? "bg-white dark:bg-slate-700 text-primary shadow-sm" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                )}
+            >
+                <span className="material-symbols-outlined text-lg">rss_feed</span>
+                블로그
             </button>
         </div>
 
@@ -258,7 +358,7 @@ export default function GeminiSettingsPage() {
 
                 <div className="flex flex-wrap gap-2 pt-2">
                     {models.map(m => {
-                        const isDefault = activeTab === 'report' ? m.report_default : m.youtube_default;
+                        const isDefault = activeTab === 'report' ? m.report_default : activeTab === 'blog' ? m.blog_default : m.youtube_default;
                         return (
                         <div key={m.id} className={cn(
                             "flex items-center gap-2 border px-4 py-2 rounded-full text-sm transition-all",
@@ -322,17 +422,18 @@ export default function GeminiSettingsPage() {
                     <label className="text-xs font-bold text-slate-400 uppercase ml-1">저장된 프롬프트 목록</label>
                     <div className="grid gap-3">
                         {prompts.map((p) => {
-                            const isDefault = activeTab === 'report' ? p.report_default : p.youtube_default;
+                            const isDefault = activeTab === 'report' ? p.report_default : activeTab === 'blog' ? p.blog_default : p.youtube_default;
                             return (
-                            <div key={p.id} className={cn(
-                                "group relative p-4 rounded-2xl border transition-all",
-                                isDefault ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5"
-                            )}>
+                            <div
+                                key={p.id}
+                                onClick={() => handleSetDefaultPrompt(p.id)}
+                                className={cn(
+                                    "group relative p-4 rounded-2xl border transition-all cursor-pointer",
+                                    isDefault ? "bg-primary/5 border-primary/20 ring-1 ring-primary/10" : "bg-slate-50 dark:bg-black/10 border-slate-100 dark:border-primary/5 hover:border-primary/30"
+                                )}
+                            >
                                 <div className="flex justify-between items-start mb-2">
-                                    <button
-                                        onClick={() => handleSetDefaultPrompt(p.id)}
-                                        className="text-left"
-                                    >
+                                    <div className="text-left">
                                         <div className="flex items-center gap-2">
                                             <span className={cn("text-sm font-bold", isDefault ? "text-primary" : "text-slate-900 dark:text-slate-100")}>
                                                 {p.name}
@@ -341,8 +442,8 @@ export default function GeminiSettingsPage() {
                                                 <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-bold">DEFAULT</span>
                                             )}
                                         </div>
-                                    </button>
-                                    <div className="flex items-center gap-1">
+                                    </div>
+                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                         <button onClick={() => startEditPrompt(p)} className="text-slate-400 hover:text-primary p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors">
                                             <span className="material-symbols-outlined text-sm">edit</span>
                                         </button>

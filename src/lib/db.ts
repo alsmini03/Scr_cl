@@ -8,8 +8,7 @@ import { marked } from 'marked';
 import { gfmHeadingId } from "marked-gfm-heading-id";
 import { query } from './pg';
 import { randomUUID } from "node:crypto";
-import { resolveBondwebPdfUrl } from './utils';
-import { extractYoutube, extractReport } from './extract-service';
+import { extractYoutube, extractReport, extractBlogSummary } from './extract-service';
 
 // Configure marked
 marked.use(gfmHeadingId());
@@ -91,17 +90,19 @@ export async function getReports(prefetchedUser?: any, includeContent: boolean =
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model"
-      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model";
+      ? "id, title, author, institution, date, url, summary, content, user_id, added_at, is_liked, gemini_model, item_name, item_code"
+      : "id, title, author, institution, date, url, summary, user_id, added_at, is_liked, gemini_model, item_name, item_code";
     const res = await query(
       `SELECT ${columns} FROM reports WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
   } catch (error: any) {
-    if (error.message.includes('column "gemini_model" does not exist')) {
+    if (error.message.includes('column "gemini_model" does not exist') || error.message.includes('column "item_name" does not exist') || error.message.includes('column "item_code" does not exist')) {
         try {
             await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_name TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_code TEXT");
             return getReports(prefetchedUser, includeContent);
         } catch (mErr) {
             console.error('Migration failed:', mErr);
@@ -120,6 +121,8 @@ export async function saveReport(report: {
   url?: string;
   content?: string;
   summary?: string;
+  itemName?: string;
+  itemCode?: string;
 }): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const user = await ensureApproved();
@@ -127,16 +130,18 @@ export async function saveReport(report: {
     const addedAt = new Date().toISOString();
 
     await query(
-      "INSERT INTO reports (id, title, author, institution, date, url, content, summary, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-      [id, report.title, report.author, report.institution, report.date, report.url, report.content, report.summary, user.email || user.id, addedAt]
+      "INSERT INTO reports (id, title, author, institution, date, url, content, summary, user_id, added_at, item_name, item_code) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+      [id, report.title, report.author, report.institution, report.date, report.url, report.content, report.summary, user.email || user.id, addedAt, report.itemName || null, report.itemCode || null]
     );
 
     safeRevalidate('/report');
     safeRevalidate('/saved');
     return { success: true, id };
   } catch (error: any) {
-    if (error.message.includes('column "gemini_model" does not exist')) {
+    if (error.message.includes('column "item_name" does not exist') || error.message.includes('column "item_code" does not exist') || error.message.includes('column "gemini_model" does not exist')) {
         try {
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_name TEXT");
+            await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS item_code TEXT");
             await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
             return saveReport(report);
         } catch (mErr) {
@@ -177,6 +182,62 @@ export async function deleteReport(id: string): Promise<{ success: boolean; erro
   }
 }
 
+export async function processBlogSummaryAction(blogId: string) {
+  try {
+    const user = await ensureApproved();
+
+    const blog = await getBlogById(blogId);
+    if (!blog) throw new Error('블로그 글을 찾을 수 없습니다.');
+
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+    const selectedModel = models.find(m => m.blog_default)?.name || models[0]?.name || "gemini-1.5-flash";
+    const selectedPrompt = prompts.find(p => p.blog_default)?.content || prompts[0]?.content;
+
+    const activeKey = await getActiveGeminiKey();
+    if (!activeKey) {
+      const keyIndex = await getGeminiKeyPreference();
+      throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
+    }
+
+    let summary = '';
+    try {
+      summary = await extractBlogSummary(blog.content || '', activeKey, selectedModel, selectedPrompt);
+      await checkAndRotateGeminiKeyIfNeeded(summary);
+    } catch (aiErr: any) {
+      await checkAndRotateGeminiKeyIfNeeded(aiErr.message || String(aiErr));
+      throw aiErr;
+    }
+
+    try {
+      await query(
+        "UPDATE naver_blogs SET summary = $1, gemini_model = $2 WHERE id = $3",
+        [summary, selectedModel, blogId]
+      );
+    } catch (dbErr: any) {
+      if (dbErr.message.includes('column "summary" does not exist') || dbErr.message.includes('column "gemini_model" does not exist')) {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        await query(
+          "UPDATE naver_blogs SET summary = $1, gemini_model = $2 WHERE id = $3",
+          [summary, selectedModel, blogId]
+        );
+      } else {
+        throw dbErr;
+      }
+    }
+
+    safeRevalidate('/blog');
+    safeRevalidate(`/blog/${blogId}`);
+    safeRevalidate('/saved');
+
+    return { success: true, summary, model: selectedModel };
+  } catch (error: any) {
+    console.error('processBlogSummaryAction error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function processYoutubeSummaryImmediatelyAction(id: string) {
   try {
     const user = await ensureApproved();
@@ -207,6 +268,9 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
     // 5. Extract immediately
     const data = await extractYoutube(video.url, activeKey, selectedModel, selectedPrompt);
     const summary = data.summary;
+
+    // Check for rotation in successful summary text
+    await checkAndRotateGeminiKeyIfNeeded(summary);
 
     // 6. Update video record
     try {
@@ -240,6 +304,8 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
     return { success: true, summary };
   } catch (error: any) {
     console.error('processYoutubeSummaryImmediatelyAction error:', error);
+    // Check for rotation in error message
+    await checkAndRotateGeminiKeyIfNeeded(error.message || String(error));
     // Mark queue item as failed if it exists
     await query(
         "UPDATE gemini_queue SET status = 'failed', error_message = $1 WHERE target_id = $2 AND type = 'youtube'",
@@ -252,12 +318,18 @@ export async function processYoutubeSummaryImmediatelyAction(id: string) {
 /**
  * Gemini API Key Preference management
  */
-export async function getGeminiKeyPreference(): Promise<number> {
+export async function getGeminiKeyPreference(userId?: string): Promise<number> {
   try {
-    const user = await getSessionUser();
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await getSessionUser();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
     const res = await query(
       "SELECT gemini_key_index FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
-      [user.id, user.email, user.email?.toLowerCase()]
+      [targetId, targetEmail, targetEmail?.toLowerCase()]
     );
     return res.rows[0]?.gemini_key_index || 1;
   } catch (error: any) {
@@ -274,8 +346,8 @@ export async function getGeminiKeyPreference(): Promise<number> {
   }
 }
 
-export async function getActiveGeminiKey(): Promise<string | undefined> {
-    const keyIndex = await getGeminiKeyPreference();
+export async function getActiveGeminiKey(userId?: string): Promise<string | undefined> {
+    const keyIndex = await getGeminiKeyPreference(userId);
     const activeKey =
         keyIndex === 5 ? process.env.GEMINI_API_KEY_5 :
         keyIndex === 4 ? process.env.GEMINI_API_KEY_4 :
@@ -285,13 +357,19 @@ export async function getActiveGeminiKey(): Promise<string | undefined> {
     return activeKey;
 }
 
-export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ success: boolean; error?: string }> {
+export async function updateGeminiKeyPreferenceAction(index: number, userId?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await ensureApproved();
-    const email = user.email?.toLowerCase();
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await ensureApproved();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
+    const email = targetEmail?.toLowerCase();
     const res = await query(
       "UPDATE users SET gemini_key_index = $1 WHERE id = $2 OR LOWER(email) = $3",
-      [index, user.id, email]
+      [index, targetId, email]
     );
 
     if (res.rowCount === 0) {
@@ -302,6 +380,139 @@ export async function updateGeminiKeyPreferenceAction(index: number): Promise<{ 
   } catch (error: any) {
     console.error('updateGeminiKeyPreferenceAction error:', error);
     return { success: false, error: error.message || '데이터베이스 오류' };
+  }
+}
+
+export async function getGeminiKeyRotationSettings(userId?: string): Promise<{ gemini_key_change_phrases: string; gemini_key_change_direction: 'asc' | 'desc' }> {
+  try {
+    let targetId = userId;
+    let targetEmail = userId;
+    if (!targetId) {
+      const user = await getSessionUser();
+      targetId = user.id;
+      targetEmail = user.email;
+    }
+    const res = await query(
+      "SELECT gemini_key_change_phrases, gemini_key_change_direction FROM users WHERE id = $1 OR email = $2 OR LOWER(email) = $3",
+      [targetId, targetEmail, targetEmail?.toLowerCase()]
+    );
+    if (res.rows.length === 0) {
+      return { gemini_key_change_phrases: '', gemini_key_change_direction: 'asc' };
+    }
+    return {
+      gemini_key_change_phrases: res.rows[0].gemini_key_change_phrases || '',
+      gemini_key_change_direction: res.rows[0].gemini_key_change_direction || 'asc',
+    };
+  } catch (error: any) {
+    if (
+      error.message.includes('column "gemini_key_change_phrases" does not exist') ||
+      error.message.includes('column "gemini_key_change_direction" does not exist')
+    ) {
+      try {
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_phrases TEXT");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_direction TEXT DEFAULT 'asc'");
+        return getGeminiKeyRotationSettings(userId);
+      } catch (mErr) {
+        console.error('Migration for rotation settings failed:', mErr);
+      }
+    }
+    console.error('getGeminiKeyRotationSettings error:', error);
+    return { gemini_key_change_phrases: '', gemini_key_change_direction: 'asc' };
+  }
+}
+
+export async function updateGeminiKeyRotationSettingsAction(
+  phrases: string,
+  direction: 'asc' | 'desc'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await ensureApproved();
+    const email = user.email?.toLowerCase();
+
+    let res;
+    try {
+      res = await query(
+        "UPDATE users SET gemini_key_change_phrases = $1, gemini_key_change_direction = $2 WHERE id = $3 OR LOWER(email) = $4",
+        [phrases, direction, user.id, email]
+      );
+    } catch (error: any) {
+      if (
+        error.message.includes('column "gemini_key_change_phrases" does not exist') ||
+        error.message.includes('column "gemini_key_change_direction" does not exist')
+      ) {
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_phrases TEXT");
+        await query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gemini_key_change_direction TEXT DEFAULT 'asc'");
+        res = await query(
+          "UPDATE users SET gemini_key_change_phrases = $1, gemini_key_change_direction = $2 WHERE id = $3 OR LOWER(email) = $4",
+          [phrases, direction, user.id, email]
+        );
+      } else {
+        throw error;
+      }
+    }
+
+    if (res.rowCount === 0) {
+      throw new Error('사용자 정보를 찾을 수 없거나 업데이트에 실패했습니다.');
+    }
+
+    safeRevalidate('/settings/gemini');
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateGeminiKeyRotationSettingsAction error:', error);
+    return { success: false, error: error.message || '데이터베이스 오류' };
+  }
+}
+
+export async function checkAndRotateGeminiKeyIfNeeded(errorOrText: string, userId?: string): Promise<{ rotated: boolean; newIndex?: number }> {
+  try {
+    if (!errorOrText) return { rotated: false };
+
+    // Get current settings
+    const settings = await getGeminiKeyRotationSettings(userId);
+    if (!settings.gemini_key_change_phrases) {
+      return { rotated: false };
+    }
+
+    // Split phrases by newline, clean empty lines and trim
+    const phrases = settings.gemini_key_change_phrases
+      .split('\n')
+      .map(p => p.trim())
+      .filter(p => p.length > 0);
+
+    if (phrases.length === 0) {
+      return { rotated: false };
+    }
+
+    // Check if any phrase is included in errorOrText (case-insensitive)
+    const lowerInput = errorOrText.toLowerCase();
+    const isMatched = phrases.some(phrase => lowerInput.includes(phrase.toLowerCase()));
+
+    if (!isMatched) {
+      return { rotated: false };
+    }
+
+    // Matched! Now calculate the next key index
+    const currentIndex = await getGeminiKeyPreference(userId);
+    const direction = settings.gemini_key_change_direction || 'asc';
+    let nextIndex = currentIndex;
+
+    if (direction === 'asc') {
+      // 1 -> 2 -> 3 -> 4 -> 5 -> 1
+      nextIndex = currentIndex >= 5 ? 1 : currentIndex + 1;
+    } else {
+      // 5 -> 4 -> 3 -> 2 -> 1 -> 5
+      nextIndex = currentIndex <= 1 ? 5 : currentIndex - 1;
+    }
+
+    console.log(`Gemini API key rotation triggered: matching phrase found. Rotating from ${currentIndex} to ${nextIndex} (Direction: ${direction}) for user ${userId || 'session_user'}`);
+
+    // Save the new preference
+    await updateGeminiKeyPreferenceAction(nextIndex, userId);
+
+    return { rotated: true, newIndex: nextIndex };
+  } catch (error) {
+    console.error('checkAndRotateGeminiKeyIfNeeded error:', error);
+    return { rotated: false };
   }
 }
 
@@ -360,6 +571,9 @@ export async function processQueueItemManuallyAction(id: string) {
           summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
       }
 
+      // Check for rotation in successful summary text
+      await checkAndRotateGeminiKeyIfNeeded(summary, item.user_id);
+
       // Update target table
       if (type === 'youtube') {
         try {
@@ -393,6 +607,8 @@ export async function processQueueItemManuallyAction(id: string) {
       result = { success: true };
     } catch (err: any) {
       console.error('Manual processing error:', err);
+      // Check for rotation in error message
+      await checkAndRotateGeminiKeyIfNeeded(err.message || String(err), item.user_id);
       const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
@@ -414,45 +630,17 @@ export async function processQueueItemManuallyAction(id: string) {
 
 export async function getResolvedReportUrlAction(params: { fileId?: string, fileNum?: string, url?: string }): Promise<string | null> {
   try {
-    if (params.fileId && params.fileNum) {
-      const directUrl = await resolveBondwebPdfUrl(params.fileId, params.fileNum);
-      if (directUrl) return directUrl;
-    }
-
     if (params.url) {
-      // If it's already a direct Data link
-      if (params.url.includes('/Data/')) return params.url;
-
-      // If it's a download proxy link
       if (params.url.includes('/api/report/download')) {
         const urlObj = new URL(params.url, 'http://localhost');
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
         const encodedUrl = urlObj.searchParams.get('url');
-
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
-        }
-
         if (encodedUrl) {
           return decodeURIComponent(encodedUrl);
         }
       }
-
-      // If it's a standard Bondweb download link
-      if (params.url.includes('DownloadPage.asp')) {
-        const urlObj = new URL(params.url);
-        const number = urlObj.searchParams.get('number');
-        const gn = urlObj.searchParams.get('gn');
-        if (number && gn) {
-          const directUrl = await resolveBondwebPdfUrl(number, gn);
-          if (directUrl) return directUrl;
-        }
-      }
+      return params.url;
     }
-
-    return params.url || null;
+    return null;
   } catch (e) {
     console.error('getResolvedReportUrlAction error:', e);
     return params.url || null;
@@ -662,6 +850,7 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
           tocHtml += `<li style="margin-bottom: 8px;"><a href="#${itemId}" style="color: #1978e5; text-decoration: none; font-size: 14px;">${i + 1}. [Blog] ${blog.title}</a></li>`;
         }
 
+        const blogSummaryHtml = blog.summary ? await marked.parse(blog.summary) : '';
         const savedDate = blog.added_at ? new Date(blog.added_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
         htmlContent += `
           <div id="${itemId}" style="margin-bottom: 40px; border: 1px solid #eee; border-radius: 12px; overflow: hidden; background: #fff;">
@@ -672,8 +861,16 @@ export async function sendBatchEmailAction(items: { type: 'youtube' | 'blog' | '
             <div style="padding: 20px;">
               <p style="margin: 0 0 15px 0; font-size: 13px; color: #666; line-height: 1.6;">
                 <b>작성자:</b> ${blog.author || '알 수 없음'} | <b>원본 URL:</b> <a href="${blog.url}" style="color: #1978e5; text-decoration: none;">${blog.url}</a><br>
-                <b>저장일자:</b> ${savedDate}
+                ${blog.gemini_model ? `<b>AI 모델:</b> <span style="display: inline-block; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: bold; padding: 1px 6px; border-radius: 4px; margin: 1px 0;">${blog.gemini_model}</span> | ` : ''}<b>저장일자:</b> ${savedDate}
               </p>
+
+              ${blogSummaryHtml ? `
+              <div style="padding: 15px; border-radius: 8px; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1978e5;">AI 요약 분석</h3>
+                <div style="font-size: 14px; color: #444; line-height: 1.6;">${blogSummaryHtml}</div>
+              </div>
+              ` : ''}
+
               <div style="font-size: 14px; color: #333; line-height: 1.7; white-space: pre-wrap;">${blog.content}</div>
             </div>
           </div>
@@ -789,10 +986,35 @@ export async function addBlogTab(name: string, url: string): Promise<{ success: 
 export async function getReportTabs(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
       [user.id, user.email]
     );
+
+    // If user has no tabs or has legacy bondweb tabs, initialize/migrate with Naver Stock Research default tabs
+    const defaultNaverTabs = [
+      { id: 'tab-company', name: '종목분석', url: 'company', position: 0 },
+      { id: 'tab-industry', name: '산업분석', url: 'industry', position: 1 },
+      { id: 'tab-market', name: '시황정보', url: 'market', position: 2 },
+      { id: 'tab-invest', name: '투자전략', url: 'invest', position: 3 },
+      { id: 'tab-economy', name: '경제분석', url: 'economy', position: 4 },
+      { id: 'tab-debenture', name: '채권분석', url: 'debenture', position: 5 },
+    ];
+
+    if (res.rows.length === 0 || res.rows.some((t: any) => t.url.includes('bondweb.co.kr'))) {
+      await query("DELETE FROM report_tabs WHERE user_id = $1 OR user_id = $2", [user.id, user.email]);
+      for (const tab of defaultNaverTabs) {
+        await query(
+          "INSERT INTO report_tabs (id, user_id, name, url, position, created_at) VALUES ($1, $2, $3, $4, $5, $6)",
+          [randomUUID(), user.email || user.id, tab.name, tab.url, tab.position, new Date().toISOString()]
+        );
+      }
+      res = await query(
+        "SELECT * FROM report_tabs WHERE user_id = $1 OR user_id = $2 ORDER BY position ASC, created_at ASC",
+        [user.id, user.email]
+      );
+    }
+
     return res.rows;
   } catch (error) {
     console.error('getReportTabs error:', error);
@@ -960,20 +1182,58 @@ export async function saveBlog(blog: {
   thumbnail?: string;
   content?: string;
   published_at?: string;
-}): Promise<{ success: boolean; id?: string; error?: string }> {
+  summary?: string;
+  gemini_model?: string;
+  includeAi?: boolean;
+}): Promise<{ success: boolean; id?: string; error?: string; summary?: string; gemini_model?: string }> {
   try {
     const user = await ensureApproved();
     const id = randomUUID();
     const addedAt = new Date().toISOString();
 
-    await query(
-      "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-      [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt]
-    );
+    let summary = blog.summary || '';
+    let geminiModel = blog.gemini_model || '';
+
+    if (blog.includeAi && blog.content) {
+      const models = await getGeminiModels();
+      const prompts = await getGeminiPrompts();
+      const selectedModel = models.find(m => m.blog_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      const selectedPrompt = prompts.find(p => p.blog_default)?.content || prompts[0]?.content;
+      const activeKey = await getActiveGeminiKey();
+
+      if (activeKey) {
+        try {
+          summary = await extractBlogSummary(blog.content, activeKey, selectedModel, selectedPrompt);
+          geminiModel = selectedModel;
+          await checkAndRotateGeminiKeyIfNeeded(summary);
+        } catch (aiErr: any) {
+          console.error('saveBlog AI summary error:', aiErr);
+          await checkAndRotateGeminiKeyIfNeeded(aiErr.message || String(aiErr));
+        }
+      }
+    }
+
+    try {
+      await query(
+        "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at, summary, gemini_model) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt, summary || null, geminiModel || null]
+      );
+    } catch (dbErr: any) {
+      if (dbErr.message.includes('column "summary" does not exist') || dbErr.message.includes('column "gemini_model" does not exist')) {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        await query(
+          "INSERT INTO naver_blogs (id, title, author, url, thumbnail, content, published_at, user_id, added_at, summary, gemini_model) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+          [id, blog.title, blog.author, blog.url, blog.thumbnail, blog.content, blog.published_at, user.email || user.id, addedAt, summary || null, geminiModel || null]
+        );
+      } else {
+        throw dbErr;
+      }
+    }
 
     safeRevalidate('/blog');
     safeRevalidate('/saved');
-    return { success: true, id };
+    return { success: true, id, summary, gemini_model: geminiModel };
   } catch (error: any) {
     console.error('Failed to save blog:', error);
     return { success: false, error: error.message || '블로그 정보를 저장하는 중 오류가 발생했습니다.' };
@@ -984,14 +1244,23 @@ export async function getBlogs(prefetchedUser?: any, includeContent: boolean = f
   try {
     const user = await getSessionUser(prefetchedUser);
     const columns = includeContent
-      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked"
-      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked";
+      ? "id, title, author, url, thumbnail, content, published_at, user_id, added_at, is_liked, summary, gemini_model"
+      : "id, title, author, url, thumbnail, published_at, user_id, added_at, is_liked, summary, gemini_model";
     const res = await query(
       `SELECT ${columns} FROM naver_blogs WHERE user_id = $1 OR user_id = $2 ORDER BY added_at DESC`,
       [user.id, user.email]
     );
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "summary" does not exist') || error.message.includes('column "gemini_model" does not exist')) {
+      try {
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS summary TEXT");
+        await query("ALTER TABLE naver_blogs ADD COLUMN IF NOT EXISTS gemini_model TEXT");
+        return getBlogs(prefetchedUser, includeContent);
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getBlogs error:', error);
     return [];
   }
@@ -1060,12 +1329,31 @@ export async function updateYoutubeVideo(id: string, video: {
 export async function getGeminiModels(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
       [user.id, user.email]
     );
+    if (res.rows.length > 0 && res.rows[0].blog_default === undefined) {
+      try {
+        await query("ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        res = await query(
+          "SELECT * FROM gemini_models WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+          [user.id, user.email]
+        );
+      } catch (e) {
+        console.error('Migration for blog_default in gemini_models failed:', e);
+      }
+    }
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "blog_default" does not exist')) {
+      try {
+        await query("ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        return getGeminiModels();
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getGeminiModels error:', error);
     return [];
   }
@@ -1182,10 +1470,27 @@ export async function updateGeminiPrompt(id: string, name: string, content: stri
 export async function setDefaultGeminiModel(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const column = category === 'report' ? 'report_default' : 'youtube_default';
-    await query(`UPDATE gemini_models SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+    const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
+
+    try {
+      await query(`ALTER TABLE gemini_models ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
+    } catch (e) {
+      console.error(`Migration for ${column} in gemini_models failed:`, e);
+    }
+
+    await query(
+      `UPDATE gemini_models SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3 OR user_id IS NOT NULL`,
+      [user.id, user.email, user.email?.toLowerCase()]
+    );
+
+    await query(
+      `UPDATE gemini_models SET ${column} = TRUE WHERE id = $1`,
+      [id]
+    );
+
     return { success: true };
   } catch (error: any) {
+    console.error('setDefaultGeminiModel error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -1193,12 +1498,31 @@ export async function setDefaultGeminiModel(id: string, category: string = 'yout
 export async function getGeminiPrompts(): Promise<any[]> {
   try {
     const user = await getSessionUser();
-    const res = await query(
+    let res = await query(
       "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
       [user.id, user.email]
     );
+    if (res.rows.length > 0 && res.rows[0].blog_default === undefined) {
+      try {
+        await query("ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        res = await query(
+          "SELECT * FROM gemini_prompts WHERE (user_id = $1 OR user_id = $2) ORDER BY created_at ASC",
+          [user.id, user.email]
+        );
+      } catch (e) {
+        console.error('Migration for blog_default in gemini_prompts failed:', e);
+      }
+    }
     return res.rows;
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message.includes('column "blog_default" does not exist')) {
+      try {
+        await query("ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS blog_default BOOLEAN DEFAULT FALSE");
+        return getGeminiPrompts();
+      } catch (mErr) {
+        console.error('Migration failed:', mErr);
+      }
+    }
     console.error('getGeminiPrompts error:', error);
     return [];
   }
@@ -1231,10 +1555,27 @@ export async function deleteGeminiPrompt(id: string): Promise<{ success: boolean
 export async function setDefaultGeminiPrompt(id: string, category: string = 'youtube'): Promise<{ success: boolean; error?: string }> {
   try {
     const user = await ensureApproved();
-    const column = category === 'report' ? 'report_default' : 'youtube_default';
-    await query(`UPDATE gemini_prompts SET ${column} = (id = $1) WHERE (user_id = $2 OR user_id = $3)`, [id, user.id, user.email]);
+    const column = category === 'report' ? 'report_default' : category === 'blog' ? 'blog_default' : 'youtube_default';
+
+    try {
+      await query(`ALTER TABLE gemini_prompts ADD COLUMN IF NOT EXISTS ${column} BOOLEAN DEFAULT FALSE`);
+    } catch (e) {
+      console.error(`Migration for ${column} in gemini_prompts failed:`, e);
+    }
+
+    await query(
+      `UPDATE gemini_prompts SET ${column} = FALSE WHERE user_id = $1 OR user_id = $2 OR LOWER(user_id) = $3 OR user_id IS NOT NULL`,
+      [user.id, user.email, user.email?.toLowerCase()]
+    );
+
+    await query(
+      `UPDATE gemini_prompts SET ${column} = TRUE WHERE id = $1`,
+      [id]
+    );
+
     return { success: true };
   } catch (error: any) {
+    console.error('setDefaultGeminiPrompt error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -1481,7 +1822,7 @@ export async function getYoutubeVideos(prefetchedUser?: any, includeContent: boo
   }
 }
 
-export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const currentVideo = await getYoutubeVideoById(id);
@@ -1491,19 +1832,21 @@ export async function getAdjacentYoutubeVideoIdsAction(id: string): Promise<{ pr
 
     // Prev (Newer in list)
     const prevRes = await query(
-      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older in list)
     const nextRes = await query(
-      "SELECT id FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM youtube_videos WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentYoutubeVideoIdsAction error:', error);
@@ -1546,7 +1889,7 @@ export async function toggleLikeAction(type: 'youtube' | 'blog' | 'report' | 'bo
   }
 }
 
-export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const current = await getBlogById(id);
@@ -1556,19 +1899,21 @@ export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: s
 
     // Prev (Newer)
     const prevRes = await query(
-      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older)
     const nextRes = await query(
-      "SELECT id FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM naver_blogs WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentBlogIdsAction error:', error);
@@ -1576,7 +1921,7 @@ export async function getAdjacentBlogIdsAction(id: string): Promise<{ prevId?: s
   }
 }
 
-export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?: string; nextId?: string }> {
+export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?: string; prevTitle?: string; nextId?: string; nextTitle?: string }> {
   try {
     const user = await getSessionUser();
     const current = await getReportById(id);
@@ -1586,19 +1931,21 @@ export async function getAdjacentReportIdsAction(id: string): Promise<{ prevId?:
 
     // Prev (Newer)
     const prevRes = await query(
-      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
+      "SELECT id, title FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at > $3 ORDER BY added_at ASC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     // Next (Older)
     const nextRes = await query(
-      "SELECT id FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
+      "SELECT id, title FROM reports WHERE (user_id = $1 OR user_id = $2) AND added_at < $3 ORDER BY added_at DESC LIMIT 1",
       [user.id, user.email, addedAt]
     );
 
     return {
       prevId: prevRes.rows[0]?.id,
-      nextId: nextRes.rows[0]?.id
+      prevTitle: prevRes.rows[0]?.title,
+      nextId: nextRes.rows[0]?.id,
+      nextTitle: nextRes.rows[0]?.title
     };
   } catch (error) {
     console.error('getAdjacentReportIdsAction error:', error);
@@ -1767,10 +2114,27 @@ export async function processNextQueueItemAction() {
         throw new Error(`사용 가능한 제미나이 API 키(${keyIndex}번)가 설정되지 않았습니다.`);
     }
 
-    // Mark as processing
+    // Always fetch latest model and prompt configurations
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = item.payload.model;
+    let activePrompt = item.payload.prompt;
+
+    if (item.type === 'report') {
+      activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+      activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
+    const updatedPayload = { ...item.payload, model: activeModel, prompt: activePrompt };
+
+    // Mark as processing with refreshed payload
     await query(
-      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP WHERE id = $1",
-      [item.id]
+      "UPDATE gemini_queue SET status = 'processing', last_processed_at = CURRENT_TIMESTAMP, payload = $1 WHERE id = $2",
+      [JSON.stringify(updatedPayload), item.id]
     );
 
     let result;
@@ -1779,31 +2143,34 @@ export async function processNextQueueItemAction() {
       let summary = '';
 
       if (type === 'youtube') {
-          const data = await extractYoutube(payload.url, activeKey, payload.model, payload.prompt);
+          const data = await extractYoutube(payload.url, activeKey, activeModel, activePrompt);
           summary = data.summary;
       } else {
-          summary = await extractReport(payload.url, activeKey, payload.model, payload.prompt);
+          summary = await extractReport(payload.url, activeKey, activeModel, activePrompt);
       }
+
+      // Check for rotation in successful summary text
+      await checkAndRotateGeminiKeyIfNeeded(summary, item.user_id);
 
       // Update target table
       if (type === 'youtube') {
         try {
-            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         } catch (dbErr: any) {
             if (dbErr.message.includes('column "gemini_model" does not exist')) {
                 await query("ALTER TABLE youtube_videos ADD COLUMN IF NOT EXISTS gemini_model TEXT");
-                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+                await query("UPDATE youtube_videos SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
             } else throw dbErr;
         }
         safeRevalidate('/youtube');
         safeRevalidate(`/youtube/${target_id}`);
       } else {
         try {
-            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+            await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
         } catch (dbErr: any) {
             if (dbErr.message.includes('column "gemini_model" does not exist')) {
                 await query("ALTER TABLE reports ADD COLUMN IF NOT EXISTS gemini_model TEXT");
-                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, payload.model, target_id]);
+                await query("UPDATE reports SET summary = $1, gemini_model = $2 WHERE id = $3", [summary, activeModel, target_id]);
             } else throw dbErr;
         }
         safeRevalidate('/report');
@@ -1818,6 +2185,8 @@ export async function processNextQueueItemAction() {
       result = { success: true };
     } catch (err: any) {
       console.error('Queue processing error:', err);
+      // Check for rotation in error message
+      await checkAndRotateGeminiKeyIfNeeded(err.message || String(err), item.user_id);
       const fullError = err.stack || err.message || String(err);
       // Mark as failed and increment retry count
       await query(
@@ -1840,6 +2209,21 @@ export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId
   try {
     const user = await ensureApproved();
 
+    // Get latest Gemini settings
+    const models = await getGeminiModels();
+    const prompts = await getGeminiPrompts();
+
+    let activeModel = '';
+    let activePrompt = '';
+
+    if (type === 'report') {
+      activeModel = models.find(m => m.report_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.report_default)?.content || prompts[0]?.content;
+    } else {
+      activeModel = models.find(m => m.youtube_default)?.name || models[0]?.name || "gemini-1.5-flash";
+      activePrompt = prompts.find(p => p.youtube_default)?.content || prompts[0]?.content;
+    }
+
     // Check if task exists in queue
     const taskRes = await query(
       "SELECT id FROM gemini_queue WHERE (user_id = $1 OR user_id = $2) AND type = $3 AND target_id = $4",
@@ -1847,10 +2231,13 @@ export async function retryGeminiTaskAction(type: 'youtube' | 'report', targetId
     );
 
     if (taskRes.rows.length > 0) {
-      // Reset existing task
+      const existingTask = taskRes.rows[0];
+      const updatedPayload = { ...existingTask.payload, model: activeModel, prompt: activePrompt };
+
+      // Reset existing task with updated model and prompt
       await query(
-        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL WHERE id = $1",
-        [taskRes.rows[0].id]
+        "UPDATE gemini_queue SET status = 'pending', retry_count = 0, error_message = NULL, last_processed_at = NULL, payload = $1 WHERE id = $2",
+        [JSON.stringify(updatedPayload), existingTask.id]
       );
     } else {
       // Create new task if missing (need to find payload from target)

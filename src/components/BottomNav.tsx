@@ -19,7 +19,10 @@ export default function BottomNav({ activeTab }: BottomNavProps) {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-safe pt-2">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-primary/10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 pb-safe pt-2"
+      style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }}
+    >
       <div className="flex gap-1 max-w-lg mx-auto">
         {/* Yes24 */}
         <Link
