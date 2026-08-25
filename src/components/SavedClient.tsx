@@ -562,11 +562,11 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
               <span className="material-symbols-outlined text-red-500 text-sm shrink-0" title="AI 요약 실패">error</span>
             )}
           </h3>
-          <div className="flex flex-col gap-0.5">
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate min-w-0">
               {item.author || item.institution || ''}
             </p>
-            <span className="text-[10px] text-slate-400">{item.date || formatDateToYMD(item.added_at)}</span>
+            <span className="text-[10px] text-slate-400 shrink-0">{item.date || formatDateToYMD(item.added_at)}</span>
           </div>
         </div>
 
