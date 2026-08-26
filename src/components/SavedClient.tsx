@@ -513,7 +513,6 @@ const SavedItem = memo(({ item, isEditMode, isSelected, hasError, onPointerDown,
       >
         {item.type === 'youtube' && item.thumbnail ? (
           <div className="relative shrink-0 w-32 aspect-video rounded-lg overflow-hidden border border-slate-100 dark:border-primary/5 bg-slate-100 dark:bg-slate-800">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.thumbnail}
               alt=""
