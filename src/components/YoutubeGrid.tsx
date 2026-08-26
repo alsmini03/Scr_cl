@@ -93,7 +93,6 @@ export default function YoutubeGrid({
                 "aspect-video relative overflow-hidden rounded-xl",
                 viewMode === '1' ? "w-36 shrink-0" : "w-full"
               )}>
-                 {/* eslint-disable-next-line @next/next/no-img-element */}
                  <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
                  <div className="absolute bottom-1.5 right-1.5 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                    {video.duration}

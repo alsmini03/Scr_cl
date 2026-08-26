@@ -151,7 +151,6 @@ export default function ProfilePage() {
         <section className="flex flex-col items-center gap-4 py-10 border-t border-slate-100 dark:border-white/5 opacity-80">
           <div className="relative">
             {session?.user?.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={session.user.image}
                 alt={session.user.name || "User"}

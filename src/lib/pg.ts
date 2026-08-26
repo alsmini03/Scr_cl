@@ -20,6 +20,9 @@ const pool = new Pool({
 export default pool;
 
 export async function query(text: string, params?: any[]) {
+  if (!DATABASE_URL) {
+    return { rows: [], rowCount: 0 };
+  }
   const start = Date.now();
   const res = await pool.query(text, params);
   const duration = Date.now() - start;

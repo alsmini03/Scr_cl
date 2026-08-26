@@ -454,7 +454,6 @@ export default function YoutubeDetailPage() {
         )}
 
         <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-lg border border-slate-100 dark:border-primary/10">
-           {/* eslint-disable-next-line @next/next/no-img-element */}
            <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover" />
         </div>
 
