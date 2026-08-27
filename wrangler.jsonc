@@ -9,5 +9,12 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "scrap-cloudflare-db",
+      "database_id": "8ccce703-3a48-464e-a4db-2028805c77b5"
+    }
+  ]
 }
