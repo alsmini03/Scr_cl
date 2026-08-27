@@ -13,6 +13,7 @@
     "@auth/pg-adapter": "^1.11.1",
     "@eslint/eslintrc": "^3.3.5",
     "@google/generative-ai": "^0.24.1",
+    "@opennextjs/cloudflare": "^1.20.4",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/typography": "^0.5.19",
@@ -35,7 +36,8 @@
     "rehype-raw": "^7.0.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "wrangler": "^4.127.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -47,7 +49,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.1.9",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.126.0"
+    "typescript": "^5"
   }
 }
