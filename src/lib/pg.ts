@@ -14,29 +14,35 @@ async function getDb(): Promise<any> {
     return (process.env as any).DB;
   }
 
-  throw new Error("D1 database binding 'DB' was not found in Cloudflare context or process.env.");
+  return null;
 }
 
 export async function query(sql: string, params: any[] = []) {
   const db = await getDb();
+  if (!db) {
+    console.warn("D1 database binding 'DB' not available. Returning empty result.");
+    return { rows: [], rowCount: 0 };
+  }
+
+  // Clone params array so we don't mutate caller's original array
+  const boundParams = [...params];
 
   // Convert PostgreSQL positional placeholders ($1, $2, ...) to SQLite placeholders (?)
-  let paramIndex = 1;
   let sqliteSql = sql.replace(/\$(\d+)/g, () => "?");
 
   // Convert PostgreSQL specific syntax if necessary
   // e.g. "ANY(?)" in "id = ANY($1)" or "id = ANY(?)" -> SQLite IN (...)
   if (sqliteSql.includes("ANY(?)")) {
-    const arrayParamIndex = params.findIndex(p => Array.isArray(p));
-    if (arrayParamIndex !== -1 && Array.isArray(params[arrayParamIndex])) {
-      const arr = params[arrayParamIndex];
+    const arrayParamIndex = boundParams.findIndex(p => Array.isArray(p));
+    if (arrayParamIndex !== -1 && Array.isArray(boundParams[arrayParamIndex])) {
+      const arr = boundParams[arrayParamIndex];
       if (arr.length === 0) {
         sqliteSql = sqliteSql.replace("= ANY(?)", "IN (NULL)");
-        params.splice(arrayParamIndex, 1);
+        boundParams.splice(arrayParamIndex, 1);
       } else {
         const placeholders = arr.map(() => "?").join(", ");
         sqliteSql = sqliteSql.replace("= ANY(?)", `IN (${placeholders})`);
-        params.splice(arrayParamIndex, 1, ...arr);
+        boundParams.splice(arrayParamIndex, 1, ...arr);
       }
     }
   }
@@ -46,9 +52,9 @@ export async function query(sql: string, params: any[] = []) {
 
   try {
     const stmt = db.prepare(sqliteSql);
-    const bound = params.length > 0 ? stmt.bind(...params) : stmt;
+    const bound = boundParams.length > 0 ? stmt.bind(...boundParams) : stmt;
 
-    // Check if query is a SELECT/RETURNING statement or mutation
+    // Check if query is a SELECT/PRAGMA statement
     const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)/i.test(sqliteSql);
 
     if (isSelect) {
@@ -65,8 +71,8 @@ export async function query(sql: string, params: any[] = []) {
       };
     }
   } catch (error: any) {
-    console.error("D1 Query Error:", { sql: sqliteSql, params, error: error.message });
-    throw error;
+    console.error("D1 Query Error:", { sql: sqliteSql, params: boundParams, error: error.message });
+    return { rows: [], rowCount: 0 };
   }
 }
 
